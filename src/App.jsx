@@ -265,7 +265,7 @@ function App() {
                         }}
                         placeholder="Add a new task..."
                         className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
-                          ${index >= 5 ? 'text-gray-200 placeholder-gray-200' : 'text-gray-500'}`}
+                          ${index >= 5 ? 'text-gray-200 placeholder-white' : 'text-gray-500'}`}
                       />
                     </form>
                   </div>
