@@ -166,12 +166,14 @@ function App() {
       [day]: prev[day].filter(task => task.id !== taskId)
     }));
   };
-
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://my-todo-app-tau-eight.vercel.app/auth/v1/callback'
+        queryParams: {
+          prompt: 'select_account',
+        },
+        redirectTo: 'https://my-todo-app-tau-eight.vercel.app'
       }
     });
     if (error) console.error('Error logging in:', error);
