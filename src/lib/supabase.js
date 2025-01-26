@@ -8,6 +8,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    redirectTo: 'https://my-todo-app-tau-eight.vercel.app/auth/v1/callback'
+    flowType: 'pkce',
   }
 })
