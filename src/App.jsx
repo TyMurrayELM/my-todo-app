@@ -171,13 +171,11 @@ function App() {
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
+      options: {
+        redirectTo: 'https://my-todo-app-tau-eight.vercel.app/auth/v1/callback'
+      }
     });
     if (error) console.error('Error logging in:', error);
-  };
-
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error('Error logging out:', error);
   };
 
   // Login Screen
