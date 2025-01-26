@@ -167,7 +167,6 @@ function App() {
     }));
   };
 
-  // Authentication Functions
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -176,6 +175,11 @@ function App() {
       }
     });
     if (error) console.error('Error logging in:', error);
+  };
+  
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Error logging out:', error);
   };
 
   // Login Screen
