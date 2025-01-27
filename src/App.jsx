@@ -81,7 +81,7 @@ function App() {
   };
 
   const formatDate = (date) => {
-    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()} — ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}am`;
+    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
   };
 
   const getBackgroundColor = (index) => {
