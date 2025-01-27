@@ -222,18 +222,13 @@ function App() {
           onClick={async () => {
             const newDate = new Date(currentDate);
             newDate.setDate(currentDate.getDate() - 1);
-            await Promise.all([
-              new Promise(resolve => {
-                setCurrentDate(newDate);
-                setDays(() => {
-                  const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-                  const newIndex = newDate.getDay();
-                  return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
-                });
-                setSelectedDay(0);
-                resolve();
-              })
-            ]);
+            setCurrentDate(newDate);
+            setDays(() => {
+              const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+              const newIndex = newDate.getDay();
+              return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+            });
+            setSelectedDay(0);
             await fetchTodos();
           }}
           className="absolute left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
@@ -243,7 +238,7 @@ function App() {
         <button 
           onClick={async () => {
             const newDate = new Date(currentDate);
-            newDate.setDate(currentDate.getDate() - 1);
+            newDate.setDate(currentDate.getDate() + 1);
             setCurrentDate(newDate);
             setDays(() => {
               const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
