@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -169,6 +169,36 @@ function App() {
     setTimeout(() => {
       setIsNavigating(false);
     }, 50);
+  };
+
+  const moveTask = async (taskId, fromDay, toDay) => {
+    // Get the next day's date
+    const fromDayIndex = days.indexOf(fromDay);
+    const nextDate = getDateForDay(fromDayIndex + 1).toISOString().split('T')[0];
+    
+    // Update the task in Supabase
+    const { error } = await supabase
+      .from('todos')
+      .update({ 
+        day: toDay,
+        actual_date: nextDate 
+      })
+      .eq('id', taskId);
+  
+    if (error) {
+      console.error('Error moving todo:', error);
+      return;
+    }
+  
+    // Update local state
+    setTasks(prev => {
+      const task = prev[fromDay].find(t => t.id === taskId);
+      return {
+        ...prev,
+        [fromDay]: prev[fromDay].filter(t => t.id !== taskId),
+        [toDay]: [...prev[toDay], { ...task, actual_date: nextDate }]
+      };
+    });
   };
 
   const addTask = async (e, day) => {
@@ -344,33 +374,48 @@ function App() {
                       {formatDate(getDateForDay(index))}
                     </p>
                     <div className="space-y-3">
-                      {tasks[day].map(task => (
-                        <div key={task.id} className="group flex items-start gap-3">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleTask(task.id, day);
-                            }}
-                            className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
-                              ${task.completed ? 'bg-green-500 border-green-500' : index >= 4 ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
-                          >
-                            {task.completed && <Check size={16} className="text-white" />}
-                          </button>
-                          <span className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
-                            index >= 4 ? 'text-white' : 'text-gray-700'}`}>
-                            {task.text}
-                          </span>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteTask(task.id, day);
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-200"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ))}
+                    {tasks[day].map(task => (
+  <div key={task.id} className="group flex items-start gap-3">
+    <button 
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleTask(task.id, day);
+      }}
+      className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
+        ${task.completed ? 'bg-green-500 border-green-500' : index >= 4 ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
+    >
+      {task.completed && <Check size={16} className="text-white" />}
+    </button>
+    <span className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
+      index >= 4 ? 'text-white' : 'text-gray-700'}`}>
+      {task.text}
+    </span>
+    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      {index < 6 && (
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            const nextDayIndex = (days.indexOf(day) + 1) % 7;
+            moveTask(task.id, day, days[nextDayIndex]);
+          }}
+          className="text-gray-400 hover:text-gray-200"
+          title="Move to next day"
+        >
+          <SkipForward size={16} />
+        </button>
+      )}
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteTask(task.id, day);
+        }}
+        className="text-gray-400 hover:text-gray-200"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  </div>
+))}
                       <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => e.stopPropagation()}>
                         <input
                           type="text"
