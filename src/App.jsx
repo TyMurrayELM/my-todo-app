@@ -233,7 +233,7 @@ function App() {
                             toggleTask(task.id, day);
                           }}
                           className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
-                            ${task.completed ? 'bg-orange-500 border-orange-500' : 'border-gray-300 hover:border-orange-500'}`}
+                            ${task.completed ? 'bg-orange-500 border-orange-500' : 'border-black hover:border-orange-500'}`}
                         >
                           {task.completed && <Check size={16} className="text-white" />}
                         </button>
