@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Check, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -6,6 +6,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isNavigating, setIsNavigating] = useState(false);
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -24,22 +25,10 @@ function App() {
   
   const [newTask, setNewTask] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchTodos();
-    });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchTodos();
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  async function fetchTodos() {
+  const fetchTodos = useCallback(async () => {
+    if (!session || isNavigating) return;
+    
     setIsLoading(true);
     const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
     const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
@@ -80,7 +69,27 @@ function App() {
   
     setTasks(todosByDay);
     setIsLoading(false);
-  }
+  }, [session, currentDate, isNavigating]);
+
+  // Handle auth state
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Handle data fetching on session or date change
+  useEffect(() => {
+    if (session) {
+      fetchTodos();
+    }
+  }, [session, currentDate, fetchTodos]);
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
@@ -103,6 +112,25 @@ function App() {
       'bg-amber-700'
     ];
     return colors[index];
+  };
+
+  const handleNavigation = async (direction) => {
+    setIsNavigating(true);
+    const newDate = new Date(currentDate);
+    newDate.setDate(currentDate.getDate() + direction);
+
+    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const newIndex = newDate.getDay();
+    const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+
+    setCurrentDate(newDate);
+    setDays(newDays);
+    setSelectedDay(0);
+    
+    // Small delay to ensure state updates are processed
+    setTimeout(() => {
+      setIsNavigating(false);
+    }, 50);
   };
 
   const addTask = async (e, day) => {
@@ -219,47 +247,15 @@ function App() {
           Sign Out
         </button>
         <button 
-          onClick={async () => {
-            const newDate = new Date(currentDate);
-            newDate.setDate(currentDate.getDate() - 1);
-            
-            const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-            const newIndex = newDate.getDay();
-            const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
-            
-            await Promise.all([
-              new Promise(resolve => {
-                setCurrentDate(newDate);
-                setDays(newDays);
-                setSelectedDay(0);
-                resolve();
-              })
-            ]);
-            await fetchTodos();
-          }}
+          onClick={() => handleNavigation(-1)}
+          disabled={isNavigating}
           className="absolute left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           <ArrowLeft size={20} />
         </button>
         <button 
-          onClick={async () => {
-            const newDate = new Date(currentDate);
-            newDate.setDate(currentDate.getDate() + 1);
-            
-            const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-            const newIndex = newDate.getDay();
-            const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
-            
-            await Promise.all([
-              new Promise(resolve => {
-                setCurrentDate(newDate);
-                setDays(newDays);
-                setSelectedDay(0);
-                resolve();
-              })
-            ]);
-            await fetchTodos();
-          }}
+          onClick={() => handleNavigation(1)}
+          disabled={isNavigating}
           className="absolute left-12 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           <ArrowRight size={20} />
