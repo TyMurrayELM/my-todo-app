@@ -242,7 +242,7 @@ function App() {
                           {task.completed && <Check size={16} className="text-white" />}
                         </button>
                         <span className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
-                          index >= 5 ? 'text-gray-200' : 'text-gray-700'}`}>
+                          index >= 4 ? 'text-white' : 'text-gray-700'}`}>
                           {task.text}
                         </span>
                         <button 
