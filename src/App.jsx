@@ -207,12 +207,12 @@ function App() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
         <div className="absolute top-0 right-0 p-8 z-50">
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Sign Out
-          </button>
+        <button
+  onClick={handleLogout}
+  className="fixed top-4 right-4 text-sm text-gray-500 hover:text-gray-700 p-4 z-50"
+>
+  Sign Out
+</button>
         </div>
         <div className="divide-y divide-gray-200">
           {days.map((day, index) => (
