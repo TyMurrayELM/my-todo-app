@@ -7,6 +7,7 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isNavigating, setIsNavigating] = useState(false);
+  const [colorTheme, setColorTheme] = useState('amber');
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -25,6 +26,57 @@ function App() {
   
   const [newTask, setNewTask] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const getBackgroundColor = (index) => {
+    const themes = {
+      amber: [
+        'bg-amber-100',
+        'bg-amber-200',
+        'bg-amber-300',
+        'bg-amber-400',
+        'bg-amber-500',
+        'bg-amber-600',
+        'bg-amber-700'
+      ],
+      blue: [
+        'bg-blue-100',
+        'bg-blue-200',
+        'bg-blue-300',
+        'bg-blue-400',
+        'bg-blue-500',
+        'bg-blue-600',
+        'bg-blue-700'
+      ],
+      green: [
+        'bg-green-100',
+        'bg-green-200',
+        'bg-green-300',
+        'bg-green-400',
+        'bg-green-500',
+        'bg-green-600',
+        'bg-green-700'
+      ],
+      purple: [
+        'bg-purple-100',
+        'bg-purple-200',
+        'bg-purple-300',
+        'bg-purple-400',
+        'bg-purple-500',
+        'bg-purple-600',
+        'bg-purple-700'
+      ],
+      pink: [
+        'bg-pink-100',
+        'bg-pink-200',
+        'bg-pink-300',
+        'bg-pink-400',
+        'bg-pink-500',
+        'bg-pink-600',
+        'bg-pink-700'
+      ]
+    };
+    return themes[colorTheme][index];
+  };
 
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
@@ -97,19 +149,6 @@ function App() {
 
   const formatDate = (date) => {
     return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
-  };
-
-  const getBackgroundColor = (index) => {
-    const colors = [
-      'bg-amber-100',
-      'bg-amber-200',
-      'bg-amber-300',
-      'bg-amber-400',
-      'bg-amber-500',
-      'bg-amber-600',
-      'bg-amber-700'
-    ];
-    return colors[index];
   };
 
   const handleNavigation = async (direction) => {
@@ -239,6 +278,7 @@ function App() {
       {/* Fixed navigation header */}
       <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
         <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
+          {/* Left side - arrows */}
           <div className="flex space-x-2">
             <button 
               onClick={() => handleNavigation(-1)}
@@ -255,6 +295,21 @@ function App() {
               <ArrowRight size={20} />
             </button>
           </div>
+
+          {/* Center - theme selector */}
+          <select 
+            value={colorTheme}
+            onChange={(e) => setColorTheme(e.target.value)}
+            className="text-sm border rounded px-2 py-1 text-gray-700 bg-white"
+          >
+            <option value="amber">Amber</option>
+            <option value="blue">Blue</option>
+            <option value="green">Green</option>
+            <option value="purple">Purple</option>
+            <option value="pink">Pink</option>
+          </select>
+
+          {/* Right side - sign out */}
           <button
             onClick={handleLogout}
             className="text-gray-500 hover:text-gray-700"
