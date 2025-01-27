@@ -41,16 +41,15 @@ function App() {
  const [isLoading, setIsLoading] = useState(false);
 
  async function fetchTodos() {
-   setIsLoading(true);
-   const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
-   const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
- 
-   const { data, error } = await supabase
-     .from('todos')
-     .select('*')
-     .gte('actual_date', startOfWeek)
-     .lte('actual_date', endOfWeek)
-     .order('created_at');
+  const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
+  const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('todos')
+    .select('*')
+    .gte('actual_date', startOfWeek)
+    .lte('actual_date', endOfWeek)
+    .order('created_at');
  
    if (error) {
      console.error('Error fetching todos:', error);
@@ -84,10 +83,10 @@ function App() {
  }
 
  const getDateForDay = (dayIndex) => {
-   const date = new Date(currentDate);
-   date.setDate(currentDate.getDate() + dayIndex);
-   return date;
- };
+  const date = new Date(currentDate);
+  date.setDate(currentDate.getDate() + dayIndex);
+  return date;
+};
 
  const formatDate = (date) => {
    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
