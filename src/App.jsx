@@ -219,18 +219,18 @@ function App() {
          Sign Out
        </button>
        <button 
-  onClick={async () => {
-    const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() - 1);
-    setCurrentDate(newDate);
-    setDays(() => {
-      const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-      const newIndex = newDate.getDay();
-      return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
-    });
-    setSelectedDay(0);
-    await fetchTodos(); // Wait for fetch to complete
-  }}
+onClick={async () => {
+  const newDate = new Date(currentDate);
+  newDate.setDate(currentDate.getDate() - 1);
+  setDays(() => {
+    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const newIndex = newDate.getDay();
+    return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+  });
+  setSelectedDay(0);
+  setCurrentDate(newDate);  // Moved this after setDays
+  await fetchTodos();
+}}
   className="absolute left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
 >
   <ArrowLeft size={20} />
