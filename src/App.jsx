@@ -235,93 +235,104 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden mt-8">
-        <button
-          onClick={handleLogout}
-          className="fixed right-4 top-4 text-gray-500 hover:text-gray-700 z-50"
-        >
-          Sign Out
-        </button>
-        <button 
-          onClick={() => handleNavigation(-1)}
-          disabled={isNavigating}
-          className="fixed left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <button 
-          onClick={() => handleNavigation(1)}
-          disabled={isNavigating}
-          className="fixed left-12 top-4 text-gray-500 hover:text-gray-700 z-50"
-        >
-          <ArrowRight size={20} />
-        </button>
-        <div className="divide-y divide-gray-200">
-          {days.map((day, index) => (
-            <div 
-              key={day}
-              onClick={() => setSelectedDay(index)}
-              className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer
-                ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
+    <div className="min-h-screen bg-gray-50">
+      {/* Fixed navigation header */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
+        <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => handleNavigation(-1)}
+              disabled={isNavigating}
+              className="text-gray-500 hover:text-gray-700"
             >
-              <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'}`}>
-                {day}
-              </h2>
-              {index === selectedDay && (
-                <>
-                  <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
-                    {formatDate(getDateForDay(index))}
-                  </p>
-                  <div className="space-y-3">
-                    {tasks[day].map(task => (
-                      <div key={task.id} className="group flex items-start gap-3">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleTask(task.id, day);
+              <ArrowLeft size={20} />
+            </button>
+            <button 
+              onClick={() => handleNavigation(1)}
+              disabled={isNavigating}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="pt-16 px-4">
+        <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
+          <div className="divide-y divide-gray-200">
+            {days.map((day, index) => (
+              <div 
+                key={day}
+                onClick={() => setSelectedDay(index)}
+                className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer
+                  ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
+              >
+                <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'}`}>
+                  {day}
+                </h2>
+                {index === selectedDay && (
+                  <>
+                    <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
+                      {formatDate(getDateForDay(index))}
+                    </p>
+                    <div className="space-y-3">
+                      {tasks[day].map(task => (
+                        <div key={task.id} className="group flex items-start gap-3">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleTask(task.id, day);
+                            }}
+                            className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
+                              ${task.completed ? 'bg-green-500 border-green-500' : index >= 4 ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
+                          >
+                            {task.completed && <Check size={16} className="text-white" />}
+                          </button>
+                          <span className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
+                            index >= 4 ? 'text-white' : 'text-gray-700'}`}>
+                            {task.text}
+                          </span>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteTask(task.id, day);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-200"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={newTask}
+                          onChange={(e) => setNewTask(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addTask(e, day);
+                            }
                           }}
-                          className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
-                            ${task.completed ? 'bg-green-500 border-green-500' : index >= 4 ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
-                        >
-                          {task.completed && <Check size={16} className="text-white" />}
-                        </button>
-                        <span className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
-                          index >= 4 ? 'text-white' : 'text-gray-700'}`}>
-                          {task.text}
-                        </span>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteTask(task.id, day);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-gray-400 hover:text-gray-200"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ))}
-                    <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => e.stopPropagation()}>
-                      <input
-                        type="text"
-                        value={newTask}
-                        onChange={(e) => setNewTask(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addTask(e, day);
-                          }
-                        }}
-                        placeholder="Add a new task..."
-                        className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
-                          ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`}
-                      />
-                    </form>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                          placeholder="Add a new task..."
+                          className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
+                            ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`}
+                        />
+                      </form>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
