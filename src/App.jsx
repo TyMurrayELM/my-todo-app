@@ -41,6 +41,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   async function fetchTodos() {
+    setIsLoading(true);
     const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
     const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
 
@@ -222,6 +223,7 @@ function App() {
           onClick={async () => {
             const newDate = new Date(currentDate);
             newDate.setDate(currentDate.getDate() - 1);
+            
             setCurrentDate(newDate);
             setDays(() => {
               const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -229,7 +231,10 @@ function App() {
               return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
             });
             setSelectedDay(0);
-            await fetchTodos();
+            
+            setTimeout(async () => {
+              await fetchTodos();
+            }, 100);
           }}
           className="absolute left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
@@ -239,6 +244,7 @@ function App() {
           onClick={async () => {
             const newDate = new Date(currentDate);
             newDate.setDate(currentDate.getDate() + 1);
+            
             setCurrentDate(newDate);
             setDays(() => {
               const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
@@ -246,7 +252,10 @@ function App() {
               return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
             });
             setSelectedDay(0);
-            await fetchTodos();
+            
+            setTimeout(async () => {
+              await fetchTodos();
+            }, 100);
           }}
           className="absolute left-12 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
