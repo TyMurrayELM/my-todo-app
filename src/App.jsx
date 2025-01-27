@@ -208,8 +208,7 @@ function App() {
       <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
       <button
   onClick={handleLogout}
-  onTouchStart={handleLogout}
-  className="absolute top-4 right-8 text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+  className="absolute top-4 right-8 text-sm text-gray-500 hover:text-gray-700 p-4 touch-manipulation z-50"
 >
   Sign Out
 </button>
