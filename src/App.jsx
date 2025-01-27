@@ -208,7 +208,7 @@ function App() {
       <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
         <button
           onClick={handleLogout}
-          className="absolute top-4 right-4 text-sm text-gray-500 hover:text-gray-700"
+          className="absolute top-4 right-8 text-sm text-gray-500 hover:text-gray-700"
         >
           Sign Out
         </button>
