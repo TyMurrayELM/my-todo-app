@@ -398,7 +398,7 @@ function App() {
             const nextDayIndex = (days.indexOf(day) + 1) % 7;
             moveTask(task.id, day, days[nextDayIndex]);
           }}
-          className="text-gray-400 hover:text-gray-200"
+          className="text-gray-400 hover:text-white"
           title="Move to next day"
         >
           <SkipForward size={16} />
@@ -409,7 +409,7 @@ function App() {
           e.stopPropagation();
           deleteTask(task.id, day);
         }}
-        className="text-gray-400 hover:text-gray-200"
+        className="text-gray-400 hover:text-red"
       >
         <X size={16} />
       </button>
