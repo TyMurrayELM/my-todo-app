@@ -38,22 +38,26 @@ function App() {
    return () => subscription.unsubscribe();
  }, []);
 
+ const [isLoading, setIsLoading] = useState(false);
+
  async function fetchTodos() {
+   setIsLoading(true);
    const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
    const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
-
+ 
    const { data, error } = await supabase
      .from('todos')
      .select('*')
      .gte('actual_date', startOfWeek)
      .lte('actual_date', endOfWeek)
      .order('created_at');
-
+ 
    if (error) {
      console.error('Error fetching todos:', error);
+     setIsLoading(false);
      return;
    }
-
+ 
    const todosByDay = {
      SUNDAY: [],
      MONDAY: [],
@@ -63,7 +67,7 @@ function App() {
      FRIDAY: [],
      SATURDAY: [],
    };
-
+ 
    data.forEach(todo => {
      if (todosByDay[todo.day]) {
        todosByDay[todo.day].push({
@@ -74,8 +78,9 @@ function App() {
        });
      }
    });
-
+ 
    setTasks(todosByDay);
+   setIsLoading(false);
  }
 
  const getDateForDay = (dayIndex) => {
