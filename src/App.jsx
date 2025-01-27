@@ -249,7 +249,7 @@ function App() {
         <button 
           onClick={() => handleNavigation(-1)}
           disabled={isNavigating}
-          className="absolute left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
+          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           <ArrowLeft size={20} />
         </button>
