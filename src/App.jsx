@@ -92,7 +92,7 @@ function App() {
       'bg-amber-400',
       'bg-amber-500',
       'bg-amber-600',
-      'bg-amber-700'
+      'bg-yellow-700'
     ];
     return colors[index];
   };
