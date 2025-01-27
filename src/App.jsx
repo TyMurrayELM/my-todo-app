@@ -239,7 +239,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden mt-16"> {/* Added mt-16 for top margin */}
+      <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden mt-8"> {/* Added mt-16 for top margin */}
         <button
           onClick={handleLogout}
           className="fixed top-4 right-4 text-sm text-gray-500 hover:text-gray-700 p-4 z-50"
