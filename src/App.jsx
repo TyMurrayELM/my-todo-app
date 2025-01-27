@@ -7,7 +7,9 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isNavigating, setIsNavigating] = useState(false);
-  const [colorTheme, setColorTheme] = useState('amber');
+  const [colorTheme, setColorTheme] = useState(() => {
+    return localStorage.getItem('todoTheme') || 'amber';
+  });
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -299,7 +301,10 @@ function App() {
           {/* Center - theme selector */}
           <select 
             value={colorTheme}
-            onChange={(e) => setColorTheme(e.target.value)}
+            onChange={(e) => {
+              setColorTheme(e.target.value);
+              localStorage.setItem('todoTheme', e.target.value);
+            }}
             className="text-sm border rounded px-2 py-1 text-gray-700 bg-white"
           >
             <option value="amber">Amber</option>
