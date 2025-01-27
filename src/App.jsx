@@ -5,18 +5,22 @@ import { supabase } from './lib/supabase';
 function App() {
   const [session, setSession] = useState(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [tasks, setTasks] = useState({
-    SUNDAY: [],
-    MONDAY: [],
-    TUESDAY: [],
-    WEDNESDAY: [],
-    THURSDAY: [],
-    FRIDAY: [],
-    SATURDAY: [],
+  const getCurrentDayIndex = () => {
+    const today = new Date().getDay();
+    return today;
+  };
+  
+  const [days, setDays] = useState(() => {
+    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const currentIndex = getCurrentDayIndex();
+    return [...baseArray.slice(currentIndex), ...baseArray.slice(0, currentIndex)];
   });
-  const [newTask, setNewTask] = useState('');
 
-  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  const [tasks, setTasks] = useState(() => {
+    return days.reduce((acc, day) => ({...acc, [day]: []}), {});
+  });
+  
+  const [newTask, setNewTask] = useState('');
   
   // Auth and Data Fetching
   useEffect(() => {
