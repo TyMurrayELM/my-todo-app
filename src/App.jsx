@@ -221,7 +221,7 @@ function App() {
               </h2>
               {index === selectedDay && (
                 <>
-                  <p className={`text-sm mb-4 ${index >= 5 ? 'text-gray-300' : 'text-gray-500'}`}>
+                  <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
                     {formatDate(getDateForDay(index))}
                   </p>
                   <div className="space-y-3">
@@ -265,7 +265,7 @@ function App() {
                         }}
                         placeholder="Add a new task..."
                         className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
-                          ${index >= 5 ? 'text-white placeholder-white' : 'text-gray-500'}`}
+                          ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`}
                       />
                     </form>
                   </div>
