@@ -71,7 +71,6 @@ function App() {
     setIsLoading(false);
   }, [session, currentDate, isNavigating]);
 
-  // Handle auth state
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -84,7 +83,6 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Handle data fetching on session or date change
   useEffect(() => {
     if (session) {
       fetchTodos();
@@ -127,7 +125,6 @@ function App() {
     setDays(newDays);
     setSelectedDay(0);
     
-    // Small delay to ensure state updates are processed
     setTimeout(() => {
       setIsNavigating(false);
     }, 50);
@@ -239,24 +236,24 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden mt-8"> {/* Added mt-16 for top margin */}
+      <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden mt-8">
         <button
           onClick={handleLogout}
-          className="fixed top-4 right-4 text-sm text-gray-500 hover:text-gray-700 p-4 z-50"
+          className="fixed right-4 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           Sign Out
         </button>
         <button 
           onClick={() => handleNavigation(-1)}
           disabled={isNavigating}
-          className="absolute right-4 top-4 text-gray-500 hover:text-gray-700 z-50"
+          className="fixed left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           <ArrowLeft size={20} />
         </button>
         <button 
           onClick={() => handleNavigation(1)}
           disabled={isNavigating}
-          className="absolute left-12 top-4 text-gray-500 hover:text-gray-700 z-50"
+          className="fixed left-12 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           <ArrowRight size={20} />
         </button>
