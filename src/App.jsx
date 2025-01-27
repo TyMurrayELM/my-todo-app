@@ -24,13 +24,6 @@ function App() {
   
   const [newTask, setNewTask] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    console.log('currentDate changed:', currentDate);
-    if (session) {
-      fetchTodos();
-    }
-  }, [currentDate]);
   
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,11 +40,9 @@ function App() {
   }, []);
 
   async function fetchTodos() {
-    console.log('Fetching todos for date:', currentDate);
     setIsLoading(true);
     const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
     const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
-    console.log('Date range:', startOfWeek, 'to', endOfWeek);
 
     const { data, error } = await supabase
       .from('todos')
@@ -65,8 +56,6 @@ function App() {
       setIsLoading(false);
       return;
     }
-
-    console.log('Fetched data:', data);
   
     const todosByDay = {
       SUNDAY: [],
@@ -88,8 +77,7 @@ function App() {
         });
       }
     });
-
-    console.log('Organized todos:', todosByDay);
+  
     setTasks(todosByDay);
     setIsLoading(false);
   }
@@ -231,36 +219,46 @@ function App() {
           Sign Out
         </button>
         <button 
-          onClick={() => {
+          onClick={async () => {
             const newDate = new Date(currentDate);
             newDate.setDate(currentDate.getDate() - 1);
-            console.log('Back arrow clicked, new date:', newDate);
-            console.log('Current tasks before update:', tasks);
-            setCurrentDate(newDate);
-            setDays(() => {
-              const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-              const newIndex = newDate.getDay();
-              return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
-            });
-            setSelectedDay(0);
+            
+            const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+            const newIndex = newDate.getDay();
+            const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+            
+            await Promise.all([
+              new Promise(resolve => {
+                setCurrentDate(newDate);
+                setDays(newDays);
+                setSelectedDay(0);
+                resolve();
+              })
+            ]);
+            await fetchTodos();
           }}
           className="absolute left-4 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
           <ArrowLeft size={20} />
         </button>
         <button 
-          onClick={() => {
+          onClick={async () => {
             const newDate = new Date(currentDate);
             newDate.setDate(currentDate.getDate() + 1);
-            console.log('Forward arrow clicked, new date:', newDate);
-            console.log('Current tasks before update:', tasks);
-            setCurrentDate(newDate);
-            setDays(() => {
-              const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-              const newIndex = newDate.getDay();
-              return [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
-            });
-            setSelectedDay(0);
+            
+            const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+            const newIndex = newDate.getDay();
+            const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+            
+            await Promise.all([
+              new Promise(resolve => {
+                setCurrentDate(newDate);
+                setDays(newDays);
+                setSelectedDay(0);
+                resolve();
+              })
+            ]);
+            await fetchTodos();
           }}
           className="absolute left-12 top-4 text-gray-500 hover:text-gray-700 z-50"
         >
