@@ -480,7 +480,7 @@ function App() {
           e.stopPropagation();
           deleteTask(task.id, day);
         }}
-        className="text-gray-400 hover:text-white"
+        className="text-gray-400 hover:text-red"
       >
         <X size={16} />
       </button>
