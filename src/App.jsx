@@ -80,26 +80,24 @@ function App() {
     return themes[colorTheme][index];
   };
 
-  onst fetchTodos = useCallback(async () => {
+  const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
     
     setIsLoading(true);
     
-    // Get start of day for proper date comparison
-    const getDateWithoutTime = (date) => {
-      const d = new Date(date);
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
-
-    const startOfWeek = getDateWithoutTime(getDateForDay(0)).toISOString().split('T')[0];
-    const endOfWeek = getDateWithoutTime(getDateForDay(6)).toISOString().split('T')[0] + 'T23:59:59.999Z';
-
+    // Get precise date range for the week
+    const start = getDateForDay(0);
+    const end = getDateForDay(6);
+    end.setHours(23, 59, 59, 999); // Set to end of day
+  
+    const startStr = start.toISOString();
+    const endStr = end.toISOString();
+  
     const { data, error } = await supabase
       .from('todos')
       .select('*')
-      .gte('actual_date', startOfWeek)
-      .lte('actual_date', endOfWeek)
+      .gte('actual_date', startStr)
+      .lte('actual_date', endStr)
       .order('created_at');
   
     if (error) {
@@ -153,6 +151,7 @@ function App() {
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
+    date.setHours(0, 0, 0, 0); // Set to start of day
     date.setDate(currentDate.getDate() + dayIndex);
     return date;
   };
@@ -212,7 +211,8 @@ function App() {
   const addTask = async (e, day) => {
     e.preventDefault();
     if (newTask.trim()) {
-      const actualDate = getDateForDay(days.indexOf(day)).toISOString().split('T')[0];
+      const taskDate = getDateForDay(days.indexOf(day));
+      const actualDate = taskDate.toISOString();
       
       const { data, error } = await supabase
         .from('todos')
@@ -227,12 +227,12 @@ function App() {
         ])
         .select()
         .single();
-
+  
       if (error) {
         console.error('Error adding todo:', error);
         return;
       }
-
+  
       setTasks(prev => ({
         ...prev,
         [day]: [...prev[day], { id: data.id, text: data.text, completed: false }]
