@@ -400,9 +400,12 @@ function App() {
                 className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer
                   ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
               >
-                <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'}`}>
-                  {day}
-                </h2>
+               <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'} flex items-center gap-2`}>
+                 {day}
+                 {tasks[day].length > 0 && tasks[day].every(task => task.completed) && (
+                    <Check size={20} className="text-green-500" />
+                )}
+              </h2>
                 {index === selectedDay && (
                   <>
                     <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
