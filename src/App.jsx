@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -279,6 +279,38 @@ function App() {
     }));
   };
 
+  // Add the repeatTask function HERE
+  const repeatTask = async (task, day) => {
+    // Get current day index
+    const currentDayIndex = days.indexOf(day);
+    
+    // Create an array of promises for future days only
+    const promises = days.slice(currentDayIndex + 1).map(async (targetDay) => {
+      const targetDate = getDateForDay(days.indexOf(targetDay)).toISOString();
+      
+      const { error } = await supabase
+        .from('todos')
+        .insert([{
+          user_id: session.user.id,
+          text: task.text,
+          day: targetDay,
+          actual_date: targetDate,
+          completed: false
+        }]);
+
+      if (error) {
+        console.error('Error repeating todo:', error);
+        return;
+      }
+    });
+
+    // Wait for all inserts to complete
+    await Promise.all(promises);
+    
+    // Refresh the tasks to show the new items
+    fetchTodos();
+  };
+
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
   
@@ -461,30 +493,40 @@ function App() {
   </span>
 )}
 
-    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-      {index < 6 && (
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            const nextDayIndex = (days.indexOf(day) + 1) % 7;
-            moveTask(task.id, day, days[nextDayIndex]);
-          }}
-          className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-white`}
-          title="Move to next day"
-        >
-          <SkipForward size={16} />
-        </button>
-      )}
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteTask(task.id, day);
-        }}
-        className="text-gray-400 hover:text-red-500"
-      >
-        <X size={16} />
-      </button>
-    </div>
+<div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+  <button 
+    onClick={(e) => {
+      e.stopPropagation();
+      repeatTask(task, day);
+    }}
+    className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-white`}
+    title="Repeat for future days"
+  >
+    <Repeat size={16} />
+  </button>
+  {index < 6 && (
+    <button 
+      onClick={(e) => {
+        e.stopPropagation();
+        const nextDayIndex = (days.indexOf(day) + 1) % 7;
+        moveTask(task.id, day, days[nextDayIndex]);
+      }}
+      className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-white`}
+      title="Move to next day"
+    >
+      <SkipForward size={16} />
+    </button>
+  )}
+  <button 
+    onClick={(e) => {
+      e.stopPropagation();
+      deleteTask(task.id, day);
+    }}
+    className="text-gray-400 hover:text-red-500"
+  >
+    <X size={16} />
+  </button>
+</div>
   </div>
 ))}
                       <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => e.stopPropagation()}>
