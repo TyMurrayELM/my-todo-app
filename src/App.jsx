@@ -27,6 +27,8 @@ function App() {
   });
   
   const [newTask, setNewTask] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskText, setEditingTaskText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const getBackgroundColor = (index) => {
@@ -277,6 +279,31 @@ function App() {
     }));
   };
 
+  const updateTaskText = async (taskId, day, newText) => {
+    if (!newText.trim()) return;
+  
+    const { error } = await supabase
+      .from('todos')
+      .update({ text: newText.trim() })
+      .eq('id', taskId);
+  
+    if (error) {
+      console.error('Error updating todo:', error);
+      return;
+    }
+  
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task => 
+        task.id === taskId 
+          ? { ...task, text: newText.trim() }
+          : task
+      )
+    }));
+    setEditingTaskId(null);
+    setEditingTaskText('');
+  };
+
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -394,10 +421,41 @@ function App() {
     >
       {task.completed && <Check size={16} className="text-white" />}
     </button>
-    <span className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
-      index >= 4 ? 'text-white' : 'text-gray-700'}`}>
-      {task.text}
-    </span>
+
+    {editingTaskId === task.id ? (
+  <input
+    type="text"
+    value={editingTaskText}
+    onChange={(e) => setEditingTaskText(e.target.value)}
+    onBlur={() => updateTaskText(task.id, day, editingTaskText)}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') {
+        updateTaskText(task.id, day, editingTaskText);
+      } else if (e.key === 'Escape') {
+        setEditingTaskId(null);
+        setEditingTaskText('');
+      }
+    }}
+    className={`flex-grow bg-transparent border-none focus:outline-none ${
+      index >= 4 ? 'text-white' : 'text-gray-700'
+    }`}
+    onClick={(e) => e.stopPropagation()}
+    autoFocus
+  />
+) : (
+  <span 
+    className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
+      index >= 4 ? 'text-white' : 'text-gray-700'}`}
+    onClick={(e) => {
+      e.stopPropagation();
+      setEditingTaskId(task.id);
+      setEditingTaskText(task.text);
+    }}
+  >
+    {task.text}
+  </span>
+)}
+
     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
       {index < 6 && (
         <button 
