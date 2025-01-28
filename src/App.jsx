@@ -409,7 +409,9 @@ function App() {
                       {formatDate(getDateForDay(index))}
                     </p>
                     <div className="space-y-3">
-                    {tasks[day].map(task => (
+                    {tasks[day]
+                      .sort((a, b) => b.completed - a.completed) // This sorts completed tasks first
+                       .map(task => (
   <div key={task.id} className="group flex items-start gap-3">
     <button 
       onClick={(e) => {
