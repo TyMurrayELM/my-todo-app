@@ -550,15 +550,15 @@ function App() {
       <SkipForward size={16} />
     </button>
   )}
-  <button 
-    onClick={(e) => {
-      e.stopPropagation();
-      deleteTask(task.id, day);
-    }}
-    className="text-gray-400 hover:text-red-500"
-  >
-    <X size={16} />
-  </button>
+<button 
+  onClick={(e) => {
+    e.stopPropagation();
+    deleteTask(task.id, day, task);
+  }}
+  className="text-gray-400 hover:text-red-500"
+>
+  <X size={16} />
+</button>
 </div>
   </div>
 ))}
