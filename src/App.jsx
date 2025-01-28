@@ -263,22 +263,48 @@ function App() {
     setTasks(updatedTasks);
   };
 
-  const deleteTask = async (taskId, day) => {
+  const deleteTask = async (taskId, day, task) => {
+    if (task.recurring) {
+      // Delete this and all future recurring instances
+      await deleteRecurringTasks(task.text, day);
+    } else {
+      // Delete just this task
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', taskId);
+  
+      if (error) {
+        console.error('Error deleting todo:', error);
+        return;
+      }
+    }
+  
+    // Refresh the tasks
+    fetchTodos();
+  };
+
+  const deleteRecurringTasks = async (text, currentDay) => {
+    // Get current day index
+    const currentDayIndex = days.indexOf(currentDay);
+    
+    // Get date range for future days
+    const startDate = getDateForDay(currentDayIndex).toISOString();
+  
+    // Delete all future tasks with the same text that are marked as recurring
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('id', taskId);
-
+      .eq('text', text)
+      .eq('recurring', true)
+      .gte('actual_date', startDate);
+  
     if (error) {
-      console.error('Error deleting todo:', error);
+      console.error('Error deleting recurring todos:', error);
       return;
     }
-
-    setTasks(prev => ({
-      ...prev,
-      [day]: prev[day].filter(task => task.id !== taskId)
-    }));
   };
+
 
   // Add the repeatTask function HERE
   const repeatTask = async (task, day) => {
