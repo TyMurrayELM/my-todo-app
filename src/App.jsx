@@ -401,10 +401,10 @@ function App() {
                   ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
               >
                <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'} flex items-center gap-2`}>
-                 {day}
-                 {tasks[day].length > 0 && tasks[day].every(task => task.completed) && (
-                    <Check size={20} className="text-green-500" />
-                )}
+                {day}
+               {tasks[day].length > 0 && tasks[day].every(task => task.completed) && (
+               <Check size={24} className="text-green-500 stroke-2" />
+               )}
               </h2>
                 {index === selectedDay && (
                   <>
