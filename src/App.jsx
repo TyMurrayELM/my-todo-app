@@ -80,12 +80,20 @@ function App() {
     return themes[colorTheme][index];
   };
 
-  const fetchTodos = useCallback(async () => {
+  onst fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
     
     setIsLoading(true);
-    const startOfWeek = getDateForDay(0).toISOString().split('T')[0];
-    const endOfWeek = getDateForDay(6).toISOString().split('T')[0];
+    
+    // Get start of day for proper date comparison
+    const getDateWithoutTime = (date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const startOfWeek = getDateWithoutTime(getDateForDay(0)).toISOString().split('T')[0];
+    const endOfWeek = getDateWithoutTime(getDateForDay(6)).toISOString().split('T')[0] + 'T23:59:59.999Z';
 
     const { data, error } = await supabase
       .from('todos')
