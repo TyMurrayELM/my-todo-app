@@ -310,6 +310,17 @@ function App() {
   const repeatTask = async (task, day) => {
     const currentDayIndex = days.indexOf(day);
     
+    // First update the current task to mark it as recurring
+    const { error: updateError } = await supabase
+      .from('todos')
+      .update({ recurring: true })
+      .eq('id', task.id);
+
+    if (updateError) {
+      console.error('Error updating current todo:', updateError);
+      return;
+    }
+    
     const promises = days.slice(currentDayIndex + 1).map(async (targetDay) => {
       const targetDate = getDateForDay(days.indexOf(targetDay)).toISOString();
       
@@ -321,7 +332,7 @@ function App() {
           day: targetDay,
           actual_date: targetDate,
           completed: false,
-          recurring: true  // Added this line
+          recurring: true
         }]);
 
       if (error) {
@@ -332,7 +343,7 @@ function App() {
 
     await Promise.all(promises);
     fetchTodos();
-  };
+};
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
