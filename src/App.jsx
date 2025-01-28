@@ -532,7 +532,7 @@ function App() {
       e.stopPropagation();
       repeatTask(task, day);
     }}
-    className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-white`}
+    className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-green-500`}
     title="Repeat for future days"
   >
     <Repeat size={16} />
@@ -544,7 +544,7 @@ function App() {
         const nextDayIndex = (days.indexOf(day) + 1) % 7;
         moveTask(task.id, day, days[nextDayIndex]);
       }}
-      className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-white`}
+      className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
       title="Move to next day"
     >
       <SkipForward size={16} />
