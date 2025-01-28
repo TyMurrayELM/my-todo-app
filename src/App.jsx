@@ -124,7 +124,8 @@ function App() {
           id: todo.id,
           text: todo.text,
           completed: todo.completed,
-          actual_date: todo.actual_date
+          actual_date: todo.actual_date,
+          recurring: todo.recurring  // Added this line
         });
       }
     });
@@ -281,10 +282,8 @@ function App() {
 
   // Add the repeatTask function HERE
   const repeatTask = async (task, day) => {
-    // Get current day index
     const currentDayIndex = days.indexOf(day);
     
-    // Create an array of promises for future days only
     const promises = days.slice(currentDayIndex + 1).map(async (targetDay) => {
       const targetDate = getDateForDay(days.indexOf(targetDay)).toISOString();
       
@@ -295,7 +294,8 @@ function App() {
           text: task.text,
           day: targetDay,
           actual_date: targetDate,
-          completed: false
+          completed: false,
+          recurring: true  // Added this line
         }]);
 
       if (error) {
@@ -304,10 +304,7 @@ function App() {
       }
     });
 
-    // Wait for all inserts to complete
     await Promise.all(promises);
-    
-    // Refresh the tasks to show the new items
     fetchTodos();
   };
 
@@ -480,17 +477,27 @@ function App() {
     autoFocus
   />
 ) : (
-  <span 
-    className={`flex-grow ${task.completed ? 'line-through text-gray-400' : 
-      index >= 4 ? 'text-white' : 'text-gray-700'}`}
-    onClick={(e) => {
-      e.stopPropagation();
-      setEditingTaskId(task.id);
-      setEditingTaskText(task.text);
-    }}
-  >
-    {task.text}
-  </span>
+  <div className={`flex-grow flex items-center gap-2 ${
+    task.completed ? 'line-through text-gray-400' : 
+    index >= 4 ? 'text-white' : 'text-gray-700'
+  }`}>
+    <span
+      onClick={(e) => {
+        e.stopPropagation();
+        setEditingTaskId(task.id);
+        setEditingTaskText(task.text);
+      }}
+    >
+      {task.text}
+    </span>
+    {task.recurring && (
+      <Repeat 
+        size={14} 
+        className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'}`}
+        title="This is a recurring task"
+      />
+    )}
+  </div>
 )}
 
 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
