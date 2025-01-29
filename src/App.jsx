@@ -712,7 +712,7 @@ function App() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="text-gray-400 hover:text-blue-500"
+                    className="text-white hover:text-blue-500"
                     title="Open URL"
                   >
                     <Link size={14} />
@@ -759,7 +759,7 @@ function App() {
               }
             }}
             placeholder="Add a new task..."
-            className="w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none text-gray-700"
+            className="w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none text-white"
           />
         </form>
       </div>
