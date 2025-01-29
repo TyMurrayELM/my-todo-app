@@ -651,9 +651,9 @@ function App() {
 {/* Task Bank section */}
 <div 
   onClick={() => setSelectedDay('task_bank')}
-  className="bg-gray-200 p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
+  className="bg-black p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
 >
-  <h2 className="text-2xl font-bold text-gray-800">Task Bank</h2>
+  <h2 className="text-2xl font-bold text-white">Task Bank</h2>
   {selectedDay === 'task_bank' && (
     <>
       <div className="space-y-3">
