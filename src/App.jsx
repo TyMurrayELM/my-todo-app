@@ -684,12 +684,12 @@ function App() {
                     setEditingTaskText('');
                   }
                 }}
-                className="flex-grow bg-transparent border-none focus:outline-none text-gray-700"
+                className="flex-grow bg-transparent border-none focus:outline-none text-white"
                 onClick={(e) => e.stopPropagation()}
                 autoFocus
               />
             ) : (
-              <div className="flex-grow flex items-center gap-2 text-gray-700">
+              <div className="flex-grow flex items-center gap-2 text-white">
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
@@ -702,7 +702,7 @@ function App() {
                 {task.recurring && (
                   <Repeat 
                     size={14} 
-                    className="text-gray-400"
+                    className="text-white"
                     title="This is a recurring task"
                   />
                 )}
@@ -730,7 +730,7 @@ function App() {
                     updateTaskUrl(task.id, 'TASK_BANK', url);
                   }
                 }}
-                className="text-gray-400 hover:text-blue-500"
+                className="text-white hover:text-blue-500"
                 title="Add URL"
               >
                 <Link size={16} />
@@ -740,7 +740,7 @@ function App() {
                   e.stopPropagation();
                   deleteTask(task.id, 'TASK_BANK', task);
                 }}
-                className="text-gray-400 hover:text-red-500"
+                className="text-white hover:text-red-500"
               >
                 <X size={16} />
               </button>
@@ -759,7 +759,7 @@ function App() {
               }
             }}
             placeholder="Add a new task..."
-            className="w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none text-white"
+            className="w-full bg-transparent text-sm placeholder-white focus:outline-none text-white"
           />
         </form>
       </div>
