@@ -665,7 +665,7 @@ function App() {
                 toggleTask(task.id, 'TASK_BANK');
               }}
               className="w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
-                border-black hover:border-green-500"
+                border-white hover:border-green-500"
             >
               {task.completed && <Check size={16} className="text-white" />}
             </button>
