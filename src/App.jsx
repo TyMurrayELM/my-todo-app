@@ -537,7 +537,7 @@ function App() {
   </div>
 )}
 
-<div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+<div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
   <button 
     onClick={(e) => {
       e.stopPropagation();
