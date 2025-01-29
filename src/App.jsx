@@ -23,7 +23,10 @@ function App() {
   });
 
   const [tasks, setTasks] = useState(() => {
-    return days.reduce((acc, day) => ({...acc, [day]: []}), {});
+    return {
+      ...days.reduce((acc, day) => ({...acc, [day]: []}), {}),
+      TASK_BANK: []
+    };
   });
   
   const [newTask, setNewTask] = useState('');
@@ -98,11 +101,10 @@ function App() {
     const endStr = end.toISOString();
   
     const { data, error } = await supabase
-      .from('todos')
-      .select('*')
-      .gte('actual_date', startStr)
-      .lte('actual_date', endStr)
-      .order('created_at');
+    .from('todos')
+    .select('*')
+    .or(`day.eq.TASK_BANK,and(actual_date.gte.${startStr},actual_date.lte.${endStr})`)
+    .order('created_at');
   
     if (error) {
       console.error('Error fetching todos:', error);
@@ -118,6 +120,7 @@ function App() {
       THURSDAY: [],
       FRIDAY: [],
       SATURDAY: [],
+      TASK_BANK: []
     };
   
     data.forEach(todo => {
@@ -644,6 +647,126 @@ function App() {
                 )}
               </div>
             ))}
+
+{/* Task Bank section */}
+<div 
+  onClick={() => setSelectedDay('task_bank')}
+  className="bg-gray-200 p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
+>
+  <h2 className="text-2xl font-bold text-gray-800">Task Bank</h2>
+  {selectedDay === 'task_bank' && (
+    <>
+      <div className="space-y-3">
+        {tasks.TASK_BANK.map(task => (
+          <div key={task.id} className="group flex items-start gap-3">
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleTask(task.id, 'TASK_BANK');
+              }}
+              className="w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
+                border-black hover:border-green-500"
+            >
+              {task.completed && <Check size={16} className="text-white" />}
+            </button>
+
+            {editingTaskId === task.id ? (
+              <input
+                type="text"
+                value={editingTaskText}
+                onChange={(e) => setEditingTaskText(e.target.value)}
+                onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    updateTaskText(task.id, 'TASK_BANK', editingTaskText);
+                  } else if (e.key === 'Escape') {
+                    setEditingTaskId(null);
+                    setEditingTaskText('');
+                  }
+                }}
+                className="flex-grow bg-transparent border-none focus:outline-none text-gray-700"
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+              />
+            ) : (
+              <div className="flex-grow flex items-center gap-2 text-gray-700">
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingTaskId(task.id);
+                    setEditingTaskText(task.text);
+                  }}
+                >
+                  {task.text}
+                </span>
+                {task.recurring && (
+                  <Repeat 
+                    size={14} 
+                    className="text-gray-400"
+                    title="This is a recurring task"
+                  />
+                )}
+                {task.url && (
+                  <a 
+                    href={task.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-gray-400 hover:text-blue-500"
+                    title="Open URL"
+                  >
+                    <Link size={14} />
+                  </a>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = prompt('Enter URL:');
+                  if (url) {
+                    updateTaskUrl(task.id, 'TASK_BANK', url);
+                  }
+                }}
+                className="text-gray-400 hover:text-blue-500"
+                title="Add URL"
+              >
+                <Link size={16} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTask(task.id, 'TASK_BANK', task);
+                }}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        ))}
+        <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-2" onClick={e => e.stopPropagation()}>
+          <input
+            type="text"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addTask(e, 'TASK_BANK');
+              }
+            }}
+            placeholder="Add a new task..."
+            className="w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none text-gray-700"
+          />
+        </form>
+      </div>
+    </>
+  )}
+</div>
+
           </div>
         </div>
       </div>
