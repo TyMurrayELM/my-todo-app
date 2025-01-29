@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -30,6 +30,8 @@ function App() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
+  const [urlInput, setUrlInput] = useState('');
 
   const getBackgroundColor = (index) => {
     const themes = {
@@ -124,8 +126,8 @@ function App() {
           id: todo.id,
           text: todo.text,
           completed: todo.completed,
-          actual_date: todo.actual_date,
-          recurring: todo.recurring  // Added this line
+          recurring: todo.recurring,
+          url: todo.url  // Add this line
         });
       }
     });
@@ -370,6 +372,29 @@ function App() {
     setEditingTaskText('');
   };
 
+  const updateTaskUrl = async (taskId, day, url) => {
+    const { error } = await supabase
+      .from('todos')
+      .update({ url: url })
+      .eq('id', taskId);
+  
+    if (error) {
+      console.error('Error updating todo URL:', error);
+      return;
+    }
+  
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task =>
+        task.id === taskId 
+          ? { ...task, url }
+          : task
+      )
+    }));
+    setEditingUrlTaskId(null);
+    setUrlInput('');
+  };
+
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -514,27 +539,39 @@ function App() {
     autoFocus
   />
 ) : (
-  <div className={`flex-grow flex items-center gap-2 ${
-    task.completed ? 'line-through text-gray-400' : 
-    index >= 4 ? 'text-white' : 'text-gray-700'
-  }`}>
-    <span
-      onClick={(e) => {
-        e.stopPropagation();
-        setEditingTaskId(task.id);
-        setEditingTaskText(task.text);
-      }}
+<div className={`flex-grow flex items-center gap-2 ${
+  task.completed ? 'line-through text-gray-400' : 
+  index >= 4 ? 'text-white' : 'text-gray-700'
+}`}>
+  <span
+    onClick={(e) => {
+      e.stopPropagation();
+      setEditingTaskId(task.id);
+      setEditingTaskText(task.text);
+    }}
+  >
+    {task.text}
+  </span>
+  {task.recurring && (
+    <Repeat 
+      size={14} 
+      className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'}`}
+      title="This is a recurring task"
+    />
+  )}
+  {task.url && (
+    <a 
+      href={task.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'} hover:text-blue-500`}
+      title="Open URL"
     >
-      {task.text}
-    </span>
-    {task.recurring && (
-      <Repeat 
-        size={14} 
-        className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'}`}
-        title="This is a recurring task"
-      />
-    )}
-  </div>
+      <Link size={14} />
+    </a>
+  )}
+</div>
 )}
 
 <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -548,6 +585,19 @@ function App() {
   >
     <Repeat size={16} />
   </button>
+  <button 
+  onClick={(e) => {
+    e.stopPropagation();
+    const url = prompt('Enter URL:');
+    if (url) {
+      updateTaskUrl(task.id, day, url);
+    }
+  }}
+  className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-blue-500`}
+  title="Add URL"
+>
+  <Link size={16} />
+</button>
   {index < 6 && (
     <button 
       onClick={(e) => {
@@ -561,15 +611,15 @@ function App() {
       <SkipForward size={16} />
     </button>
   )}
-<button 
-  onClick={(e) => {
-    e.stopPropagation();
-    deleteTask(task.id, day, task);
-  }}
-  className="text-gray-400 hover:text-red-500"
->
-  <X size={16} />
-</button>
+  <button 
+    onClick={(e) => {
+      e.stopPropagation();
+      deleteTask(task.id, day, task);
+    }}
+    className="text-gray-400 hover:text-red-500"
+  >
+    <X size={16} />
+  </button>
 </div>
   </div>
 ))}
