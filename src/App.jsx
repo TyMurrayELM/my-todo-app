@@ -664,7 +664,16 @@ function App() {
   {selectedDay === 'task_bank' && (
     <>
       <div className="space-y-3">
-        {tasks.TASK_BANK.map(task => (
+         {tasks.TASK_BANK
+            .sort((a, b) => {
+               // First sort by completion status
+               if (a.completed !== b.completed) {
+                  return b.completed - a.completed;
+           }
+             // Then sort alphabetically if both are completed or both are uncompleted
+           return a.text.toLowerCase().localeCompare(b.text.toLowerCase());
+         })
+        .map(task => (
           <div key={task.id} className="group flex items-start gap-3">
             <button 
               onClick={(e) => {
