@@ -405,7 +405,7 @@ function App() {
         queryParams: {
           prompt: 'select_account',
         },
-        redirectTo: 'https://my-todo-app-tau-eight.vercel.app'
+        redirectTo: 'https://www.tabs.day'
       }
     });
     if (error) console.error('Error logging in:', error);
