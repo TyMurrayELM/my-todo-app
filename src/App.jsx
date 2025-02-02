@@ -130,10 +130,11 @@ function App() {
           text: todo.text,
           completed: todo.completed,
           recurring: todo.recurring,
-          url: todo.url  // Add this line
+          url: todo.url,
+          completedAt: todo.completed_at  // Add this line
         });
       }
-    });
+    })
   
     setTasks(todosByDay);
     setIsLoading(false);
@@ -253,19 +254,34 @@ function App() {
     const updatedTasks = { ...tasks };
     const taskIndex = updatedTasks[day].findIndex(task => task.id === taskId);
     const newCompleted = !updatedTasks[day][taskIndex].completed;
-
+    const completedAt = newCompleted ? new Date().toISOString() : null;  // Add this line
+  
     const { error } = await supabase
       .from('todos')
-      .update({ completed: newCompleted })
+      .update({ 
+        completed: newCompleted,
+        completed_at: completedAt  // Add this line
+      })
       .eq('id', taskId);
-
+  
     if (error) {
       console.error('Error updating todo:', error);
       return;
     }
-
+  
     updatedTasks[day][taskIndex].completed = newCompleted;
+    updatedTasks[day][taskIndex].completedAt = completedAt;  // Add this line
     setTasks(updatedTasks);
+  };
+
+  const formatCompletionTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString('en-US', { 
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true 
+    });
   };
 
   const deleteTask = async (taskId, day, task) => {
@@ -553,15 +569,20 @@ function App() {
   task.completed ? 'line-through text-gray-400' : 
   index >= 4 ? 'text-white' : 'text-gray-700'
 }`}>
-  <span
-    onClick={(e) => {
-      e.stopPropagation();
-      setEditingTaskId(task.id);
-      setEditingTaskText(task.text);
-    }}
-  >
-    {task.text}
-  </span>
+<span
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingTaskId(task.id);
+          setEditingTaskText(task.text);
+        }}
+      >
+        {task.text}
+        {task.completed && task.completedAt && (
+          <span className="ml-2 text-sm opacity-60">
+            ({formatCompletionTime(task.completedAt)})
+          </span>
+        )}
+      </span>
   {task.recurring && (
     <Repeat 
       size={14} 
@@ -706,15 +727,20 @@ function App() {
               />
             ) : (
               <div className="flex-grow flex items-center gap-2 text-white">
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingTaskId(task.id);
-                    setEditingTaskText(task.text);
-                  }}
-                >
-                  {task.text}
-                </span>
+<span
+  onClick={(e) => {
+    e.stopPropagation();
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+  }}
+>
+  {task.text}
+  {task.completed && task.completedAt && (
+    <span className="ml-2 text-sm opacity-60">
+      ({formatCompletionTime(task.completedAt)})
+    </span>
+  )}
+</span>
                 {task.recurring && (
                   <Repeat 
                     size={14} 
