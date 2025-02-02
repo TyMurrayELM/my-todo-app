@@ -578,10 +578,10 @@ function App() {
       >
         {task.text}
         {task.completed && task.completedAt && (
-          <span className="ml-2 text-sm opacity-60">
-            ({formatCompletionTime(task.completedAt)})
-          </span>
-        )}
+  <span className="ml-1 text-[10px] opacity-50">
+    ({formatCompletionTime(task.completedAt)})
+  </span>
+)}
       </span>
   {task.recurring && (
     <Repeat 
