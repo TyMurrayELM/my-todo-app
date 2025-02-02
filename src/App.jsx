@@ -565,26 +565,24 @@ function App() {
     autoFocus
   />
 ) : (
-<div className="flex-grow flex items-center gap-2">
-  <span 
-    className={`${
-      task.completed ? 'line-through text-gray-400' : 
-      index >= 4 ? 'text-white' : 'text-gray-700'
-    }`}
-    onClick={(e) => {
-      e.stopPropagation();
-      setEditingTaskId(task.id);
-      setEditingTaskText(task.text);
-    }}
-  >
-    {task.text}
+<div className={`flex-grow flex items-center gap-2 ${
+  task.completed ? 'line-through text-gray-400' : 
+  index >= 4 ? 'text-white' : 'text-gray-700'
+}`}>
+<span
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingTaskId(task.id);
+          setEditingTaskText(task.text);
+        }}
+      >
+        {task.text}
+        {task.completed && task.completedAt && (
+  <span className="ml-1 text-[10px] opacity-50">
+    ({formatCompletionTime(task.completedAt)})
   </span>
-  {task.completed && task.completedAt && (
-    <span className="text-[10px] opacity-50">
-      ({formatCompletionTime(task.completedAt)})
-    </span>
-  )}
-</div>
+)}
+      </span>
   {task.recurring && (
     <Repeat 
       size={14} 
