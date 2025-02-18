@@ -748,7 +748,7 @@ function App() {
   {task.text}
   {task.completed && task.completedAt && (
     <span className="ml-2 text-sm opacity-60">
-      (Completed {formatCompletionDate(task.completedAt)})
+      ({formatCompletionDate(task.completedAt)})
     </span>
   )}
 </span>
