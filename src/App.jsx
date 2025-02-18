@@ -728,6 +728,18 @@ function App() {
               />
             ) : (
               <div className="flex-grow flex items-center gap-2 text-white">
+// Add this new function near your other formatting functions
+const formatCompletionDate = (isoString) => {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', { 
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
+// Then update the Task Bank section to use it
 <span
   onClick={(e) => {
     e.stopPropagation();
@@ -738,7 +750,7 @@ function App() {
   {task.text}
   {task.completed && task.completedAt && (
     <span className="ml-2 text-sm opacity-60">
-      ({formatCompletionTime(task.completedAt)})
+      (Completed {formatCompletionDate(task.completedAt)})
     </span>
   )}
 </span>
