@@ -284,6 +284,16 @@ function App() {
     });
   };
 
+  const formatCompletionDate = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   const deleteTask = async (taskId, day, task) => {
     if (task.recurring) {
       // Delete this and all future recurring instances
@@ -728,18 +738,6 @@ function App() {
               />
             ) : (
               <div className="flex-grow flex items-center gap-2 text-white">
-// Add this new function near your other formatting functions
-const formatCompletionDate = (isoString) => {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', { 
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-};
-
-// Then update the Task Bank section to use it
 <span
   onClick={(e) => {
     e.stopPropagation();
