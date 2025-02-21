@@ -444,18 +444,22 @@ function App() {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <button
-          onClick={handleLogin}
-          className="flex items-center px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <img 
-            src="https://www.google.com/favicon.ico" 
-            alt="Google" 
-            className="w-5 h-5 mr-3"
-          />
-          <span className="text-gray-600">Sign in with Google</span>
-        </button>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className={`w-full max-w-md p-8 mb-8 rounded-2xl ${getBackgroundColor(2)} bg-opacity-10`}>
+          <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Welcome to tabs.day</h1>
+          <p className="text-center text-gray-600 mb-8">Your weekly task organizer</p>
+          <button
+            onClick={handleLogin}
+            className="w-full flex items-center justify-center px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <img 
+              src="https://www.google.com/favicon.ico" 
+              alt="Google" 
+              className="w-5 h-5 mr-3"
+            />
+            <span className="text-gray-600 font-medium">Continue with Google</span>
+          </button>
+        </div>
       </div>
     );
   }
