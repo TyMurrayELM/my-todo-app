@@ -349,13 +349,13 @@ function App() {
       return;
     }
     
-    // Get tomorrow's date as the start date
-    const startDate = new Date(getDateForDay(days.indexOf(day)));
-    startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
+    // Get current task's date for comparison
+    const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
+    currentTaskDate.setHours(0, 0, 0, 0);
     
-    // Create an instance for each of the next 30 days
-    for (let i = 0; i < 30; i++) {  // Changed from i=1 to i=0 since we're already starting from tomorrow
-      const targetDate = new Date(startDate);
+    // Create an instance for each of the next 30 days starting from tomorrow
+    for (let i = 1; i <= 30; i++) {  // Start from 1 to skip today
+      const targetDate = new Date(currentTaskDate);
       targetDate.setDate(targetDate.getDate() + i);
       
       // Format date to match how it's stored (YYYY-MM-DD)
@@ -389,7 +389,7 @@ function App() {
       }
     }
   
-    fetchTodos();
+    await fetchTodos();  // Added await to ensure it completes
   };
 
   const updateTaskText = async (taskId, day, newText) => {
