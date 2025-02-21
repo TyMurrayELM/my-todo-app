@@ -337,44 +337,59 @@ function App() {
   };
 
 
-  // Add the repeatTask function HERE
   const repeatTask = async (task, day) => {
-    const currentDayIndex = days.indexOf(day);
-    
     // First update the current task to mark it as recurring
     const { error: updateError } = await supabase
       .from('todos')
       .update({ recurring: true })
       .eq('id', task.id);
-
+  
     if (updateError) {
       console.error('Error updating current todo:', updateError);
       return;
     }
     
-    const promises = days.slice(currentDayIndex + 1).map(async (targetDay) => {
-      const targetDate = getDateForDay(days.indexOf(targetDay)).toISOString();
+    // Get the current task's date
+    const startDate = new Date(getDateForDay(days.indexOf(day)));
+    
+    // Create an instance for each of the next 30 days
+    for (let i = 1; i <= 30; i++) {
+      const targetDate = new Date(startDate);
+      targetDate.setDate(targetDate.getDate() + i);
       
-      const { error } = await supabase
+      // Format date to match how it's stored (YYYY-MM-DD)
+      const formattedDate = targetDate.toISOString().split('T')[0];
+      
+      // Get the day name for this date
+      const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
+      
+      // Check if task already exists for this date
+      const { data: existing } = await supabase
         .from('todos')
-        .insert([{
-          user_id: session.user.id,
-          text: task.text,
-          day: targetDay,
-          actual_date: targetDate,
-          completed: false,
-          recurring: true
-        }]);
-
-      if (error) {
-        console.error('Error repeating todo:', error);
-        return;
+        .select('*')
+        .eq('text', task.text)
+        .eq('day', targetDayName)
+        .eq('recurring', true)
+        .gte('actual_date', `${formattedDate}T00:00:00`)
+        .lt('actual_date', `${formattedDate}T23:59:59`);
+  
+      // Only create if no existing task found
+      if (!existing || existing.length === 0) {
+        await supabase
+          .from('todos')
+          .insert([{
+            user_id: session.user.id,
+            text: task.text,
+            day: targetDayName,
+            actual_date: targetDate.toISOString(),
+            completed: false,
+            recurring: true
+          }]);
       }
-    });
-
-    await Promise.all(promises);
+    }
+  
     fetchTodos();
-};
+  };
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
