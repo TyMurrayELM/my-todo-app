@@ -598,13 +598,15 @@ function App() {
       ({formatCompletionTime(task.completedAt)})
     </span>
   )}
-  {task.recurring && (
-    <Repeat 
-      size={14} 
-      className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'}`}
-      title="This is a recurring task"
-    />
-  )}
+{task.recurring && (
+  <span 
+    className={`flex items-center gap-1 ${index >= 4 ? 'text-white/60' : 'text-gray-400'}`}
+    title="Repeats daily"
+  >
+    <Repeat size={14} />
+    <span className="text-xs">d</span>
+  </span>
+)}
   {task.url && (
     <a 
       href={task.url}
@@ -756,13 +758,15 @@ function App() {
     </span>
   )}
 </span>
-                {task.recurring && (
-                  <Repeat 
-                    size={14} 
-                    className="text-white"
-                    title="This is a recurring task"
-                  />
-                )}
+{task.recurring && (
+  <span 
+    className="flex items-center gap-1 text-white"
+    title="Repeats daily"
+  >
+    <Repeat size={14} />
+    <span className="text-xs">d</span>
+  </span>
+)}
                 {task.url && (
                   <a 
                     href={task.url}
