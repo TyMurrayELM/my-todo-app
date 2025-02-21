@@ -349,11 +349,12 @@ function App() {
       return;
     }
     
-    // Get the current task's date
+    // Get tomorrow's date as the start date
     const startDate = new Date(getDateForDay(days.indexOf(day)));
+    startDate.setDate(startDate.getDate() + 1); // Start from tomorrow
     
     // Create an instance for each of the next 30 days
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 0; i < 30; i++) {  // Changed from i=1 to i=0 since we're already starting from tomorrow
       const targetDate = new Date(startDate);
       targetDate.setDate(targetDate.getDate() + i);
       
