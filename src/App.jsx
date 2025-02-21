@@ -446,7 +446,7 @@ function App() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <div className={`w-full max-w-md p-8 mb-8 rounded-2xl ${getBackgroundColor(2)} bg-opacity-10 border-2 border-gray-200 shadow-lg`}>
-          <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Welcome to Tabs</h1>
+          <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Welcome to tabs.day</h1>
           <p className="text-center text-gray-600 mb-8">Your weekly task organizer</p>
           <button
             onClick={handleLogin}
