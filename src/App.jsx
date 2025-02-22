@@ -338,6 +338,8 @@ function App() {
 
 
   const repeatTask = async (task, day) => {
+    console.log('Starting repeatTask for task:', task.id, 'on day:', day);
+  
     // First update the current task to mark it as recurring
     const { error: updateError } = await supabase
       .from('todos')
@@ -352,6 +354,7 @@ function App() {
     // Get current task's date for comparison
     const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
     currentTaskDate.setHours(0, 0, 0, 0);
+    console.log('Current task date:', currentTaskDate.toISOString());
     
     // Create instances for the next 30 days starting from tomorrow
     for (let i = 1; i <= 30; i++) {
@@ -360,6 +363,7 @@ function App() {
       
       const formattedDate = targetDate.toISOString().split('T')[0];
       const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
+      console.log(`Checking day ${targetDayName} for date ${formattedDate}, i=${i}`);
       
       // Check if task already exists for this date, excluding the current task
       const { data: existing } = await supabase
@@ -370,10 +374,13 @@ function App() {
         .eq('recurring', true)
         .gte('actual_date', `${formattedDate}T00:00:00`)
         .lt('actual_date', `${formattedDate}T23:59:59`)
-        .neq('id', task.id); // Explicitly exclude the current task
+        .neq('id', task.id);
+  
+      console.log(`Existing tasks for ${formattedDate}:`, existing);
   
       if (!existing || existing.length === 0) {
-        await supabase
+        console.log(`Inserting new task for ${formattedDate}`);
+        const { data, error } = await supabase
           .from('todos')
           .insert([{
             user_id: session.user.id,
@@ -382,10 +389,21 @@ function App() {
             actual_date: targetDate.toISOString(),
             completed: false,
             recurring: true
-          }]);
+          }])
+          .select()
+          .single();
+  
+        if (error) {
+          console.error(`Error inserting task for ${formattedDate}:`, error);
+        } else {
+          console.log(`Inserted task ID: ${data.id} for ${formattedDate}`);
+        }
+      } else {
+        console.log(`Task already exists for ${formattedDate}, skipping`);
       }
     }
   
+    console.log('Fetching todos after repeat');
     await fetchTodos();
   };
 
