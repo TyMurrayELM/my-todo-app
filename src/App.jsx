@@ -10,7 +10,7 @@ function App() {
   const [colorTheme, setColorTheme] = useState(() => {
     return localStorage.getItem('todoTheme') || 'amber';
   });
-  const [isRepeating, setIsRepeating] = useState(false); // Added lock state
+  const [isRepeating, setIsRepeating] = useState(false);
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -39,51 +39,11 @@ function App() {
 
   const getBackgroundColor = (index) => {
     const themes = {
-      amber: [
-        'bg-amber-100',
-        'bg-amber-200',
-        'bg-amber-300',
-        'bg-amber-400',
-        'bg-amber-500',
-        'bg-amber-600',
-        'bg-amber-700'
-      ],
-      blue: [
-        'bg-blue-100',
-        'bg-blue-200',
-        'bg-blue-300',
-        'bg-blue-400',
-        'bg-blue-500',
-        'bg-blue-600',
-        'bg-blue-700'
-      ],
-      green: [
-        'bg-green-100',
-        'bg-green-200',
-        'bg-green-300',
-        'bg-green-400',
-        'bg-green-500',
-        'bg-green-600',
-        'bg-green-700'
-      ],
-      purple: [
-        'bg-purple-100',
-        'bg-purple-200',
-        'bg-purple-300',
-        'bg-purple-400',
-        'bg-purple-500',
-        'bg-purple-600',
-        'bg-purple-700'
-      ],
-      pink: [
-        'bg-pink-100',
-        'bg-pink-200',
-        'bg-pink-300',
-        'bg-pink-400',
-        'bg-pink-500',
-        'bg-pink-600',
-        'bg-pink-700'
-      ]
+      amber: ['bg-amber-100', 'bg-amber-200', 'bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700'],
+      blue: ['bg-blue-100', 'bg-blue-200', 'bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700'],
+      green: ['bg-green-100', 'bg-green-200', 'bg-green-300', 'bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-green-700'],
+      purple: ['bg-purple-100', 'bg-purple-200', 'bg-purple-300', 'bg-purple-400', 'bg-purple-500', 'bg-purple-600', 'bg-purple-700'],
+      pink: ['bg-pink-100', 'bg-pink-200', 'bg-pink-300', 'bg-pink-400', 'bg-pink-500', 'bg-pink-600', 'bg-pink-700']
     };
     return themes[colorTheme][index];
   };
@@ -112,6 +72,8 @@ function App() {
       return;
     }
   
+    console.log('Raw todos from Supabase:', data);
+
     const todosByDay = {
       SUNDAY: [],
       MONDAY: [],
@@ -137,8 +99,9 @@ function App() {
     });
   
     setTasks(todosByDay);
+    console.log('Tasks for current day after fetch:', todosByDay[days[selectedDay]]);
     setIsLoading(false);
-  }, [session, currentDate, isNavigating]);
+  }, [session, currentDate, isNavigating, days, selectedDay]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -172,7 +135,7 @@ function App() {
   const handleNavigation = async (direction) => {
     setIsNavigating(true);
     const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + direction);
+    newDate.setDate(currentDate.getDate() + direction); // Reverted to 1-day movement
 
     const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
     const newIndex = newDate.getDay();
@@ -350,6 +313,34 @@ function App() {
       currentTaskDate.setHours(0, 0, 0, 0);
       console.log('Current task date:', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
+
+      // Clean up duplicates for the current day
+      const { data: existingToday } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('text', task.text)
+        .eq('day', day)
+        .gte('actual_date', `${currentDayFormatted}T00:00:00`)
+        .lt('actual_date', `${currentDayFormatted}T23:59:59`)
+        .neq('id', task.id);
+
+      if (existingToday && existingToday.length > 0) {
+        console.log('Found duplicates for today:', existingToday);
+        const { error: deleteError } = await supabase
+          .from('todos')
+          .delete()
+          .eq('text', task.text)
+          .eq('day', day)
+          .gte('actual_date', `${currentDayFormatted}T00:00:00`)
+          .lt('actual_date', `${currentDayFormatted}T23:59:59`)
+          .neq('id', task.id);
+        
+        if (deleteError) {
+          console.error('Error deleting duplicates:', deleteError);
+        } else {
+          console.log('Deleted', existingToday.length, 'duplicate tasks for today');
+        }
+      }
 
       const newTasks = [];
       for (let i = 1; i <= 7; i++) {
