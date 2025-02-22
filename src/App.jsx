@@ -337,15 +337,25 @@ function App() {
   };
 
 
-  const repeatTask = async (task, day) => {
-    console.log('Starting repeatTask for task:', task.id, 'on day:', day);
-  
+// Add this outside your component (e.g., at the top of the file)
+let isRepeating = false;
+
+const repeatTask = async (task, day) => {
+  if (isRepeating) {
+    console.log('Repeat already in progress, skipping');
+    return;
+  }
+
+  isRepeating = true;
+  console.log('Starting repeatTask for task:', task.id, 'on day:', day);
+
+  try {
     // First update the current task to mark it as recurring
     const { error: updateError } = await supabase
       .from('todos')
       .update({ recurring: true })
       .eq('id', task.id);
-  
+
     if (updateError) {
       console.error('Error updating current todo:', updateError);
       return;
@@ -355,6 +365,7 @@ function App() {
     const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
     currentTaskDate.setHours(0, 0, 0, 0);
     console.log('Current task date:', currentTaskDate.toISOString());
+    const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
     
     // Create instances for the next 30 days starting from tomorrow
     for (let i = 1; i <= 30; i++) {
@@ -362,6 +373,10 @@ function App() {
       targetDate.setDate(targetDate.getDate() + i);
       
       const formattedDate = targetDate.toISOString().split('T')[0];
+      if (formattedDate === currentDayFormatted) {
+        console.log('Skipping today:', formattedDate);
+        continue;
+      }
       const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
       console.log(`Checking day ${targetDayName} for date ${formattedDate}, i=${i}`);
       
@@ -375,9 +390,9 @@ function App() {
         .gte('actual_date', `${formattedDate}T00:00:00`)
         .lt('actual_date', `${formattedDate}T23:59:59`)
         .neq('id', task.id);
-  
+
       console.log(`Existing tasks for ${formattedDate}:`, existing);
-  
+
       if (!existing || existing.length === 0) {
         console.log(`Inserting new task for ${formattedDate}`);
         const { data, error } = await supabase
@@ -392,7 +407,7 @@ function App() {
           }])
           .select()
           .single();
-  
+
         if (error) {
           console.error(`Error inserting task for ${formattedDate}:`, error);
         } else {
@@ -402,10 +417,13 @@ function App() {
         console.log(`Task already exists for ${formattedDate}, skipping`);
       }
     }
-  
+
     console.log('Fetching todos after repeat');
     await fetchTodos();
-  };
+  } finally {
+    isRepeating = false; // Reset the lock even if there's an error
+  }
+};
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
