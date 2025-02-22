@@ -353,18 +353,15 @@ function App() {
     const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
     currentTaskDate.setHours(0, 0, 0, 0);
     
-    // Create an instance for each of the next 30 days starting from tomorrow
-    for (let i = 1; i <= 30; i++) {  // Start from 1 to skip today
+    // Create instances for the next 30 days starting from tomorrow
+    for (let i = 1; i <= 30; i++) {
       const targetDate = new Date(currentTaskDate);
       targetDate.setDate(targetDate.getDate() + i);
       
-      // Format date to match how it's stored (YYYY-MM-DD)
       const formattedDate = targetDate.toISOString().split('T')[0];
-      
-      // Get the day name for this date
       const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
       
-      // Check if task already exists for this date
+      // Check if task already exists for this date, excluding the current task
       const { data: existing } = await supabase
         .from('todos')
         .select('*')
@@ -372,9 +369,9 @@ function App() {
         .eq('day', targetDayName)
         .eq('recurring', true)
         .gte('actual_date', `${formattedDate}T00:00:00`)
-        .lt('actual_date', `${formattedDate}T23:59:59`);
+        .lt('actual_date', `${formattedDate}T23:59:59`)
+        .neq('id', task.id); // Explicitly exclude the current task
   
-      // Only create if no existing task found
       if (!existing || existing.length === 0) {
         await supabase
           .from('todos')
@@ -389,7 +386,7 @@ function App() {
       }
     }
   
-    await fetchTodos();  // Added await to ensure it completes
+    await fetchTodos();
   };
 
   const updateTaskText = async (taskId, day, newText) => {
