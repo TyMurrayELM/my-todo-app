@@ -135,7 +135,7 @@ function App() {
   const handleNavigation = async (direction) => {
     setIsNavigating(true);
     const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + direction); // Reverted to 1-day movement
+    newDate.setDate(currentDate.getDate() + direction);
 
     const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
     const newIndex = newDate.getDay();
@@ -314,14 +314,21 @@ function App() {
       console.log('Current task date:', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
 
+      // Check all tasks for the current day before cleanup
+      const { data: allToday } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('day', day)
+        .like('actual_date', `${currentDayFormatted}%`);
+      console.log('All tasks for today before cleanup:', allToday);
+
       // Clean up duplicates for the current day
       const { data: existingToday } = await supabase
         .from('todos')
         .select('*')
         .eq('text', task.text)
         .eq('day', day)
-        .gte('actual_date', `${currentDayFormatted}T00:00:00`)
-        .lt('actual_date', `${currentDayFormatted}T23:59:59`)
+        .like('actual_date', `${currentDayFormatted}%`) // Match date only
         .neq('id', task.id);
 
       if (existingToday && existingToday.length > 0) {
@@ -331,8 +338,7 @@ function App() {
           .delete()
           .eq('text', task.text)
           .eq('day', day)
-          .gte('actual_date', `${currentDayFormatted}T00:00:00`)
-          .lt('actual_date', `${currentDayFormatted}T23:59:59`)
+          .like('actual_date', `${currentDayFormatted}%`)
           .neq('id', task.id);
         
         if (deleteError) {
