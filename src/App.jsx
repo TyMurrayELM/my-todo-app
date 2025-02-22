@@ -338,92 +338,113 @@ function App() {
 
 
 // Add this outside your component (e.g., at the top of the file)
-let isRepeating = false;
+import React, { useState, useCallback } from 'react'; // Ensure useState and useCallback are imported
 
-const repeatTask = async (task, day) => {
-  if (isRepeating) {
-    console.log('Repeat already in progress, skipping');
-    return;
-  }
+function App() {
+  const [isRepeating, setIsRepeating] = useState(false); // Move lock to state
 
-  isRepeating = true;
-  console.log('Starting repeatTask for task:', task.id, 'on day:', day);
-
-  try {
-    // First update the current task to mark it as recurring
-    const { error: updateError } = await supabase
-      .from('todos')
-      .update({ recurring: true })
-      .eq('id', task.id);
-
-    if (updateError) {
-      console.error('Error updating current todo:', updateError);
+  const repeatTask = useCallback(async (task, day) => {
+    if (isRepeating) {
+      console.log('Repeat already in progress, skipping');
       return;
     }
-    
-    // Get current task's date for comparison
-    const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
-    currentTaskDate.setHours(0, 0, 0, 0);
-    console.log('Current task date:', currentTaskDate.toISOString());
-    const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
-    
-    // Create instances for the next 30 days starting from tomorrow
-    for (let i = 1; i <= 30; i++) {
-      const targetDate = new Date(currentTaskDate);
-      targetDate.setDate(targetDate.getDate() + i);
-      
-      const formattedDate = targetDate.toISOString().split('T')[0];
-      if (formattedDate === currentDayFormatted) {
-        console.log('Skipping today:', formattedDate);
-        continue;
-      }
-      const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
-      console.log(`Checking day ${targetDayName} for date ${formattedDate}, i=${i}`);
-      
-      // Check if task already exists for this date, excluding the current task
-      const { data: existing } = await supabase
+
+    setIsRepeating(true);
+    console.log('Starting repeatTask for task:', task.id, 'on day:', day);
+
+    try {
+      // Update the current task to mark it as recurring
+      const { error: updateError } = await supabase
         .from('todos')
-        .select('*')
-        .eq('text', task.text)
-        .eq('day', targetDayName)
-        .eq('recurring', true)
-        .gte('actual_date', `${formattedDate}T00:00:00`)
-        .lt('actual_date', `${formattedDate}T23:59:59`)
-        .neq('id', task.id);
+        .update({ recurring: true })
+        .eq('id', task.id);
 
-      console.log(`Existing tasks for ${formattedDate}:`, existing);
+      if (updateError) {
+        console.error('Error updating current todo:', updateError);
+        return;
+      }
 
-      if (!existing || existing.length === 0) {
-        console.log(`Inserting new task for ${formattedDate}`);
-        const { data, error } = await supabase
+      const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
+      currentTaskDate.setHours(0, 0, 0, 0);
+      console.log('Current task date:', currentTaskDate.toISOString());
+      const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
+
+      // Batch insertions for 7 days instead of 30 (for speed)
+      const newTasks = [];
+      for (let i = 1; i <= 7; i++) { // Reduced to 7 for testing
+        const targetDate = new Date(currentTaskDate);
+        targetDate.setDate(targetDate.getDate() + i);
+        const formattedDate = targetDate.toISOString().split('T')[0];
+
+        if (formattedDate === currentDayFormatted) {
+          console.log('Skipping today:', formattedDate);
+          continue;
+        }
+
+        const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
+        console.log(`Preparing task for ${targetDayName} on ${formattedDate}, i=${i}`);
+
+        const { data: existing } = await supabase
           .from('todos')
-          .insert([{
+          .select('*')
+          .eq('text', task.text)
+          .eq('day', targetDayName)
+          .eq('recurring', true)
+          .gte('actual_date', `${formattedDate}T00:00:00`)
+          .lt('actual_date', `${formattedDate}T23:59:59`)
+          .neq('id', task.id);
+
+        if (!existing || existing.length === 0) {
+          newTasks.push({
             user_id: session.user.id,
             text: task.text,
             day: targetDayName,
             actual_date: targetDate.toISOString(),
             completed: false,
             recurring: true
-          }])
-          .select()
-          .single();
+          });
+          console.log(`Queued task for ${formattedDate}`);
+        } else {
+          console.log(`Task already exists for ${formattedDate}, skipping`);
+        }
+      }
+
+      // Batch insert all new tasks at once
+      if (newTasks.length > 0) {
+        console.log('Inserting batch of', newTasks.length, 'tasks');
+        const { error } = await supabase
+          .from('todos')
+          .insert(newTasks);
 
         if (error) {
-          console.error(`Error inserting task for ${formattedDate}:`, error);
+          console.error('Error inserting batch tasks:', error);
         } else {
-          console.log(`Inserted task ID: ${data.id} for ${formattedDate}`);
+          console.log('Batch insert successful');
         }
-      } else {
-        console.log(`Task already exists for ${formattedDate}, skipping`);
       }
-    }
 
-    console.log('Fetching todos after repeat');
-    await fetchTodos();
-  } finally {
-    isRepeating = false; // Reset the lock even if there's an error
-  }
-};
+      console.log('Fetching todos after repeat');
+      await fetchTodos();
+    } finally {
+      setIsRepeating(false);
+    }
+  }, [session, days, fetchTodos, isRepeating]); // Dependencies for useCallback
+
+  // Update the button to use the memoized function
+  // In your JSX where the Repeat button is:
+  <button 
+    onClick={(e) => {
+      e.stopPropagation();
+      repeatTask(task, day);
+    }}
+    className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-green-500`}
+    title="Repeat for future days"
+  >
+    <Repeat size={16} />
+  </button>
+
+  // Rest of your App component...
+}
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
