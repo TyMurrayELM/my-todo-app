@@ -463,7 +463,7 @@ function App() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <div className={`w-full max-w-md p-8 mb-8 rounded-2xl ${getBackgroundColor(2)} bg-opacity-10 border-2 border-gray-200 shadow-lg`}>
           <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Welcome to tabs.day</h1>
-          <p className="text-center text-gray-600 mb-8">Your weekly task organizer</p>
+          <p className="text-center text-gray-600 mb-8">Your to-do organizer</p>
           <button
             onClick={handleLogin}
             className="w-full flex items-center justify-center px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
