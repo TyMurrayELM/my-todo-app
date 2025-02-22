@@ -322,13 +322,13 @@ function App() {
         .like('actual_date', `${currentDayFormatted}%`);
       console.log('All tasks for today before cleanup:', allToday);
 
-      // Clean up duplicates for the current day
+      // Clean up duplicates for the current day (match by text and date, ignore recurring status)
       const { data: existingToday } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text)
+        .eq('text', task.text.trim()) // Trim text to handle whitespace variations
         .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`) // Match date only
+        .like('actual_date', `${currentDayFormatted}%`)
         .neq('id', task.id);
 
       if (existingToday && existingToday.length > 0) {
@@ -336,7 +336,7 @@ function App() {
         const { error: deleteError } = await supabase
           .from('todos')
           .delete()
-          .eq('text', task.text)
+          .eq('text', task.text.trim())
           .eq('day', day)
           .like('actual_date', `${currentDayFormatted}%`)
           .neq('id', task.id);
@@ -347,6 +347,14 @@ function App() {
           console.log('Deleted', existingToday.length, 'duplicate tasks for today');
         }
       }
+
+      // Verify after cleanup
+      const { data: afterCleanup } = await supabase
+        .from('todos')
+        .select('*')
+        .eq('day', day)
+        .like('actual_date', `${currentDayFormatted}%`);
+      console.log('All tasks for today after cleanup:', afterCleanup);
 
       const newTasks = [];
       for (let i = 1; i <= 7; i++) {
@@ -365,7 +373,7 @@ function App() {
         const { data: existing } = await supabase
           .from('todos')
           .select('*')
-          .eq('text', task.text)
+          .eq('text', task.text.trim())
           .eq('day', targetDayName)
           .eq('recurring', true)
           .gte('actual_date', `${formattedDate}T00:00:00`)
@@ -375,7 +383,7 @@ function App() {
         if (!existing || existing.length === 0) {
           newTasks.push({
             user_id: session.user.id,
-            text: task.text,
+            text: task.text.trim(),
             day: targetDayName,
             actual_date: targetDate.toISOString(),
             completed: false,
