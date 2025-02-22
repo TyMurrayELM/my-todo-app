@@ -338,7 +338,7 @@ function App() {
 
 
 // Add this outside your component (e.g., at the top of the file)
-import React, { useState, useCallback } from 'react'; // Ensure useState and useCallback are imported
+
 
 function App() {
   const [isRepeating, setIsRepeating] = useState(false); // Move lock to state
