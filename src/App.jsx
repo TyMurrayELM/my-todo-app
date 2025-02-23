@@ -299,34 +299,25 @@ function App() {
     console.log('Starting repeatTask for task:', task.id, 'on day:', day);
 
     try {
-      const { error: updateError } = await supabase
-        .from('todos')
-        .update({ recurring: true })
-        .eq('id', task.id);
-
-      if (updateError) {
-        console.error('Error updating current todo:', updateError);
-        return;
-      }
-
+      // First, clean up any duplicates for the current day before making changes
       const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
       currentTaskDate.setHours(0, 0, 0, 0);
       console.log('Current task date:', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
 
       // Check all tasks for the current day before cleanup
-      const { data: allToday } = await supabase
+      const { data: allTodayBefore } = await supabase
         .from('todos')
         .select('*')
         .eq('day', day)
         .like('actual_date', `${currentDayFormatted}%`);
-      console.log('All tasks for today before cleanup:', allToday);
+      console.log('All tasks for today before cleanup:', allTodayBefore);
 
       // Clean up duplicates for the current day (match by text and date, ignore recurring status)
       const { data: existingToday } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text.trim()) // Trim text to handle whitespace variations
+        .eq('text', task.text.trim())
         .eq('day', day)
         .like('actual_date', `${currentDayFormatted}%`)
         .neq('id', task.id);
@@ -356,6 +347,17 @@ function App() {
         .like('actual_date', `${currentDayFormatted}%`);
       console.log('All tasks for today after cleanup:', afterCleanup);
 
+      // Now update the current task to recurring
+      const { error: updateError } = await supabase
+        .from('todos')
+        .update({ recurring: true })
+        .eq('id', task.id);
+
+      if (updateError) {
+        console.error('Error updating current todo:', updateError);
+        return;
+      }
+
       const newTasks = [];
       for (let i = 1; i <= 7; i++) {
         const targetDate = new Date(currentTaskDate);
@@ -376,8 +378,7 @@ function App() {
           .eq('text', task.text.trim())
           .eq('day', targetDayName)
           .eq('recurring', true)
-          .gte('actual_date', `${formattedDate}T00:00:00`)
-          .lt('actual_date', `${formattedDate}T23:59:59`)
+          .like('actual_date', `${formattedDate}%`) // Use like for future dates too
           .neq('id', task.id);
 
         if (!existing || existing.length === 0) {
@@ -841,7 +842,7 @@ function App() {
                             addTask(e, 'TASK_BANK');
                           }
                         }}
-                        placeholder="Add a new task.."
+                        placeholder="Add a new task..."
                         className="w-full bg-transparent text-sm placeholder-white focus:outline-none text-white"
                       />
                     </form>
