@@ -5,7 +5,7 @@ import { supabase } from './lib/supabase';
 function App() {
   const [session, setSession] = useState(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [currentDate, setCurrentDate] = useState(new Date()); // Use local time by default
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isNavigating, setIsNavigating] = useState(false);
   const [colorTheme, setColorTheme] = useState(() => {
     return localStorage.getItem('todoTheme') || 'amber';
@@ -13,7 +13,7 @@ function App() {
   const [isRepeating, setIsRepeating] = useState(false);
   
   const getCurrentDayIndex = () => {
-    const today = currentDate.getDay(); // Use local day
+    const today = currentDate.getDay();
     return today;
   };
   
@@ -55,7 +55,7 @@ function App() {
     
     const start = getDateForDay(0);
     const end = getDateForDay(6);
-    end.setHours(23, 59, 59, 999); // Use local time
+    end.setHours(23, 59, 59, 999);
   
     const startStr = start.toISOString();
     const endStr = end.toISOString();
@@ -89,7 +89,7 @@ function App() {
       if (todosByDay[todo.day]) {
         todosByDay[todo.day].push({
           id: todo.id,
-          text: todo.text.trim(), // Removed .toLowerCase() to preserve case
+          text: todo.text.trim(),
           completed: todo.completed,
           recurring: todo.recurring,
           url: todo.url,
@@ -123,7 +123,7 @@ function App() {
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
-    date.setHours(0, 0, 0, 0); // Use local time
+    date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() + dayIndex);
     return date;
   };
@@ -188,7 +188,7 @@ function App() {
         .insert([
           {
             user_id: session.user.id,
-            text: newTask.trim(), // Removed .toLowerCase() to preserve case
+            text: newTask.trim(),
             day: day,
             actual_date: actualDate,
             completed: false
@@ -256,7 +256,7 @@ function App() {
 
   const deleteTask = async (taskId, day, task) => {
     if (task.recurring) {
-      await deleteRecurringTasks(task.text, day); // Use original task.text
+      await deleteRecurringTasks(task.text, day);
     } else {
       const { error } = await supabase
         .from('todos')
@@ -279,7 +279,7 @@ function App() {
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('text', text.trim()) // Use trimmed text, remove .toLowerCase()
+      .eq('text', text.trim())
       .eq('recurring', true)
       .gte('actual_date', startDate);
   
@@ -290,133 +290,107 @@ function App() {
   };
 
   const repeatTask = useCallback(async (task, day) => {
-    if (isRepeating) {
-      console.log('Repeat already in progress, skipping');
-      return;
-    }
+    if (isRepeating) return;
 
     setIsRepeating(true);
-    console.log('Starting repeatTask for task:', task.id, 'on day:', day);
 
     try {
       const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
-      currentTaskDate.setHours(0, 0, 0, 0); // Use local time
-      console.log('Current task date (local):', currentTaskDate.toISOString());
-      const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
-
-      // Check all tasks for the current day before cleanup
-      const { data: allTodayBefore, error: fetchErrorBefore } = await supabase
-        .from('todos')
-        .select('*')
-        .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`);
-      if (fetchErrorBefore) console.error('Error fetching tasks before cleanup:', fetchErrorBefore);
-      console.log('All tasks for today before cleanup:', allTodayBefore);
-
-      // Clean up duplicates for the current day (match by original text and date, handle case sensitivity)
-      const { data: existingToday, error: fetchError } = await supabase
-        .from('todos')
-        .select('*')
-        .eq('text', task.text.trim()) // Use trimmed text, preserve case
-        .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`)
-        .neq('id', task.id);
-
-      if (fetchError) console.error('Error fetching duplicates:', fetchError);
-      if (existingToday && existingToday.length > 0) {
-        console.log('Found duplicates for today:', existingToday);
-        const { error: deleteError } = await supabase
-          .from('todos')
-          .delete()
-          .eq('text', task.text.trim())
-          .eq('day', day)
-          .like('actual_date', `${currentDayFormatted}%`)
-          .neq('id', task.id);
-      
-        if (deleteError) {
-          console.error('Error deleting duplicates:', deleteError);
-        } else {
-          console.log('Deleted', existingToday.length, 'duplicate tasks for today');
-        }
-      }
-
-      // Verify after cleanup
-      const { data: afterCleanup, error: fetchErrorAfter } = await supabase
-        .from('todos')
-        .select('*')
-        .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`);
-      if (fetchErrorAfter) console.error('Error fetching tasks after cleanup:', fetchErrorAfter);
-      console.log('All tasks for today after cleanup:', afterCleanup);
-
-      // Update the current task to recurring (keep it, don’t duplicate)
-      const { error: updateError } = await supabase
-        .from('todos')
-        .update({ recurring: true })
-        .eq('id', task.id);
-
-      if (updateError) {
-        console.error('Error updating current todo:', updateError);
-        return;
-      }
-
-      const newTasks = [];
-      const today = new Date(currentTaskDate); // Use local date as reference
+      currentTaskDate.setHours(0, 0, 0, 0);
       const now = new Date();
-      now.setHours(0, 0, 0, 0); // Normalize now to midnight local time
-      for (let i = 1; i <= 6; i++) { // Start from i = 1 (tomorrow) and loop 6 times for next 6 days
+      now.setHours(0, 0, 0, 0);
+      const today = new Date(Math.max(currentTaskDate.getTime(), now.getTime()));
+      const currentDayFormatted = today.toISOString().split('T')[0];
+
+      // Optimistically update UI to show task as recurring immediately
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t =>
+          t.id === task.id ? { ...t, recurring: true } : t
+        )
+      }));
+
+      // Prepare all dates and days in one go
+      const futureTasks = [];
+      const dateRange = [];
+      for (let i = 0; i <= 6; i++) { // Include today through next 6 days
         const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + i); // Use local date calculations
+        targetDate.setDate(today.getDate() + i);
         const formattedDate = targetDate.toISOString().split('T')[0];
-
-        // Skip if targetDate is in the past or equal to now (local time)
-        if (targetDate <= now) {
-          console.log('Skipping past or current day (local):', formattedDate);
-          continue;
+        dateRange.push(formattedDate);
+        if (i > 0) { // Skip today for new task creation
+          futureTasks.push({
+            day: days[targetDate.getDay()],
+            actual_date: targetDate.toISOString(),
+            formattedDate
+          });
         }
+      }
 
-        const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
-        console.log(`Preparing task for ${targetDayName} on ${formattedDate}, i=${i}`);
+      // Single query to fetch existing tasks for all relevant days
+      const { data: existingTasks, error: fetchError } = await supabase
+        .from('todos')
+        .select('id, day, actual_date')
+        .eq('text', task.text.trim())
+        .in('actual_date', dateRange.map(d => `${d}%`));
 
-        const { data: existing, error: existingError } = await supabase
-          .from('todos')
-          .select('*')
-          .eq('text', task.text.trim())
-          .eq('day', targetDayName)
-          .eq('recurring', true)
-          .like('actual_date', `${formattedDate}%`);
+      if (fetchError) throw new Error('Failed to fetch existing tasks');
 
-        if (existingError) console.error('Error checking existing tasks:', existingError);
-        if (!existing || existing.length === 0) {
-          newTasks.push({
+      // Build a set of existing date-day combos for quick lookup
+      const existingSet = new Set(
+        existingTasks.map(t => `${t.actual_date.split('T')[0]}-${t.day}`)
+      );
+
+      // Clean up duplicates for today and update current task in one query
+      const { error: upsertError } = await supabase
+        .from('todos')
+        .upsert([
+          {
+            id: task.id,
             user_id: session.user.id,
             text: task.text.trim(),
-            day: targetDayName,
-            actual_date: targetDate.toISOString(),
-            completed: false,
-            recurring: true
-          });
-          console.log(`Queued task for ${formattedDate}`);
-        } else {
-          console.log(`Task already exists for ${formattedDate}, skipping`);
-        }
-      }
+            day: day,
+            actual_date: currentDayFormatted,
+            completed: task.completed,
+            recurring: true,
+            completed_at: task.completedAt
+          }
+        ], { onConflict: 'id' });
 
+      if (upsertError) throw new Error('Failed to update current task');
+
+      // Filter out days with existing tasks and prepare new tasks
+      const newTasks = futureTasks
+        .filter(ft => !existingSet.has(`${ft.formattedDate}-${ft.day}`))
+        .map(ft => ({
+          user_id: session.user.id,
+          text: task.text.trim(),
+          day: ft.day,
+          actual_date: ft.actual_date,
+          completed: false,
+          recurring: true
+        }));
+
+      // Batch insert new tasks if any
       if (newTasks.length > 0) {
-        console.log('Inserting batch of', newTasks.length, 'tasks');
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('todos')
           .insert(newTasks);
 
-        if (error) {
-          console.error('Error inserting batch tasks:', error);
-        } else {
-          console.log('Batch insert successful');
-        }
+        if (insertError) throw new Error('Failed to insert new tasks');
       }
 
-      console.log('Fetching todos after repeat');
+      // Fetch updated todos to ensure consistency
       await fetchTodos();
+    } catch (error) {
+      console.error('RepeatTask failed:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t =>
+          t.id === task.id ? { ...t, recurring: task.recurring } : t
+        )
+      }));
     } finally {
       setIsRepeating(false);
     }
