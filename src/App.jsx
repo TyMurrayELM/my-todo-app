@@ -317,53 +317,76 @@ function App() {
       clickedTaskDate.setHours(0, 0, 0, 0);
       const clickedDayFormatted = clickedTaskDate.toISOString().split('T')[0];
   
-      // CRITICAL CHANGE: Delete ALL tasks with same text for today BEFORE creating anything new
-      const { error: deleteCurrentDayError } = await supabase
+      // Find any existing tasks for this exact text and date
+      const { data: existingTasks } = await supabase
         .from('todos')
-        .delete()
+        .select('*')
         .eq('text', task.text.trim())
         .eq('day', day)
         .eq('actual_date', clickedDayFormatted);
   
-      if (deleteCurrentDayError) throw new Error('Failed to clean up current day tasks');
+      console.log('Existing tasks for this date:', existingTasks);
   
-      // Create a single recurring task for today
-      const { error: createCurrentError } = await supabase
-        .from('todos')
-        .insert([{
-          user_id: session.user.id,
-          text: task.text.trim(),
-          day: day,
-          actual_date: clickedDayFormatted,
-          completed: task.completed,
-          recurring: true,
-          completed_at: task.completedAt
-        }]);
+      // If we found any tasks besides our current one, delete them
+      if (existingTasks && existingTasks.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('todos')
+          .delete()
+          .eq('text', task.text.trim())
+          .eq('day', day)
+          .eq('actual_date', clickedDayFormatted)
+          .neq('id', task.id);
   
-      if (createCurrentError) throw new Error('Failed to create recurring task');
-  
-      // Prepare and insert future tasks
-      const futureTasks = [];
-      for (let i = 1; i <= 6; i++) {
-        const targetDate = new Date(clickedTaskDate);
-        targetDate.setDate(clickedTaskDate.getDate() + i);
-        
-        futureTasks.push({
-          user_id: session.user.id,
-          text: task.text.trim(),
-          day: days[targetDate.getDay()],
-          actual_date: targetDate.toISOString(),
-          completed: false,
-          recurring: true
-        });
+        if (deleteError) throw new Error('Failed to clean up duplicate tasks');
       }
   
-      if (futureTasks.length > 0) {
-        const { error: insertError } = await supabase
-          .from('todos')
-          .insert(futureTasks);
+      // Update our task to be recurring
+      const { error: updateError } = await supabase
+        .from('todos')
+        .update({ recurring: true })
+        .eq('id', task.id);
   
-        if (insertError) throw new Error('Failed to insert future tasks');
+      if (updateError) throw new Error('Failed to update task');
+  
+      // Create future tasks - now for 30 days
+      const futureTasks = [];
+      for (let i = 1; i <= 30; i++) {
+        const targetDate = new Date(clickedTaskDate);
+        targetDate.setDate(clickedTaskDate.getDate() + i);
+        const formattedDate = targetDate.toISOString();
+        
+        // Check if a task already exists for this exact date
+        const { data: existingFuture } = await supabase
+          .from('todos')
+          .select('id')
+          .eq('text', task.text.trim())
+          .eq('day', days[targetDate.getDay()])
+          .eq('actual_date', formattedDate);
+  
+        // Only add to futureTasks if no task exists for this date
+        if (!existingFuture || existingFuture.length === 0) {
+          futureTasks.push({
+            user_id: session.user.id,
+            text: task.text.trim(),
+            day: days[targetDate.getDay()],
+            actual_date: formattedDate,
+            completed: false,
+            recurring: true
+          });
+        }
+      }
+  
+      // Batch insert future tasks in chunks to avoid any potential limits
+      if (futureTasks.length > 0) {
+        const chunkSize = 10;
+        for (let i = 0; i < futureTasks.length; i += chunkSize) {
+          const chunk = futureTasks.slice(i, i + chunkSize);
+          const { error: insertError } = await supabase
+            .from('todos')
+            .insert(chunk);
+  
+          if (insertError) throw new Error('Failed to insert future tasks chunk');
+        }
       }
   
       // Sync with database
