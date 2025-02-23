@@ -299,100 +299,70 @@ function App() {
       clickedTaskDate.setHours(0, 0, 0, 0);
       const clickedDayFormatted = clickedTaskDate.toISOString().split('T')[0];
   
-      // Step 1: Delete ALL duplicates on the clicked day EXCEPT the clicked task
-      const { error: deleteError } = await supabase
+      // Add a small delay to ensure the original task has been created
+      await new Promise(resolve => setTimeout(resolve, 100));
+  
+      // First, query to find ALL tasks with the same text for today
+      const { data: existingTasks } = await supabase
         .from('todos')
-        .delete()
+        .select('id')
         .eq('text', task.text.trim())
         .eq('day', day)
-        .neq('id', task.id);
+        .eq('actual_date', clickedDayFormatted);
   
-      if (deleteError) throw new Error('Failed to delete duplicates on clicked day');
+      // If we found multiple tasks, delete all but the most recently created one
+      if (existingTasks && existingTasks.length > 1) {
+        const idsToKeep = [task.id]; // Keep the task we're making recurring
+        
+        const { error: deleteError } = await supabase
+          .from('todos')
+          .delete()
+          .eq('day', day)
+          .eq('actual_date', clickedDayFormatted)
+          .eq('text', task.text.trim())
+          .not('id', 'in', `(${idsToKeep.join(',')})`);
   
-      // Step 2: Update the clicked task to recurring
-      const { error: upsertError } = await supabase
+        if (deleteError) throw new Error('Failed to delete duplicate tasks');
+      }
+  
+      // Update the remaining task to be recurring
+      const { error: updateError } = await supabase
         .from('todos')
-        .upsert([
-          {
-            id: task.id,
-            user_id: session.user.id,
-            text: task.text.trim(),
-            day: day,
-            actual_date: clickedDayFormatted,
-            completed: task.completed,
-            recurring: true,
-            completed_at: task.completedAt
-          }
-        ], { onConflict: 'id' });
+        .update({ recurring: true })
+        .eq('id', task.id);
   
-      if (upsertError) throw new Error('Failed to update current task');
+      if (updateError) throw new Error('Failed to update task to recurring');
   
-      // Step 3: Optimistically update UI to show task as recurring
-      setTasks(prev => ({
-        ...prev,
-        [day]: prev[day]
-          .filter(t => t.id === task.id || t.text.trim() !== task.text.trim())
-          .map(t => (t.id === task.id ? { ...t, recurring: true } : t))
-      }));
-  
-      // Step 4: Prepare future tasks, explicitly starting AFTER the clicked day
+      // Create future tasks
       const futureTasks = [];
       for (let i = 1; i <= 6; i++) {
         const targetDate = new Date(clickedTaskDate);
         targetDate.setDate(clickedTaskDate.getDate() + i);
-        const formattedDate = targetDate.toISOString().split('T')[0];
+        
         futureTasks.push({
+          user_id: session.user.id,
+          text: task.text.trim(),
           day: days[targetDate.getDay()],
           actual_date: targetDate.toISOString(),
-          formattedDate
+          completed: false,
+          recurring: true
         });
       }
   
-      // Step 5: Fetch existing tasks for future days only
-      const { data: existingTasks, error: fetchError } = await supabase
-        .from('todos')
-        .select('id, day, actual_date')
-        .eq('text', task.text.trim())
-        .in('actual_date', futureTasks.map(ft => ft.formattedDate));
-  
-      if (fetchError) throw new Error('Failed to fetch existing tasks');
-  
-      // Build a set of existing date-day combos
-      const existingSet = new Set(
-        existingTasks.map(t => `${t.actual_date.split('T')[0]}-${t.day}`)
-      );
-  
-      // Step 6: Filter and prepare new tasks, ensuring clicked day is excluded
-      const newTasks = futureTasks
-        .filter(ft => !existingSet.has(`${ft.formattedDate}-${ft.day}`))
-        .map(ft => ({
-          user_id: session.user.id,
-          text: task.text.trim(),
-          day: ft.day,
-          actual_date: ft.actual_date,
-          completed: false,
-          recurring: true
-        }));
-  
-      // Step 7: Batch insert new tasks
-      if (newTasks.length > 0) {
+      // Batch insert future tasks
+      if (futureTasks.length > 0) {
         const { error: insertError } = await supabase
           .from('todos')
-          .insert(newTasks);
+          .insert(futureTasks);
   
-        if (insertError) throw new Error('Failed to insert new tasks');
+        if (insertError) throw new Error('Failed to insert future tasks');
       }
   
-      // Step 8: Sync with database
+      // Sync with database
       await fetchTodos();
+  
     } catch (error) {
       console.error('RepeatTask failed:', error);
-      setTasks(prev => ({
-        ...prev,
-        [day]: prev[day].map(t =>
-          t.id === task.id ? { ...t, recurring: task.recurring } : t
-        )
-      }));
     } finally {
       setIsRepeating(false);
     }
