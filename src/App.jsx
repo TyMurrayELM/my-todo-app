@@ -317,7 +317,7 @@ function App() {
       const { data: existingToday, error: fetchError } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text.trim()) // Use trimmed text, remove .toLowerCase()
+        .eq('text', task.text.trim())
         .eq('day', day)
         .like('actual_date', `${currentDayFormatted}%`)
         .neq('id', task.id);
@@ -361,13 +361,15 @@ function App() {
       }
 
       const newTasks = [];
-      for (let i = 1; i <= 7; i++) {
-        const targetDate = new Date(currentTaskDate);
-        targetDate.setDate(targetDate.getDate() + i);
+      const today = new Date(currentTaskDate); // Use current date as reference
+      for (let i = 0; i < 7; i++) { // Start from i = 0 (today) to ensure we include the current day
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + i);
         const formattedDate = targetDate.toISOString().split('T')[0];
 
-        if (formattedDate === currentDayFormatted) {
-          console.log('Skipping today:', formattedDate);
+        // Only create tasks for today and future days (skip past days)
+        if (targetDate < currentTaskDate) {
+          console.log('Skipping past day:', formattedDate);
           continue;
         }
 
@@ -423,7 +425,7 @@ function App() {
   
     const { error } = await supabase
       .from('todos')
-      .update({ text: newText.trim() }) // Removed .toLowerCase() to preserve case
+      .update({ text: newText.trim() })
       .eq('id', taskId);
   
     if (error) {
@@ -576,7 +578,7 @@ function App() {
                           if (a.completed !== b.completed) {
                             return b.completed - a.completed;
                           }
-                          return a.text.localeCompare(b.text); // Use localeCompare for natural sorting
+                          return a.text.localeCompare(b.text);
                         })
                         .map(task => (
                           <div key={task.id} className="group flex items-start gap-3">
@@ -736,7 +738,7 @@ function App() {
                         if (a.completed !== b.completed) {
                           return b.completed - a.completed;
                         }
-                        return a.text.localeCompare(b.text); // Use localeCompare for natural sorting
+                        return a.text.localeCompare(b.text);
                       })
                       .map(task => (
                         <div key={task.id} className="group flex items-start gap-3">
