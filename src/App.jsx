@@ -13,7 +13,7 @@ function App() {
   const [isRepeating, setIsRepeating] = useState(false);
   
   const getCurrentDayIndex = () => {
-    const today = currentDate.getDay();
+    const today = currentDate.getUTCDay(); // Use UTC for consistency
     return today;
   };
   
@@ -55,7 +55,7 @@ function App() {
     
     const start = getDateForDay(0);
     const end = getDateForDay(6);
-    end.setHours(23, 59, 59, 999);
+    end.setUTCHours(23, 59, 59, 999); // Use UTC for consistency
   
     const startStr = start.toISOString();
     const endStr = end.toISOString();
@@ -123,22 +123,22 @@ function App() {
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
-    date.setHours(0, 0, 0, 0);
-    date.setDate(currentDate.getDate() + dayIndex);
+    date.setUTCHours(0, 0, 0, 0); // Use UTC for consistency
+    date.setUTCDate(date.getUTCDate() + dayIndex);
     return date;
   };
 
   const formatDate = (date) => {
-    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
+    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getUTCDate()} ${date.getUTCFullYear()}`;
   };
 
   const handleNavigation = async (direction) => {
     setIsNavigating(true);
     const newDate = new Date(currentDate);
-    newDate.setDate(currentDate.getDate() + direction);
+    newDate.setUTCDate(currentDate.getUTCDate() + direction);
 
     const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-    const newIndex = newDate.getDay();
+    const newIndex = newDate.getUTCDay();
     const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
 
     setCurrentDate(newDate);
@@ -261,7 +261,7 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', taskId); // Fixed typo: 'testId' to 'taskId'
+        .eq('id', taskId);
   
       if (error) {
         console.error('Error deleting todo:', error);
@@ -300,8 +300,8 @@ function App() {
 
     try {
       const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
-      currentTaskDate.setHours(0, 0, 0, 0); // Ensure time is midnight UTC
-      console.log('Current task date:', currentTaskDate.toISOString());
+      currentTaskDate.setUTCHours(0, 0, 0, 0); // Use UTC for consistency
+      console.log('Current task date (UTC):', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
 
       // Check all tasks for the current day before cleanup
@@ -361,21 +361,21 @@ function App() {
       }
 
       const newTasks = [];
-      const today = new Date(currentTaskDate); // Use current date as reference
+      const today = new Date(currentTaskDate); // Use current date as reference (UTC)
+      const now = new Date();
+      now.setUTCHours(0, 0, 0, 0); // Normalize now to midnight UTC
       for (let i = 1; i <= 6; i++) { // Start from i = 1 (tomorrow) and loop 6 times for next 6 days
         const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + i);
+        targetDate.setUTCDate(today.getUTCDate() + i); // Use UTC for date calculations
         const formattedDate = targetDate.toISOString().split('T')[0];
 
-        // Skip if targetDate is in the past relative to now
-        const now = new Date();
-        now.setHours(0, 0, 0, 0); // Normalize now to midnight UTC
-        if (targetDate < now) {
-          console.log('Skipping past day:', formattedDate);
+        // Skip if targetDate is in the past or equal to now (UTC)
+        if (targetDate <= now) {
+          console.log('Skipping past or current day (UTC):', formattedDate);
           continue;
         }
 
-        const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
+        const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getUTCDay()];
         console.log(`Preparing task for ${targetDayName} on ${formattedDate}, i=${i}`);
 
         const { data: existing, error: existingError } = await supabase
