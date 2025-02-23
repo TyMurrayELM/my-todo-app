@@ -60,6 +60,7 @@ function App() {
     const startStr = start.toISOString();
     const endStr = end.toISOString();
   
+    // Query todos within the exact date range
     const { data, error } = await supabase
       .from('todos')
       .select('*')
@@ -72,8 +73,7 @@ function App() {
       return;
     }
   
-    console.log('Raw todos from Supabase:', data);
-
+    // Initialize empty todos for each day
     const todosByDay = {
       SUNDAY: [],
       MONDAY: [],
@@ -85,9 +85,10 @@ function App() {
       TASK_BANK: []
     };
   
+    // Group todos by their actual date, not just the day name
     data.forEach(todo => {
-      if (todosByDay[todo.day]) {
-        todosByDay[todo.day].push({
+      if (todo.day === 'TASK_BANK') {
+        todosByDay.TASK_BANK.push({
           id: todo.id,
           text: todo.text.trim(),
           completed: todo.completed,
@@ -95,6 +96,25 @@ function App() {
           url: todo.url,
           completedAt: todo.completed_at
         });
+      } else {
+        // Get the actual date of this todo
+        const todoDate = new Date(todo.actual_date);
+        // Find which day index (0-6) this todo belongs to based on the date
+        const dayIndex = days.findIndex(day => {
+          const thisDate = getDateForDay(days.indexOf(day));
+          return thisDate.toISOString().split('T')[0] === todoDate.toISOString().split('T')[0];
+        });
+        
+        if (dayIndex !== -1) {
+          todosByDay[days[dayIndex]].push({
+            id: todo.id,
+            text: todo.text.trim(),
+            completed: todo.completed,
+            recurring: todo.recurring,
+            url: todo.url,
+            completedAt: todo.completed_at
+          });
+        }
       }
     });
   
@@ -102,7 +122,6 @@ function App() {
     console.log('Tasks for current day after fetch:', todosByDay[days[selectedDay]]);
     setIsLoading(false);
   }, [session, currentDate, isNavigating, days, selectedDay]);
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
