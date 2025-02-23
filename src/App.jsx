@@ -299,13 +299,12 @@ function App() {
       clickedTaskDate.setHours(0, 0, 0, 0);
       const clickedDayFormatted = clickedTaskDate.toISOString().split('T')[0];
   
-      // Step 1: Delete any duplicates on the clicked day (except the task being repeated)
+      // Step 1: Delete ALL duplicates on the clicked day EXCEPT the clicked task
       const { error: deleteError } = await supabase
         .from('todos')
         .delete()
         .eq('text', task.text.trim())
         .eq('day', day)
-        .eq('actual_date', clickedDayFormatted)
         .neq('id', task.id);
   
       if (deleteError) throw new Error('Failed to delete duplicates on clicked day');
@@ -365,7 +364,7 @@ function App() {
   
       // Step 6: Filter and prepare new tasks, ensuring clicked day is excluded
       const newTasks = futureTasks
-        .filter(ft => ft.formattedDate !== clickedDayFormatted && !existingSet.has(`${ft.formattedDate}-${ft.day}`))
+        .filter(ft => !existingSet.has(`${ft.formattedDate}-${ft.day}`))
         .map(ft => ({
           user_id: session.user.id,
           text: task.text.trim(),
