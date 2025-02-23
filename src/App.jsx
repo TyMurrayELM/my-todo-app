@@ -5,7 +5,7 @@ import { supabase } from './lib/supabase';
 function App() {
   const [session, setSession] = useState(null);
   const [selectedDay, setSelectedDay] = useState(0);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date()); // Use local time by default
   const [isNavigating, setIsNavigating] = useState(false);
   const [colorTheme, setColorTheme] = useState(() => {
     return localStorage.getItem('todoTheme') || 'amber';
@@ -13,7 +13,7 @@ function App() {
   const [isRepeating, setIsRepeating] = useState(false);
   
   const getCurrentDayIndex = () => {
-    const today = currentDate.getUTCDay(); // Use UTC for consistency
+    const today = currentDate.getDay(); // Use local day
     return today;
   };
   
@@ -55,7 +55,7 @@ function App() {
     
     const start = getDateForDay(0);
     const end = getDateForDay(6);
-    end.setUTCHours(23, 59, 59, 999); // Use UTC for consistency
+    end.setHours(23, 59, 59, 999); // Use local time
   
     const startStr = start.toISOString();
     const endStr = end.toISOString();
@@ -123,22 +123,22 @@ function App() {
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
-    date.setUTCHours(0, 0, 0, 0); // Use UTC for consistency
-    date.setUTCDate(date.getUTCDate() + dayIndex);
+    date.setHours(0, 0, 0, 0); // Use local time
+    date.setDate(date.getDate() + dayIndex);
     return date;
   };
 
   const formatDate = (date) => {
-    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getUTCDate()} ${date.getUTCFullYear()}`;
+    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
   };
 
   const handleNavigation = async (direction) => {
     setIsNavigating(true);
     const newDate = new Date(currentDate);
-    newDate.setUTCDate(currentDate.getUTCDate() + direction);
+    newDate.setDate(currentDate.getDate() + direction);
 
     const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-    const newIndex = newDate.getUTCDay();
+    const newIndex = newDate.getDay();
     const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
 
     setCurrentDate(newDate);
@@ -300,8 +300,8 @@ function App() {
 
     try {
       const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
-      currentTaskDate.setUTCHours(0, 0, 0, 0); // Use UTC for consistency
-      console.log('Current task date (UTC):', currentTaskDate.toISOString());
+      currentTaskDate.setHours(0, 0, 0, 0); // Use local time
+      console.log('Current task date (local):', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
 
       // Check all tasks for the current day before cleanup
@@ -361,21 +361,21 @@ function App() {
       }
 
       const newTasks = [];
-      const today = new Date(currentTaskDate); // Use current date as reference (UTC)
+      const today = new Date(currentTaskDate); // Use local date as reference
       const now = new Date();
-      now.setUTCHours(0, 0, 0, 0); // Normalize now to midnight UTC
+      now.setHours(0, 0, 0, 0); // Normalize now to midnight local time
       for (let i = 1; i <= 6; i++) { // Start from i = 1 (tomorrow) and loop 6 times for next 6 days
         const targetDate = new Date(today);
-        targetDate.setUTCDate(today.getUTCDate() + i); // Use UTC for date calculations
+        targetDate.setDate(today.getDate() + i); // Use local date calculations
         const formattedDate = targetDate.toISOString().split('T')[0];
 
-        // Skip if targetDate is in the past or equal to now (UTC)
+        // Skip if targetDate is in the past or equal to now (local time)
         if (targetDate <= now) {
-          console.log('Skipping past or current day (UTC):', formattedDate);
+          console.log('Skipping past or current day (local):', formattedDate);
           continue;
         }
 
-        const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getUTCDay()];
+        const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
         console.log(`Preparing task for ${targetDayName} on ${formattedDate}, i=${i}`);
 
         const { data: existing, error: existingError } = await supabase
