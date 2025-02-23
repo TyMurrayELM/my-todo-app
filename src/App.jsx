@@ -751,24 +751,24 @@ function App() {
                             {task.completed && <Check size={16} className="text-white" />}
                           </button>
                           {editingTaskId === task.id ? (
-                            <input
-                              type="text"
-                              value={editingTaskText}
-                              onChange={(e) => setEditingTaskText(e.target.value)}
-                              onBlur(() => updateTaskText(task.id, 'TASK_BANK', editingTaskText))
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  updateTaskText(task.id, 'TASK_BANK', editingTaskText);
-                                } else if (e.key === 'Escape') {
-                                  setEditingTaskId(null);
-                                  setEditingTaskText('');
-                                }
-                              }}
-                              className="flex-grow bg-transparent border-none focus:outline-none text-white"
-                              onClick={(e) => e.stopPropagation()}
-                              autoFocus
-                            />
-                          ) : (
+  <input
+    type="text"
+    value={editingTaskText}
+    onChange={(e) => setEditingTaskText(e.target.value)}
+    onBlur(() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)) // Incorrect syntax
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') {
+        updateTaskText(task.id, 'TASK_BANK', editingTaskText);
+      } else if (e.key === 'Escape') {
+        setEditingTaskId(null);
+        setEditingTaskText('');
+      }
+    }}
+    className="flex-grow bg-transparent border-none focus:outline-none text-white"
+    onClick={(e) => e.stopPropagation()}
+    autoFocus
+  />
+) : (
                             <div className="flex-grow flex items-center gap-2 text-white">
                               <span
                                 onClick={(e) => {
