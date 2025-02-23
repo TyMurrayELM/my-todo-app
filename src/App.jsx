@@ -299,29 +299,30 @@ function App() {
     console.log('Starting repeatTask for task:', task.id, 'on day:', day);
 
     try {
-      // First, clean up any duplicates for the current day before making changes
       const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
       currentTaskDate.setHours(0, 0, 0, 0);
       console.log('Current task date:', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
 
       // Check all tasks for the current day before cleanup
-      const { data: allTodayBefore } = await supabase
+      const { data: allTodayBefore, error: fetchErrorBefore } = await supabase
         .from('todos')
         .select('*')
         .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`);
+        .eq('actual_date', currentDayFormatted); // Exact date match
+      if (fetchErrorBefore) console.error('Error fetching tasks before cleanup:', fetchErrorBefore);
       console.log('All tasks for today before cleanup:', allTodayBefore);
 
-      // Clean up duplicates for the current day (match by text and date, ignore recurring status)
-      const { data: existingToday } = await supabase
+      // Clean up duplicates for the current day (match by text and exact date)
+      const { data: existingToday, error: fetchError } = await supabase
         .from('todos')
         .select('*')
         .eq('text', task.text.trim())
         .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`)
+        .eq('actual_date', currentDayFormatted) // Use exact date match
         .neq('id', task.id);
 
+      if (fetchError) console.error('Error fetching duplicates:', fetchError);
       if (existingToday && existingToday.length > 0) {
         console.log('Found duplicates for today:', existingToday);
         const { error: deleteError } = await supabase
@@ -329,7 +330,7 @@ function App() {
           .delete()
           .eq('text', task.text.trim())
           .eq('day', day)
-          .like('actual_date', `${currentDayFormatted}%`)
+          .eq('actual_date', currentDayFormatted)
           .neq('id', task.id);
         
         if (deleteError) {
@@ -340,11 +341,12 @@ function App() {
       }
 
       // Verify after cleanup
-      const { data: afterCleanup } = await supabase
+      const { data: afterCleanup, error: fetchErrorAfter } = await supabase
         .from('todos')
         .select('*')
         .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`);
+        .eq('actual_date', currentDayFormatted);
+      if (fetchErrorAfter) console.error('Error fetching tasks after cleanup:', fetchErrorAfter);
       console.log('All tasks for today after cleanup:', afterCleanup);
 
       // Now update the current task to recurring
@@ -372,15 +374,16 @@ function App() {
         const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()];
         console.log(`Preparing task for ${targetDayName} on ${formattedDate}, i=${i}`);
 
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('todos')
           .select('*')
           .eq('text', task.text.trim())
           .eq('day', targetDayName)
           .eq('recurring', true)
-          .like('actual_date', `${formattedDate}%`) // Use like for future dates too
+          .eq('actual_date', formattedDate) // Exact date match for future tasks
           .neq('id', task.id);
 
+        if (existingError) console.error('Error checking existing tasks:', existingError);
         if (!existing || existing.length === 0) {
           newTasks.push({
             user_id: session.user.id,
