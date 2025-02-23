@@ -302,14 +302,14 @@ function App() {
       const today = new Date(Math.max(currentTaskDate.getTime(), now.getTime()));
       const currentDayFormatted = today.toISOString().split('T')[0];
   
-      // Step 1: Delete duplicates for the current day (except the task being repeated)
+      // Step 1: Delete any duplicates on the current day (except the task being repeated)
       const { error: deleteError } = await supabase
         .from('todos')
         .delete()
         .eq('text', task.text.trim())
         .eq('day', day)
-        .eq('actual_date', currentDayFormatted) // Exact match for date
-        .neq('id', task.id); // Preserve the task being repeated
+        .eq('actual_date', currentDayFormatted)
+        .neq('id', task.id);
   
       if (deleteError) throw new Error('Failed to delete duplicates on current day');
   
@@ -317,28 +317,26 @@ function App() {
       setTasks(prev => ({
         ...prev,
         [day]: prev[day]
-          .filter(t => t.id === task.id || t.text.trim() !== task.text.trim()) // Remove local duplicates
+          .filter(t => t.id === task.id || t.text.trim() !== task.text.trim())
           .map(t => (t.id === task.id ? { ...t, recurring: true } : t))
       }));
   
-      // Step 3: Prepare all dates and days
+      // Step 3: Prepare dates and days, starting from tomorrow
       const futureTasks = [];
       const dateRange = [];
-      for (let i = 0; i <= 6; i++) {
+      for (let i = 1; i <= 6; i++) { // Start at i=1 to skip today
         const targetDate = new Date(today);
         targetDate.setDate(today.getDate() + i);
         const formattedDate = targetDate.toISOString().split('T')[0];
         dateRange.push(formattedDate);
-        if (i > 0) { // Skip today for new task creation
-          futureTasks.push({
-            day: days[targetDate.getDay()],
-            actual_date: targetDate.toISOString(),
-            formattedDate
-          });
-        }
+        futureTasks.push({
+          day: days[targetDate.getDay()],
+          actual_date: targetDate.toISOString(),
+          formattedDate
+        });
       }
   
-      // Step 4: Fetch existing tasks for all relevant days
+      // Step 4: Fetch existing tasks for future days only
       const { data: existingTasks, error: fetchError } = await supabase
         .from('todos')
         .select('id, day, actual_date')
@@ -352,7 +350,7 @@ function App() {
         existingTasks.map(t => `${t.actual_date.split('T')[0]}-${t.day}`)
       );
   
-      // Step 5: Update the current task to recurring
+      // Step 5: Update the current task to recurring (no new task for today)
       const { error: upsertError } = await supabase
         .from('todos')
         .upsert([
@@ -405,6 +403,7 @@ function App() {
       setIsRepeating(false);
     }
   }, [session, days, fetchTodos, isRepeating]);
+
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
   
