@@ -89,7 +89,7 @@ function App() {
       if (todosByDay[todo.day]) {
         todosByDay[todo.day].push({
           id: todo.id,
-          text: todo.text.trim().toLowerCase(), // Normalize text for consistency
+          text: todo.text.trim().toLowerCase(),
           completed: todo.completed,
           recurring: todo.recurring,
           url: todo.url,
@@ -188,7 +188,7 @@ function App() {
         .insert([
           {
             user_id: session.user.id,
-            text: newTask.trim().toLowerCase(), // Normalize text
+            text: newTask.trim().toLowerCase(),
             day: day,
             actual_date: actualDate,
             completed: false
@@ -309,7 +309,7 @@ function App() {
         .from('todos')
         .select('*')
         .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`); // Use like to catch all timestamp variations
+        .like('actual_date', `${currentDayFormatted}%`);
       if (fetchErrorBefore) console.error('Error fetching tasks before cleanup:', fetchErrorBefore);
       console.log('All tasks for today before cleanup:', allTodayBefore);
 
@@ -317,9 +317,9 @@ function App() {
       const { data: existingToday, error: fetchError } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text.trim().toLowerCase()) // Normalize text
+        .eq('text', task.text.trim().toLowerCase())
         .eq('day', day)
-        .like('actual_date', `${currentDayFormatted}%`) // Match date with any time
+        .like('actual_date', `${currentDayFormatted}%`)
         .neq('id', task.id);
 
       if (fetchError) console.error('Error fetching duplicates:', fetchError);
@@ -380,7 +380,7 @@ function App() {
           .eq('text', task.text.trim().toLowerCase())
           .eq('day', targetDayName)
           .eq('recurring', true)
-          .like('actual_date', `${formattedDate}%`); // Match date with any time
+          .like('actual_date', `${formattedDate}%`);
 
         if (existingError) console.error('Error checking existing tasks:', existingError);
         if (!existing || existing.length === 0) {
@@ -423,7 +423,7 @@ function App() {
   
     const { error } = await supabase
       .from('todos')
-      .update({ text: newText.trim().toLowerCase() }) // Normalize text
+      .update({ text: newText.trim().toLowerCase() })
       .eq('id', taskId);
   
     if (error) {
@@ -595,7 +595,7 @@ function App() {
                                 type="text"
                                 value={editingTaskText}
                                 onChange={(e) => setEditingTaskText(e.target.value)}
-                                onBlur={() => updateTaskText(task.id, day, editingTaskText)}
+                                onBlur={() => updateTaskText(task.id, day, editingTaskText)} // Fixed syntax
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     updateTaskText(task.id, day, editingTaskText);
@@ -751,24 +751,24 @@ function App() {
                             {task.completed && <Check size={16} className="text-white" />}
                           </button>
                           {editingTaskId === task.id ? (
-  <input
-    type="text"
-    value={editingTaskText}
-    onChange={(e) => setEditingTaskText(e.target.value)}
-    onBlur(() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)) // Incorrect syntax
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') {
-        updateTaskText(task.id, 'TASK_BANK', editingTaskText);
-      } else if (e.key === 'Escape') {
-        setEditingTaskId(null);
-        setEditingTaskText('');
-      }
-    }}
-    className="flex-grow bg-transparent border-none focus:outline-none text-white"
-    onClick={(e) => e.stopPropagation()}
-    autoFocus
-  />
-) : (
+                            <input
+                              type="text"
+                              value={editingTaskText}
+                              onChange={(e) => setEditingTaskText(e.target.value)}
+                              onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)} // Fixed syntax
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateTaskText(task.id, 'TASK_BANK', editingTaskText);
+                                } else if (e.key === 'Escape') {
+                                  setEditingTaskId(null);
+                                  setEditingTaskText('');
+                                }
+                              }}
+                              className="flex-grow bg-transparent border-none focus:outline-none text-white"
+                              onClick={(e) => e.stopPropagation()}
+                              autoFocus
+                            />
+                          ) : (
                             <div className="flex-grow flex items-center gap-2 text-white">
                               <span
                                 onClick={(e) => {
