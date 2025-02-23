@@ -295,23 +295,20 @@ function App() {
     setIsRepeating(true);
   
     try {
-      const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
-      currentTaskDate.setHours(0, 0, 0, 0);
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const today = new Date(Math.max(currentTaskDate.getTime(), now.getTime()));
-      const currentDayFormatted = today.toISOString().split('T')[0];
+      const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
+      clickedTaskDate.setHours(0, 0, 0, 0);
+      const clickedDayFormatted = clickedTaskDate.toISOString().split('T')[0];
   
-      // Step 1: Delete any duplicates on the current day (except the task being repeated)
+      // Step 1: Delete any duplicates on the clicked day (except the task being repeated)
       const { error: deleteError } = await supabase
         .from('todos')
         .delete()
         .eq('text', task.text.trim())
         .eq('day', day)
-        .eq('actual_date', currentDayFormatted)
+        .eq('actual_date', clickedDayFormatted)
         .neq('id', task.id);
   
-      if (deleteError) throw new Error('Failed to delete duplicates on current day');
+      if (deleteError) throw new Error('Failed to delete duplicates on clicked day');
   
       // Step 2: Optimistically update UI to show task as recurring
       setTasks(prev => ({
@@ -321,12 +318,12 @@ function App() {
           .map(t => (t.id === task.id ? { ...t, recurring: true } : t))
       }));
   
-      // Step 3: Prepare dates and days, starting from tomorrow
+      // Step 3: Prepare dates and days, starting from the day AFTER the clicked day
       const futureTasks = [];
       const dateRange = [];
-      for (let i = 1; i <= 6; i++) { // Start at i=1 to skip today
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + i);
+      for (let i = 1; i <= 6; i++) { // Start at i=1 to skip the clicked day
+        const targetDate = new Date(clickedTaskDate);
+        targetDate.setDate(clickedTaskDate.getDate() + i);
         const formattedDate = targetDate.toISOString().split('T')[0];
         dateRange.push(formattedDate);
         futureTasks.push({
@@ -350,7 +347,7 @@ function App() {
         existingTasks.map(t => `${t.actual_date.split('T')[0]}-${t.day}`)
       );
   
-      // Step 5: Update the current task to recurring (no new task for today)
+      // Step 5: Update the clicked task to recurring (no new task for this day)
       const { error: upsertError } = await supabase
         .from('todos')
         .upsert([
@@ -359,7 +356,7 @@ function App() {
             user_id: session.user.id,
             text: task.text.trim(),
             day: day,
-            actual_date: currentDayFormatted,
+            actual_date: clickedDayFormatted,
             completed: task.completed,
             recurring: true,
             completed_at: task.completedAt
