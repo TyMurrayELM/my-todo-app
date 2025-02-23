@@ -261,7 +261,7 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', taskId);
+        .eq('id', testId);
   
       if (error) {
         console.error('Error deleting todo:', error);
@@ -300,7 +300,7 @@ function App() {
 
     try {
       const currentTaskDate = new Date(getDateForDay(days.indexOf(day)));
-      currentTaskDate.setHours(0, 0, 0, 0);
+      currentTaskDate.setHours(0, 0, 0, 0); // Ensure time is midnight UTC
       console.log('Current task date:', currentTaskDate.toISOString());
       const currentDayFormatted = currentTaskDate.toISOString().split('T')[0];
 
@@ -313,11 +313,11 @@ function App() {
       if (fetchErrorBefore) console.error('Error fetching tasks before cleanup:', fetchErrorBefore);
       console.log('All tasks for today before cleanup:', allTodayBefore);
 
-      // Clean up duplicates for the current day (match by original text and date)
+      // Clean up duplicates for the current day (match by original text and date, handle case sensitivity)
       const { data: existingToday, error: fetchError } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text.trim())
+        .eq('text', task.text.trim()) // Use trimmed text, preserve case
         .eq('day', day)
         .like('actual_date', `${currentDayFormatted}%`)
         .neq('id', task.id);
@@ -332,7 +332,7 @@ function App() {
           .eq('day', day)
           .like('actual_date', `${currentDayFormatted}%`)
           .neq('id', task.id);
-        
+      
         if (deleteError) {
           console.error('Error deleting duplicates:', deleteError);
         } else {
@@ -361,14 +361,15 @@ function App() {
       }
 
       const newTasks = [];
-      const today = new Date(currentTaskDate); // Use current date as reference
-      for (let i = 0; i < 7; i++) { // Start from i = 0 (today) to ensure we include the current day
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + i);
+      for (let i = 1; i <= 7; i++) { // Start from i = 1 to skip today
+        const targetDate = new Date(currentTaskDate);
+        targetDate.setDate(currentTaskDate.getDate() + i);
         const formattedDate = targetDate.toISOString().split('T')[0];
 
-        // Only create tasks for today and future days (skip past days)
-        if (targetDate < currentTaskDate) {
+        // Skip if targetDate is in the past relative to now
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Normalize now to midnight UTC
+        if (targetDate < now) {
           console.log('Skipping past day:', formattedDate);
           continue;
         }
