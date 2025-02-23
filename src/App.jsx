@@ -89,7 +89,7 @@ function App() {
       if (todosByDay[todo.day]) {
         todosByDay[todo.day].push({
           id: todo.id,
-          text: todo.text.trim().toLowerCase(),
+          text: todo.text.trim(), // Removed .toLowerCase() to preserve case
           completed: todo.completed,
           recurring: todo.recurring,
           url: todo.url,
@@ -188,7 +188,7 @@ function App() {
         .insert([
           {
             user_id: session.user.id,
-            text: newTask.trim().toLowerCase(),
+            text: newTask.trim(), // Removed .toLowerCase() to preserve case
             day: day,
             actual_date: actualDate,
             completed: false
@@ -256,7 +256,7 @@ function App() {
 
   const deleteTask = async (taskId, day, task) => {
     if (task.recurring) {
-      await deleteRecurringTasks(task.text, day);
+      await deleteRecurringTasks(task.text, day); // Use original task.text
     } else {
       const { error } = await supabase
         .from('todos')
@@ -279,7 +279,7 @@ function App() {
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('text', text.toLowerCase().trim())
+      .eq('text', text.trim()) // Use trimmed text, remove .toLowerCase()
       .eq('recurring', true)
       .gte('actual_date', startDate);
   
@@ -313,11 +313,11 @@ function App() {
       if (fetchErrorBefore) console.error('Error fetching tasks before cleanup:', fetchErrorBefore);
       console.log('All tasks for today before cleanup:', allTodayBefore);
 
-      // Clean up duplicates for the current day (match by normalized text and date)
+      // Clean up duplicates for the current day (match by original text and date)
       const { data: existingToday, error: fetchError } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text.trim().toLowerCase())
+        .eq('text', task.text.trim()) // Use trimmed text, remove .toLowerCase()
         .eq('day', day)
         .like('actual_date', `${currentDayFormatted}%`)
         .neq('id', task.id);
@@ -328,7 +328,7 @@ function App() {
         const { error: deleteError } = await supabase
           .from('todos')
           .delete()
-          .eq('text', task.text.trim().toLowerCase())
+          .eq('text', task.text.trim())
           .eq('day', day)
           .like('actual_date', `${currentDayFormatted}%`)
           .neq('id', task.id);
@@ -377,7 +377,7 @@ function App() {
         const { data: existing, error: existingError } = await supabase
           .from('todos')
           .select('*')
-          .eq('text', task.text.trim().toLowerCase())
+          .eq('text', task.text.trim())
           .eq('day', targetDayName)
           .eq('recurring', true)
           .like('actual_date', `${formattedDate}%`);
@@ -386,7 +386,7 @@ function App() {
         if (!existing || existing.length === 0) {
           newTasks.push({
             user_id: session.user.id,
-            text: task.text.trim().toLowerCase(),
+            text: task.text.trim(),
             day: targetDayName,
             actual_date: targetDate.toISOString(),
             completed: false,
@@ -423,7 +423,7 @@ function App() {
   
     const { error } = await supabase
       .from('todos')
-      .update({ text: newText.trim().toLowerCase() })
+      .update({ text: newText.trim() }) // Removed .toLowerCase() to preserve case
       .eq('id', taskId);
   
     if (error) {
@@ -435,7 +435,7 @@ function App() {
       ...prev,
       [day]: prev[day].map(task => 
         task.id === taskId 
-          ? { ...task, text: newText.trim().toLowerCase() }
+          ? { ...task, text: newText.trim() }
           : task
       )
     }));
@@ -576,7 +576,7 @@ function App() {
                           if (a.completed !== b.completed) {
                             return b.completed - a.completed;
                           }
-                          return a.text.toLowerCase().localeCompare(b.text.toLowerCase());
+                          return a.text.localeCompare(b.text); // Use localeCompare for natural sorting
                         })
                         .map(task => (
                           <div key={task.id} className="group flex items-start gap-3">
@@ -595,7 +595,7 @@ function App() {
                                 type="text"
                                 value={editingTaskText}
                                 onChange={(e) => setEditingTaskText(e.target.value)}
-                                onBlur={() => updateTaskText(task.id, day, editingTaskText)} // Fixed syntax
+                                onBlur={() => updateTaskText(task.id, day, editingTaskText)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     updateTaskText(task.id, day, editingTaskText);
@@ -736,7 +736,7 @@ function App() {
                         if (a.completed !== b.completed) {
                           return b.completed - a.completed;
                         }
-                        return a.text.toLowerCase().localeCompare(b.text.toLowerCase());
+                        return a.text.localeCompare(b.text); // Use localeCompare for natural sorting
                       })
                       .map(task => (
                         <div key={task.id} className="group flex items-start gap-3">
@@ -755,7 +755,7 @@ function App() {
                               type="text"
                               value={editingTaskText}
                               onChange={(e) => setEditingTaskText(e.target.value)}
-                              onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)} // Fixed syntax
+                              onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   updateTaskText(task.id, 'TASK_BANK', editingTaskText);
