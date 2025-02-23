@@ -89,7 +89,7 @@ function App() {
       if (todosByDay[todo.day]) {
         todosByDay[todo.day].push({
           id: todo.id,
-          text: todo.text,
+          text: todo.text.trim().toLowerCase(), // Normalize text for consistency
           completed: todo.completed,
           recurring: todo.recurring,
           url: todo.url,
@@ -188,7 +188,7 @@ function App() {
         .insert([
           {
             user_id: session.user.id,
-            text: newTask.trim(),
+            text: newTask.trim().toLowerCase(), // Normalize text
             day: day,
             actual_date: actualDate,
             completed: false
@@ -279,7 +279,7 @@ function App() {
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('text', text)
+      .eq('text', text.toLowerCase().trim())
       .eq('recurring', true)
       .gte('actual_date', startDate);
   
@@ -309,17 +309,17 @@ function App() {
         .from('todos')
         .select('*')
         .eq('day', day)
-        .eq('actual_date', currentDayFormatted); // Exact date match
+        .like('actual_date', `${currentDayFormatted}%`); // Use like to catch all timestamp variations
       if (fetchErrorBefore) console.error('Error fetching tasks before cleanup:', fetchErrorBefore);
       console.log('All tasks for today before cleanup:', allTodayBefore);
 
-      // Clean up duplicates for the current day (match by text and exact date)
+      // Clean up duplicates for the current day (match by normalized text and date)
       const { data: existingToday, error: fetchError } = await supabase
         .from('todos')
         .select('*')
-        .eq('text', task.text.trim())
+        .eq('text', task.text.trim().toLowerCase()) // Normalize text
         .eq('day', day)
-        .eq('actual_date', currentDayFormatted) // Use exact date match
+        .like('actual_date', `${currentDayFormatted}%`) // Match date with any time
         .neq('id', task.id);
 
       if (fetchError) console.error('Error fetching duplicates:', fetchError);
@@ -328,9 +328,9 @@ function App() {
         const { error: deleteError } = await supabase
           .from('todos')
           .delete()
-          .eq('text', task.text.trim())
+          .eq('text', task.text.trim().toLowerCase())
           .eq('day', day)
-          .eq('actual_date', currentDayFormatted)
+          .like('actual_date', `${currentDayFormatted}%`)
           .neq('id', task.id);
         
         if (deleteError) {
@@ -345,7 +345,7 @@ function App() {
         .from('todos')
         .select('*')
         .eq('day', day)
-        .eq('actual_date', currentDayFormatted);
+        .like('actual_date', `${currentDayFormatted}%`);
       if (fetchErrorAfter) console.error('Error fetching tasks after cleanup:', fetchErrorAfter);
       console.log('All tasks for today after cleanup:', afterCleanup);
 
@@ -377,17 +377,16 @@ function App() {
         const { data: existing, error: existingError } = await supabase
           .from('todos')
           .select('*')
-          .eq('text', task.text.trim())
+          .eq('text', task.text.trim().toLowerCase())
           .eq('day', targetDayName)
           .eq('recurring', true)
-          .eq('actual_date', formattedDate) // Exact date match for future tasks
-          .neq('id', task.id);
+          .like('actual_date', `${formattedDate}%`); // Match date with any time
 
         if (existingError) console.error('Error checking existing tasks:', existingError);
         if (!existing || existing.length === 0) {
           newTasks.push({
             user_id: session.user.id,
-            text: task.text.trim(),
+            text: task.text.trim().toLowerCase(),
             day: targetDayName,
             actual_date: targetDate.toISOString(),
             completed: false,
@@ -424,7 +423,7 @@ function App() {
   
     const { error } = await supabase
       .from('todos')
-      .update({ text: newText.trim() })
+      .update({ text: newText.trim().toLowerCase() }) // Normalize text
       .eq('id', taskId);
   
     if (error) {
@@ -436,7 +435,7 @@ function App() {
       ...prev,
       [day]: prev[day].map(task => 
         task.id === taskId 
-          ? { ...task, text: newText.trim() }
+          ? { ...task, text: newText.trim().toLowerCase() }
           : task
       )
     }));
@@ -756,7 +755,7 @@ function App() {
                               type="text"
                               value={editingTaskText}
                               onChange={(e) => setEditingTaskText(e.target.value)}
-                              onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)}
+                              onBlur(() => updateTaskText(task.id, 'TASK_BANK', editingTaskText))
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   updateTaskText(task.id, 'TASK_BANK', editingTaskText);
