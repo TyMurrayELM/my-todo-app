@@ -310,44 +310,7 @@ function App() {
   
       if (deleteError) throw new Error('Failed to delete duplicates on clicked day');
   
-      // Step 2: Optimistically update UI to show task as recurring
-      setTasks(prev => ({
-        ...prev,
-        [day]: prev[day]
-          .filter(t => t.id === task.id || t.text.trim() !== task.text.trim())
-          .map(t => (t.id === task.id ? { ...t, recurring: true } : t))
-      }));
-  
-      // Step 3: Prepare dates and days, starting from the day AFTER the clicked day
-      const futureTasks = [];
-      const dateRange = [];
-      for (let i = 1; i <= 6; i++) { // Start at i=1 to skip the clicked day
-        const targetDate = new Date(clickedTaskDate);
-        targetDate.setDate(clickedTaskDate.getDate() + i);
-        const formattedDate = targetDate.toISOString().split('T')[0];
-        dateRange.push(formattedDate);
-        futureTasks.push({
-          day: days[targetDate.getDay()],
-          actual_date: targetDate.toISOString(),
-          formattedDate
-        });
-      }
-  
-      // Step 4: Fetch existing tasks for future days only
-      const { data: existingTasks, error: fetchError } = await supabase
-        .from('todos')
-        .select('id, day, actual_date')
-        .eq('text', task.text.trim())
-        .in('actual_date', dateRange.map(d => `${d}%`));
-  
-      if (fetchError) throw new Error('Failed to fetch existing tasks');
-  
-      // Build a set of existing date-day combos
-      const existingSet = new Set(
-        existingTasks.map(t => `${t.actual_date.split('T')[0]}-${t.day}`)
-      );
-  
-      // Step 5: Update the clicked task to recurring (no new task for this day)
+      // Step 2: Update the clicked task to recurring
       const { error: upsertError } = await supabase
         .from('todos')
         .upsert([
@@ -365,9 +328,44 @@ function App() {
   
       if (upsertError) throw new Error('Failed to update current task');
   
-      // Step 6: Filter and prepare new tasks for future days
+      // Step 3: Optimistically update UI to show task as recurring
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day]
+          .filter(t => t.id === task.id || t.text.trim() !== task.text.trim())
+          .map(t => (t.id === task.id ? { ...t, recurring: true } : t))
+      }));
+  
+      // Step 4: Prepare future tasks, explicitly starting AFTER the clicked day
+      const futureTasks = [];
+      for (let i = 1; i <= 6; i++) {
+        const targetDate = new Date(clickedTaskDate);
+        targetDate.setDate(clickedTaskDate.getDate() + i);
+        const formattedDate = targetDate.toISOString().split('T')[0];
+        futureTasks.push({
+          day: days[targetDate.getDay()],
+          actual_date: targetDate.toISOString(),
+          formattedDate
+        });
+      }
+  
+      // Step 5: Fetch existing tasks for future days only
+      const { data: existingTasks, error: fetchError } = await supabase
+        .from('todos')
+        .select('id, day, actual_date')
+        .eq('text', task.text.trim())
+        .in('actual_date', futureTasks.map(ft => ft.formattedDate));
+  
+      if (fetchError) throw new Error('Failed to fetch existing tasks');
+  
+      // Build a set of existing date-day combos
+      const existingSet = new Set(
+        existingTasks.map(t => `${t.actual_date.split('T')[0]}-${t.day}`)
+      );
+  
+      // Step 6: Filter and prepare new tasks, ensuring clicked day is excluded
       const newTasks = futureTasks
-        .filter(ft => !existingSet.has(`${ft.formattedDate}-${ft.day}`))
+        .filter(ft => ft.formattedDate !== clickedDayFormatted && !existingSet.has(`${ft.formattedDate}-${ft.day}`))
         .map(ft => ({
           user_id: session.user.id,
           text: task.text.trim(),
