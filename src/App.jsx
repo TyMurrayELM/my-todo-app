@@ -841,7 +841,7 @@ function App() {
                             addTask(e, 'TASK_BANK');
                           }
                         }}
-                        placeholder="Add a new task..."
+                        placeholder="Add a new task.."
                         className="w-full bg-transparent text-sm placeholder-white focus:outline-none text-white"
                       />
                     </form>
