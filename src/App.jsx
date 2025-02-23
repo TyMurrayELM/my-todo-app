@@ -261,7 +261,7 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', testId);
+        .eq('id', taskId); // Fixed typo: 'testId' to 'taskId'
   
       if (error) {
         console.error('Error deleting todo:', error);
@@ -349,7 +349,7 @@ function App() {
       if (fetchErrorAfter) console.error('Error fetching tasks after cleanup:', fetchErrorAfter);
       console.log('All tasks for today after cleanup:', afterCleanup);
 
-      // Now update the current task to recurring
+      // Update the current task to recurring (keep it, don’t duplicate)
       const { error: updateError } = await supabase
         .from('todos')
         .update({ recurring: true })
@@ -361,9 +361,10 @@ function App() {
       }
 
       const newTasks = [];
-      for (let i = 1; i <= 7; i++) { // Start from i = 1 to skip today
-        const targetDate = new Date(currentTaskDate);
-        targetDate.setDate(currentTaskDate.getDate() + i);
+      const today = new Date(currentTaskDate); // Use current date as reference
+      for (let i = 1; i <= 6; i++) { // Start from i = 1 (tomorrow) and loop 6 times for next 6 days
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + i);
         const formattedDate = targetDate.toISOString().split('T')[0];
 
         // Skip if targetDate is in the past relative to now
