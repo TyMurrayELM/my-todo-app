@@ -1,9 +1,11 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 
-const ToggleSwitch = ({ isOn, handleToggle, label }) => {
+const ToggleSwitch = ({ isOn, handleToggle }) => {
   return (
-    <div className="flex items-center">
-      {label && <span className="mr-2 text-sm text-gray-600">{label}</span>}
+    <div className="flex items-center gap-1">
+      <span className="mr-1 text-sm text-gray-600">Hide</span>
+      <Check size={16} className="text-green-500" />
       <div 
         onClick={handleToggle}
         className={`relative inline-block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out cursor-pointer ${
