@@ -500,13 +500,21 @@ const [hideCompleted, setHideCompleted] = useState(() => {
   const handleLogout = async () => {
     console.log('Logout button clicked');
     try {
+      // First clear all localStorage
+      localStorage.clear();
+      
+      // Then try the official logout
       await supabase.auth.signOut();
       console.log('Logout completed');
-      // Force reload from server
-      localStorage.removeItem('supabase.auth.token');
-      window.location.href = '/'; 
+      
+      // Force a complete page reload
+      setTimeout(() => {
+        window.location.replace('/');
+      }, 100);
     } catch (error) {
       console.error('Error logging out:', error);
+      // Even if there's an error, still redirect
+      window.location.href = '/';
     }
   };
 
