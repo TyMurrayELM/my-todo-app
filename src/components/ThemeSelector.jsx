@@ -6,11 +6,31 @@ const ThemeSelector = ({ value, onChange }) => {
   const dropdownRef = useRef(null);
   
   const themes = [
-    { value: 'amber', label: 'Amber', color: 'bg-amber-500' },
-    { value: 'blue', label: 'Blue', color: 'bg-blue-500' },
-    { value: 'green', label: 'Green', color: 'bg-green-500' },
-    { value: 'purple', label: 'Purple', color: 'bg-purple-500' },
-    { value: 'pink', label: 'Pink', color: 'bg-pink-500' }
+    { 
+      value: 'amber', 
+      label: 'Amber', 
+      gradient: 'bg-gradient-to-r from-amber-100 to-amber-700'
+    },
+    { 
+      value: 'blue', 
+      label: 'Blue', 
+      gradient: 'bg-gradient-to-r from-blue-100 to-blue-700'
+    },
+    { 
+      value: 'green', 
+      label: 'Green', 
+      gradient: 'bg-gradient-to-r from-green-100 to-green-700'
+    },
+    { 
+      value: 'purple', 
+      label: 'Purple', 
+      gradient: 'bg-gradient-to-r from-purple-100 to-purple-700'
+    },
+    { 
+      value: 'pink', 
+      label: 'Pink', 
+      gradient: 'bg-gradient-to-r from-pink-100 to-pink-700'
+    }
   ];
   
   const handleSelect = (themeValue) => {
@@ -41,7 +61,7 @@ const ThemeSelector = ({ value, onChange }) => {
         className="flex items-center gap-1 border rounded-full p-1 bg-white hover:bg-gray-50"
         title={`Theme: ${currentTheme.label}`}
       >
-        <span className={`inline-block w-5 h-5 rounded-full ${currentTheme.color}`}></span>
+        <span className={`inline-block w-5 h-5 rounded-full ${currentTheme.gradient}`}></span>
         <ChevronDown size={12} className={`text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
@@ -55,7 +75,7 @@ const ThemeSelector = ({ value, onChange }) => {
                 theme.value === value ? 'bg-gray-100' : ''
               } ${theme.value === themes[0].value ? 'rounded-t-lg' : ''} ${theme.value === themes[themes.length-1].value ? 'rounded-b-lg' : ''}`}
             >
-              <span className={`inline-block w-3 h-3 rounded-full ${theme.color}`}></span>
+              <span className={`inline-block w-3 h-3 rounded-full ${theme.gradient}`}></span>
               <span className="text-sm">{theme.label}</span>
             </div>
           ))}
