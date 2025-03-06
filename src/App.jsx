@@ -498,7 +498,9 @@ const [hideCompleted, setHideCompleted] = useState(() => {
   };
   
   const handleLogout = async () => {
+    console.log('Logout button clicked');
     const { error } = await supabase.auth.signOut();
+    console.log('Logout attempt completed');
     if (error) console.error('Error logging out:', error);
   };
 
@@ -566,12 +568,12 @@ const handleToggleHideCompleted = () => {
     localStorage.setItem('todoTheme', value);
   }}
 />
-          <button
-            onClick={handleLogout}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            Sign Out
-          </button>
+<button
+  onClick={handleLogout}
+  className="text-gray-500 hover:text-gray-700 ml-2"
+>
+  Sign Out
+</button>
         </div>
       </div>
 
