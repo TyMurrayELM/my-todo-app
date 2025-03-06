@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
+import RepeatMenu from './components/RepeatMenu';
+import RecurringIndicator from './components/RecurringIndicator';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -94,9 +96,11 @@ function App() {
           text: todo.text.trim(),
           completed: todo.completed,
           recurring: todo.recurring,
+          repeatFrequency: todo.repeat_frequency || 'daily', // Add this line
           url: todo.url,
           completedAt: todo.completed_at
         });
+
       } else {
         // Get the actual date of this todo
         const todoDate = new Date(todo.actual_date);
@@ -309,7 +313,7 @@ function App() {
     }
   };
 
-  const repeatTask = useCallback(async (task, day) => {
+  const repeatTask = useCallback(async (task, day, frequency = 'daily') => {
     if (isRepeating) return;
     setIsRepeating(true);
   
@@ -317,7 +321,7 @@ function App() {
     setTasks(prev => ({
       ...prev,
       [day]: prev[day].map(t => 
-        t.id === task.id ? { ...t, recurring: true } : t
+        t.id === task.id ? { ...t, recurring: true, repeatFrequency: frequency } : t
       )
     }));
   
@@ -344,22 +348,53 @@ function App() {
       operations.push(
         supabase
           .from('todos')
-          .update({ recurring: true })
+          .update({ 
+            recurring: true,
+            repeat_frequency: frequency 
+          })
           .eq('id', task.id)
       );
   
       // Create future tasks array
       const futureTasks = [];
+      
+      // Generate future dates based on frequency
       for (let i = 1; i <= 30; i++) {
         const targetDate = new Date(clickedTaskDate);
-        targetDate.setDate(clickedTaskDate.getDate() + i);
+        
+        if (frequency === 'daily') {
+          // Daily - add i days
+          targetDate.setDate(clickedTaskDate.getDate() + i);
+        } 
+        else if (frequency === 'weekly') {
+          // Weekly - add i weeks
+          targetDate.setDate(clickedTaskDate.getDate() + (i * 7));
+        }
+        else if (frequency === 'monthly') {
+          // Monthly - add i months
+          targetDate.setMonth(clickedTaskDate.getMonth() + i);
+          
+          // Handle edge cases for months with fewer days
+          const originalDay = clickedTaskDate.getDate();
+          const maxDaysInMonth = new Date(
+            targetDate.getFullYear(), 
+            targetDate.getMonth() + 1, 
+            0
+          ).getDate();
+          
+          if (originalDay > maxDaysInMonth) {
+            targetDate.setDate(maxDaysInMonth);
+          }
+        }
+        
         futureTasks.push({
           user_id: session.user.id,
           text: task.text.trim(),
           day: days[targetDate.getDay()],
           actual_date: targetDate.toISOString(),
           completed: false,
-          recurring: true
+          recurring: true,
+          repeat_frequency: frequency
         });
       }
   
@@ -386,7 +421,7 @@ function App() {
       setTasks(prev => ({
         ...prev,
         [day]: prev[day].map(t =>
-          t.id === task.id ? { ...t, recurring: false } : t
+          t.id === task.id ? { ...t, recurring: false, repeatFrequency: null } : t
         )
       }));
     } finally {
@@ -600,14 +635,11 @@ function App() {
                                   </span>
                                 )}
                                 {task.recurring && (
-                                  <span 
-                                    className={`flex items-center gap-1 ${index >= 4 ? 'text-white/60' : 'text-gray-400'}`}
-                                    title="Repeats daily"
-                                  >
-                                    <Repeat size={14} />
-                                    <span className="text-xs">d</span>
-                                  </span>
-                                )}
+  <RecurringIndicator 
+    frequency={task.repeatFrequency || 'daily'} 
+    isDarkBackground={index >= 4} 
+  />
+)}
                                 {task.url && (
                                   <a 
                                     href={task.url}
@@ -623,16 +655,7 @@ function App() {
                               </div>
                             )}
                             <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  repeatTask(task, day);
-                                }}
-                                className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-green-500`}
-                                title="Repeat for future days"
-                              >
-                                <Repeat size={16} />
-                              </button>
+                            <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
