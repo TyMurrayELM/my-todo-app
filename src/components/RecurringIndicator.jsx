@@ -1,3 +1,6 @@
+import React from 'react';
+import { Repeat } from 'lucide-react';
+
 const RecurringIndicator = ({ frequency, isDarkBackground }) => {
   let label = '';
   let icon = <Repeat size={14} />;
@@ -26,3 +29,5 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
     </span>
   );
 };
+
+export default RecurringIndicator;
