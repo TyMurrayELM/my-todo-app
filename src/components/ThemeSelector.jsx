@@ -38,15 +38,15 @@ const ThemeSelector = ({ value, onChange }) => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm border rounded-lg px-2 py-1 text-gray-700 bg-white hover:bg-gray-50"
+        className="flex items-center gap-1 border rounded-full p-1 bg-white hover:bg-gray-50"
+        title={`Theme: ${currentTheme.label}`}
       >
-        <span className={`inline-block w-3 h-3 rounded-full ${currentTheme.color}`}></span>
-        {currentTheme.label}
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className={`inline-block w-5 h-5 rounded-full ${currentTheme.color}`}></span>
+        <ChevronDown size={12} className={`text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-24 bg-white border rounded-lg shadow-lg z-10">
+        <div className="absolute top-full right-0 mt-1 w-24 bg-white border rounded-lg shadow-lg z-10">
           {themes.map(theme => (
             <div
               key={theme.value}
