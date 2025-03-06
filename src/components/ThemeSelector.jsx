@@ -9,27 +9,27 @@ const ThemeSelector = ({ value, onChange }) => {
     { 
       value: 'amber', 
       label: 'Amber', 
-      gradient: 'bg-gradient-to-r from-amber-100 to-amber-600'
+      gradient: 'bg-gradient-to-r from-amber-200 to-amber-600'
     },
     { 
       value: 'blue', 
       label: 'Blue', 
-      gradient: 'bg-gradient-to-r from-blue-100 to-blue-600'
+      gradient: 'bg-gradient-to-r from-blue-200 to-blue-600'
     },
     { 
       value: 'green', 
       label: 'Green', 
-      gradient: 'bg-gradient-to-r from-green-100 to-green-600'
+      gradient: 'bg-gradient-to-r from-green-200 to-green-600'
     },
     { 
       value: 'purple', 
       label: 'Purple', 
-      gradient: 'bg-gradient-to-r from-purple-100 to-purple-600'
+      gradient: 'bg-gradient-to-r from-purple-200 to-purple-600'
     },
     { 
       value: 'pink', 
       label: 'Pink', 
-      gradient: 'bg-gradient-to-r from-pink-100 to-pink-600'
+      gradient: 'bg-gradient-to-r from-pink-200 to-pink-600'
     }
   ];
   
