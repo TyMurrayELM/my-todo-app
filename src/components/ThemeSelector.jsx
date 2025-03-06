@@ -38,7 +38,7 @@ const ThemeSelector = ({ value, onChange }) => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 text-sm border rounded px-2 py-1 text-gray-700 bg-white hover:bg-gray-50"
+        className="flex items-center gap-2 text-sm border rounded-lg px-2 py-1 text-gray-700 bg-white hover:bg-gray-50"
       >
         <span className={`inline-block w-3 h-3 rounded-full ${currentTheme.color}`}></span>
         {currentTheme.label}
@@ -46,14 +46,14 @@ const ThemeSelector = ({ value, onChange }) => {
       </button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-24 bg-white border rounded shadow-lg z-10">
+        <div className="absolute top-full left-0 mt-1 w-24 bg-white border rounded-lg shadow-lg z-10">
           {themes.map(theme => (
             <div
               key={theme.value}
               onClick={() => handleSelect(theme.value)}
               className={`flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer ${
                 theme.value === value ? 'bg-gray-100' : ''
-              }`}
+              } ${theme.value === themes[0].value ? 'rounded-t-lg' : ''} ${theme.value === themes[themes.length-1].value ? 'rounded-b-lg' : ''}`}
             >
               <span className={`inline-block w-3 h-3 rounded-full ${theme.color}`}></span>
               <span className="text-sm">{theme.label}</span>
