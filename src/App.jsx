@@ -499,9 +499,15 @@ const [hideCompleted, setHideCompleted] = useState(() => {
   
   const handleLogout = async () => {
     console.log('Logout button clicked');
-    const { error } = await supabase.auth.signOut();
-    console.log('Logout attempt completed');
-    if (error) console.error('Error logging out:', error);
+    try {
+      await supabase.auth.signOut();
+      console.log('Logout completed');
+      // Force reload from server
+      localStorage.removeItem('supabase.auth.token');
+      window.location.href = '/'; 
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   // Add this with your other handler functions
@@ -535,62 +541,57 @@ const handleToggleHideCompleted = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-  <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
-    <div className="max-w-md mx-auto relative h-full flex items-center px-4">
-      <div className="flex space-x-2 mr-2">
-        <button 
-          onClick={() => handleNavigation(-1)}
-          disabled={isNavigating}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <button 
-          onClick={() => handleNavigation(1)}
-          disabled={isNavigating}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <ArrowRight size={20} />
-        </button>
+      <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
+        <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => handleNavigation(-1)}
+              disabled={isNavigating}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <button 
+              onClick={() => handleNavigation(1)}
+              disabled={isNavigating}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+
+          <ToggleSwitch 
+  isOn={hideCompleted} 
+  handleToggle={handleToggleHideCompleted} 
+  label="Hide Completed" 
+/>
+
+
+          <ThemeSelector 
+  value={colorTheme}
+  onChange={(value) => {
+    setColorTheme(value);
+    localStorage.setItem('todoTheme', value);
+  }}
+/>
+<button
+  onClick={(e) => {
+    e.preventDefault(); // Stop any propagation
+    e.stopPropagation(); 
+    handleLogout();
+  }}
+  className="text-gray-500 hover:text-gray-700 ml-2 px-3 py-2 z-50 relative"
+  style={{
+    touchAction: 'manipulation',
+    WebkitTapHighlightColor: 'rgba(0,0,0,0)',
+    WebkitTouchCallout: 'none',
+    cursor: 'pointer'
+  }}
+>
+  Sign Out
+</button>
+        </div>
       </div>
-
-      <div className="flex items-center space-x-2 mx-auto">
-        <ToggleSwitch 
-          isOn={hideCompleted} 
-          handleToggle={handleToggleHideCompleted} 
-        />
-        
-        <ThemeSelector 
-          value={colorTheme}
-          onChange={(value) => {
-            setColorTheme(value);
-            localStorage.setItem('todoTheme', value);
-          }}
-        />
-      </div>
-      
-      <button
-        onClick={handleLogout}
-        className="text-gray-500 hover:text-gray-700 ml-2"
-      >
-        Sign Out
-      </button>
-    </div>
-  </div>
-
-  {/* Emergency logout button */}
-  <div className="fixed top-20 right-4 z-50">
-    <button
-      onClick={handleLogout}
-      className="bg-red-500 text-white py-2 px-4 rounded shadow-lg"
-    >
-      Emergency Logout
-    </button>
-  </div>
-
-  <div className="pt-16 px-4">
-    <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
-      <div className="divide-y divide-gray-200">
 
 
       <div className="pt-16 px-4">
@@ -882,10 +883,12 @@ const handleToggleHideCompleted = () => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
+  );
+}
 
 export default App;
