@@ -116,6 +116,7 @@ function App() {
             text: todo.text.trim(),
             completed: todo.completed,
             recurring: todo.recurring,
+            repeatFrequency: todo.repeat_frequency || 'daily', // Add this line
             url: todo.url,
             completedAt: todo.completed_at
           });
