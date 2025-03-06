@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import ThemeSelector from './components/ThemeSelector';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -501,20 +502,13 @@ function App() {
               <ArrowRight size={20} />
             </button>
           </div>
-          <select 
-            value={colorTheme}
-            onChange={(e) => {
-              setColorTheme(e.target.value);
-              localStorage.setItem('todoTheme', e.target.value);
-            }}
-            className="text-sm border rounded px-2 py-1 text-gray-700 bg-white"
-          >
-            <option value="amber">Amber</option>
-            <option value="blue">Blue</option>
-            <option value="green">Green</option>
-            <option value="purple">Purple</option>
-            <option value="pink">Pink</option>
-          </select>
+          <ThemeSelector 
+  value={colorTheme}
+  onChange={(value) => {
+    setColorTheme(value);
+    localStorage.setItem('todoTheme', value);
+  }}
+/>
           <button
             onClick={handleLogout}
             className="text-gray-500 hover:text-gray-700"
