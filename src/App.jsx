@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
 import RecurringIndicator from './components/RecurringIndicator';
+import ToggleSwitch from './components/ToggleSwitch';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -39,7 +40,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
   const [urlInput, setUrlInput] = useState('');
-
+// Add this with your other state variables at the top of your App function
+const [hideCompleted, setHideCompleted] = useState(() => {
+  return localStorage.getItem('hideCompleted') === 'true';
+});
   const getBackgroundColor = (index) => {
     const themes = {
       amber: ['bg-amber-100', 'bg-amber-200', 'bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700'],
@@ -76,6 +80,8 @@ function App() {
       return;
     }
   
+
+
     // Initialize empty todos for each day
     const todosByDay = {
       SUNDAY: [],
@@ -496,6 +502,13 @@ function App() {
     if (error) console.error('Error logging out:', error);
   };
 
+  // Add this with your other handler functions
+const handleToggleHideCompleted = () => {
+  const newValue = !hideCompleted;
+  setHideCompleted(newValue);
+  localStorage.setItem('hideCompleted', newValue);
+};
+
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -538,6 +551,14 @@ function App() {
               <ArrowRight size={20} />
             </button>
           </div>
+
+          <ToggleSwitch 
+  isOn={hideCompleted} 
+  handleToggle={handleToggleHideCompleted} 
+  label="Hide Completed" 
+/>
+
+
           <ThemeSelector 
   value={colorTheme}
   onChange={(value) => {
@@ -576,15 +597,16 @@ function App() {
                       {formatDate(getDateForDay(index))}
                     </p>
                     <div className="space-y-3">
-                      {tasks[day]
-                        .sort((a, b) => {
-                          if (a.completed !== b.completed) {
-                            return b.completed - a.completed;
-                          }
-                          return a.text.localeCompare(b.text);
-                        })
-                        .map(task => (
-                          <div key={task.id} className="group flex items-start gap-3">
+                    {tasks[day]
+  .filter(task => !hideCompleted || !task.completed)
+  .sort((a, b) => {
+    if (a.completed !== b.completed) {
+      return b.completed - a.completed;
+    }
+    return a.text.localeCompare(b.text);
+  })
+  .map(task => (
+    <div key={task.id} className="group flex items-start gap-3">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -724,15 +746,16 @@ function App() {
               {selectedDay === 'task_bank' && (
                 <>
                   <div className="space-y-3">
-                    {tasks.TASK_BANK
-                      .sort((a, b) => {
-                        if (a.completed !== b.completed) {
-                          return b.completed - a.completed;
-                        }
-                        return a.text.localeCompare(b.text);
-                      })
-                      .map(task => (
-                        <div key={task.id} className="group flex items-start gap-3">
+                  {tasks.TASK_BANK
+  .filter(task => !hideCompleted || !task.completed)
+  .sort((a, b) => {
+    if (a.completed !== b.completed) {
+      return b.completed - a.completed;
+    }
+    return a.text.localeCompare(b.text);
+  })
+  .map(task => (
+    <div key={task.id} className="group flex items-start gap-3">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -778,14 +801,11 @@ function App() {
                                 )}
                               </span>
                               {task.recurring && (
-                                <span 
-                                  className="flex items-center gap-1 text-white"
-                                  title="Repeats daily"
-                                >
-                                  <Repeat size={14} />
-                                  <span className="text-xs">d</span>
-                                </span>
-                              )}
+  <RecurringIndicator 
+    frequency={task.repeatFrequency || 'daily'} 
+    isDarkBackground={true} 
+  />
+)}
                               {task.url && (
                                 <a 
                                   href={task.url}
