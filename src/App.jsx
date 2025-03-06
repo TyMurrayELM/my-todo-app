@@ -551,6 +551,7 @@ const handleToggleHideCompleted = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
   <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
+    {/* Left side - navigation */}
     <div className="flex items-center">
       <button 
         onClick={() => handleNavigation(-1)}
@@ -567,8 +568,9 @@ const handleToggleHideCompleted = () => {
         <ArrowRight size={20} />
       </button>
     </div>
-
-    <div className="flex items-center gap-3">
+    
+    {/* Middle - toggle and theme */}
+    <div className="flex items-center gap-5">
       <ToggleSwitch 
         isOn={hideCompleted} 
         handleToggle={handleToggleHideCompleted}
@@ -581,14 +583,17 @@ const handleToggleHideCompleted = () => {
           localStorage.setItem('todoTheme', value);
         }}
       />
-      
+    </div>
+    
+    {/* Right side - logout */}
+    <div>
       <button
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           handleLogout();
         }}
-        className="text-gray-500 hover:text-gray-700 ml-1 px-2 py-1 z-50 relative"
+        className="text-gray-500 hover:text-gray-700 px-2 py-1 z-50 relative"
         style={{
           touchAction: 'manipulation',
           WebkitTapHighlightColor: 'rgba(0,0,0,0)',
