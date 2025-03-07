@@ -672,20 +672,20 @@ const handleToggleHideCompleted = () => {
                               />
                             ) : (
                               <div className="flex-grow flex items-center gap-2 min-w-0"> {/* Added min-w-0 to allow truncation */}
-  <span
-    onClick={(e) => {
-      e.stopPropagation();
-      setEditingTaskId(task.id);
-      setEditingTaskText(task.text);
-    }}
-    className={`${
-      task.completed ? 'line-through text-gray-400' : 
-      index >= 4 ? 'text-white' : 'text-gray-700'
-    } truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200`}
-    title={task.text} {/* Add tooltip showing full text on hover */}
-  >
-    {task.text}
-  </span>
+<span
+  onClick={(e) => {
+    e.stopPropagation();
+    setEditingTaskId(task.id);
+    setEditingTaskText(task.text);
+  }}
+  className={`${
+    task.completed ? 'line-through text-gray-400' : 
+    index >= 4 ? 'text-white' : 'text-gray-700'
+  } truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200`}
+  title={task.text}
+>
+  {task.text}
+</span>
                                 {task.completed && task.completedAt && (
                                   <span className="ml-1 text-[10px] opacity-75">
                                     ({formatCompletionTime(task.completedAt)})
