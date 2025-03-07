@@ -639,7 +639,7 @@ const handleToggleHideCompleted = () => {
     return a.text.localeCompare(b.text);
   })
   .map(task => (
-    <div key={task.id} className="group flex items-start gap-3">
+    <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -671,20 +671,21 @@ const handleToggleHideCompleted = () => {
                                 autoFocus
                               />
                             ) : (
-                              <div className="flex-grow flex items-center gap-2">
-                                <span
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingTaskId(task.id);
-                                    setEditingTaskText(task.text);
-                                  }}
-                                  className={`${
-                                    task.completed ? 'line-through text-gray-400' : 
-                                    index >= 4 ? 'text-white' : 'text-gray-700'
-                                  }`}
-                                >
-                                  {task.text}
-                                </span>
+                              <div className="flex-grow flex items-center gap-2 min-w-0"> {/* Added min-w-0 to allow truncation */}
+  <span
+    onClick={(e) => {
+      e.stopPropagation();
+      setEditingTaskId(task.id);
+      setEditingTaskText(task.text);
+    }}
+    className={`${
+      task.completed ? 'line-through text-gray-400' : 
+      index >= 4 ? 'text-white' : 'text-gray-700'
+    } truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200`}
+    title={task.text} {/* Add tooltip showing full text on hover */}
+  >
+    {task.text}
+  </span>
                                 {task.completed && task.completedAt && (
                                   <span className="ml-1 text-[10px] opacity-75">
                                     ({formatCompletionTime(task.completedAt)})
@@ -710,7 +711,7 @@ const handleToggleHideCompleted = () => {
                                 )}
                               </div>
                             )}
-                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
                             <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
                               <button 
                                 onClick={(e) => {
@@ -788,7 +789,7 @@ const handleToggleHideCompleted = () => {
     return a.text.localeCompare(b.text);
   })
   .map(task => (
-    <div key={task.id} className="group flex items-start gap-3">
+    <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -853,7 +854,7 @@ const handleToggleHideCompleted = () => {
                               )}
                             </div>
                           )}
-                          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
