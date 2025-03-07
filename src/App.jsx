@@ -778,99 +778,102 @@ const handleToggleHideCompleted = () => {
   })
   .map(task => (
     <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleTask(task.id, 'TASK_BANK');
-                            }}
-                            className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
-                              ${task.completed ? 'bg-green-500 border-green-500' : 'border-white hover:border-green-500'}`}
-                          >
-                            {task.completed && <Check size={16} className="text-white" />}
-                          </button>
-                          {editingTaskId === task.id ? (
-                            <input
-                              type="text"
-                              value={editingTaskText}
-                              onChange={(e) => setEditingTaskText(e.target.value)}
-                              onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  updateTaskText(task.id, 'TASK_BANK', editingTaskText);
-                                } else if (e.key === 'Escape') {
-                                  setEditingTaskId(null);
-                                  setEditingTaskText('');
-                                }
-                              }}
-                              className="flex-grow bg-transparent border-none focus:outline-none text-white"
-                              onClick={(e) => e.stopPropagation()}
-                              autoFocus
-                            />
-                          ) : (
-<div className="flex-grow flex items-center gap-2 text-white max-w-[calc(100%-5rem)]">
-  <span
-    onClick={(e) => {
-      e.stopPropagation();
-      setEditingTaskId(task.id);
-      setEditingTaskText(task.text);
-    }}
-    className="truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200"
-    title={task.text}
-  >
-    {task.text}
-    {task.completed && task.completedAt && (
-      <span className="ml-2 text-sm opacity-60">
-        ({formatCompletionDate(task.completedAt)})
-      </span>
-    )}
-  </span>
-  {task.recurring && (
-    <RecurringIndicator 
-      frequency={task.repeatFrequency || 'daily'} 
-      isDarkBackground={true} 
-    />
-  )}
-  {/* other elements */}
-</div>
-                              {task.url && (
-                                <a 
-                                  href={task.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-white hover:text-blue-500"
-                                  title="Open URL"
-                                >
-                                  <Link size={14} />
-                                </a>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const url = prompt('Enter URL:');
-                                if (url) {
-                                  updateTaskUrl(task.id, 'TASK_BANK', url);
-                                }
-                              }}
-                              className="text-white hover:text-blue-500"
-                              title="Add URL"
-                            >
-                              <Link size={16} />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTask(task.id, 'TASK_BANK', task);
-                              }}
-                              className="text-white hover:text-red-500"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleTask(task.id, 'TASK_BANK');
+        }}
+        className={`w-5 h-5 mt-0.5 border rounded flex items-center justify-center transition-colors duration-200
+          ${task.completed ? 'bg-green-500 border-green-500' : 'border-white hover:border-green-500'}`}
+      >
+        {task.completed && <Check size={16} className="text-white" />}
+      </button>
+      
+      {editingTaskId === task.id ? (
+        <input
+          type="text"
+          value={editingTaskText}
+          onChange={(e) => setEditingTaskText(e.target.value)}
+          onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              updateTaskText(task.id, 'TASK_BANK', editingTaskText);
+            } else if (e.key === 'Escape') {
+              setEditingTaskId(null);
+              setEditingTaskText('');
+            }
+          }}
+          className="flex-grow bg-transparent border-none focus:outline-none text-white"
+          onClick={(e) => e.stopPropagation()}
+          autoFocus
+        />
+      ) : (
+        <div className="flex-grow flex items-center gap-2 text-white max-w-[calc(100%-5rem)]">
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingTaskId(task.id);
+              setEditingTaskText(task.text);
+            }}
+            className="truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200"
+            title={task.text}
+          >
+            {task.text}
+            {task.completed && task.completedAt && (
+              <span className="ml-2 text-sm opacity-60">
+                ({formatCompletionDate(task.completedAt)})
+              </span>
+            )}
+          </span>
+          
+          {task.recurring && (
+            <RecurringIndicator 
+              frequency={task.repeatFrequency || 'daily'} 
+              isDarkBackground={true} 
+            />
+          )}
+          
+          {task.url && (
+            <a 
+              href={task.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-white hover:text-blue-500"
+              title="Open URL"
+            >
+              <Link size={14} />
+            </a>
+          )}
+        </div>
+      )}
+      
+      <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            const url = prompt('Enter URL:');
+            if (url) {
+              updateTaskUrl(task.id, 'TASK_BANK', url);
+            }
+          }}
+          className="text-white hover:text-blue-500"
+          title="Add URL"
+        >
+          <Link size={16} />
+        </button>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteTask(task.id, 'TASK_BANK', task);
+          }}
+          className="text-white hover:text-red-500"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    </div>
+  ))}
                       ))}
                     <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-2" onClick={e => e.stopPropagation()}>
                       <input
