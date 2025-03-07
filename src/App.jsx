@@ -819,27 +819,31 @@ const handleToggleHideCompleted = () => {
                               autoFocus
                             />
                           ) : (
-                            <div className="flex-grow flex items-center gap-2 text-white">
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingTaskId(task.id);
-                                  setEditingTaskText(task.text);
-                                }}
-                              >
-                                {task.text}
-                                {task.completed && task.completedAt && (
-                                  <span className="ml-2 text-sm opacity-60">
-                                    ({formatCompletionDate(task.completedAt)})
-                                  </span>
-                                )}
-                              </span>
-                              {task.recurring && (
-  <RecurringIndicator 
-    frequency={task.repeatFrequency || 'daily'} 
-    isDarkBackground={true} 
-  />
-)}
+<div className="flex-grow flex items-center gap-2 text-white max-w-[calc(100%-5rem)]">
+  <span
+    onClick={(e) => {
+      e.stopPropagation();
+      setEditingTaskId(task.id);
+      setEditingTaskText(task.text);
+    }}
+    className="truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200"
+    title={task.text}
+  >
+    {task.text}
+    {task.completed && task.completedAt && (
+      <span className="ml-2 text-sm opacity-60">
+        ({formatCompletionDate(task.completedAt)})
+      </span>
+    )}
+  </span>
+  {task.recurring && (
+    <RecurringIndicator 
+      frequency={task.repeatFrequency || 'daily'} 
+      isDarkBackground={true} 
+    />
+  )}
+  {/* other elements */}
+</div>
                               {task.url && (
                                 <a 
                                   href={task.url}
