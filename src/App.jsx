@@ -490,8 +490,9 @@ const [hideCompleted, setHideCompleted] = useState(() => {
       options: {
         queryParams: {
           prompt: 'select_account',
+          access_type: 'offline', // Add this line - important for changing what appears on Google's screen
         },
-        redirectTo: 'https://www.tabs.day'
+        redirectTo: `${window.location.origin}/auth/v1/callback` // Use dynamic origin with proper callback path
       }
     });
     if (error) console.error('Error logging in:', error);
