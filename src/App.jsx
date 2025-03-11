@@ -94,7 +94,7 @@ const [hideCompleted, setHideCompleted] = useState(() => {
       TASK_BANK: []
     };
   
-    // Group todos by their actual date, not just the day name
+    // Group todos by their actual date, not just the day nam
     data.forEach(todo => {
       if (todo.day === 'TASK_BANK') {
         todosByDay.TASK_BANK.push({
