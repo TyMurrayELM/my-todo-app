@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
@@ -40,10 +40,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
   const [urlInput, setUrlInput] = useState('');
-// Add this with your other state variables at the top of your App function
-const [hideCompleted, setHideCompleted] = useState(() => {
-  return localStorage.getItem('hideCompleted') === 'true';
-});
+  const [hideCompleted, setHideCompleted] = useState(() => {
+    return localStorage.getItem('hideCompleted') === 'true';
+  });
+  
+  // New state for notes feature
+  const [editingNoteTaskId, setEditingNoteTaskId] = useState(null);
+  const [noteInput, setNoteInput] = useState('');
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [currentNoteTask, setCurrentNoteTask] = useState(null);
+
   const getBackgroundColor = (index) => {
     const themes = {
       amber: ['bg-amber-100', 'bg-amber-200', 'bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700'],
@@ -67,7 +73,6 @@ const [hideCompleted, setHideCompleted] = useState(() => {
     const startStr = start.toISOString();
     const endStr = end.toISOString();
   
-    // Query todos within the exact date range
     const { data, error } = await supabase
       .from('todos')
       .select('*')
@@ -80,9 +85,6 @@ const [hideCompleted, setHideCompleted] = useState(() => {
       return;
     }
   
-
-
-    // Initialize empty todos for each day
     const todosByDay = {
       SUNDAY: [],
       MONDAY: [],
@@ -94,7 +96,6 @@ const [hideCompleted, setHideCompleted] = useState(() => {
       TASK_BANK: []
     };
   
-    // Group todos by their actual date, not just the day nam
     data.forEach(todo => {
       if (todo.day === 'TASK_BANK') {
         todosByDay.TASK_BANK.push({
@@ -102,15 +103,13 @@ const [hideCompleted, setHideCompleted] = useState(() => {
           text: todo.text.trim(),
           completed: todo.completed,
           recurring: todo.recurring,
-          repeatFrequency: todo.repeat_frequency || 'daily', // Add this line
+          repeatFrequency: todo.repeat_frequency || 'daily',
           url: todo.url,
+          notes: todo.notes,
           completedAt: todo.completed_at
         });
-
       } else {
-        // Get the actual date of this todo
         const todoDate = new Date(todo.actual_date);
-        // Find which day index (0-6) this todo belongs to based on the date
         const dayIndex = days.findIndex(day => {
           const thisDate = getDateForDay(days.indexOf(day));
           return thisDate.toISOString().split('T')[0] === todoDate.toISOString().split('T')[0];
@@ -122,8 +121,9 @@ const [hideCompleted, setHideCompleted] = useState(() => {
             text: todo.text.trim(),
             completed: todo.completed,
             recurring: todo.recurring,
-            repeatFrequency: todo.repeat_frequency || 'daily', // Add this line
+            repeatFrequency: todo.repeat_frequency || 'daily',
             url: todo.url,
+            notes: todo.notes,
             completedAt: todo.completed_at
           });
         }
@@ -134,6 +134,7 @@ const [hideCompleted, setHideCompleted] = useState(() => {
     console.log('Tasks for current day after fetch:', todosByDay[days[selectedDay]]);
     setIsLoading(false);
   }, [session, currentDate, isNavigating, days, selectedDay]);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -324,7 +325,6 @@ const [hideCompleted, setHideCompleted] = useState(() => {
     if (isRepeating) return;
     setIsRepeating(true);
   
-    // Immediately update UI to show recurring
     setTasks(prev => ({
       ...prev,
       [day]: prev[day].map(t => 
@@ -337,10 +337,8 @@ const [hideCompleted, setHideCompleted] = useState(() => {
       clickedTaskDate.setHours(0, 0, 0, 0);
       const clickedDayFormatted = clickedTaskDate.toISOString().split('T')[0];
   
-      // Start database operations in parallel
       const operations = [];
   
-      // Find and cleanup duplicates
       operations.push(
         supabase
           .from('todos')
@@ -351,7 +349,6 @@ const [hideCompleted, setHideCompleted] = useState(() => {
           .neq('id', task.id)
       );
   
-      // Update current task to recurring
       operations.push(
         supabase
           .from('todos')
@@ -362,26 +359,20 @@ const [hideCompleted, setHideCompleted] = useState(() => {
           .eq('id', task.id)
       );
   
-      // Create future tasks array
       const futureTasks = [];
       
-      // Generate future dates based on frequency
       for (let i = 1; i <= 30; i++) {
         const targetDate = new Date(clickedTaskDate);
         
         if (frequency === 'daily') {
-          // Daily - add i days
           targetDate.setDate(clickedTaskDate.getDate() + i);
         } 
         else if (frequency === 'weekly') {
-          // Weekly - add i weeks
           targetDate.setDate(clickedTaskDate.getDate() + (i * 7));
         }
         else if (frequency === 'monthly') {
-          // Monthly - add i months
           targetDate.setMonth(clickedTaskDate.getMonth() + i);
           
-          // Handle edge cases for months with fewer days
           const originalDay = clickedTaskDate.getDate();
           const maxDaysInMonth = new Date(
             targetDate.getFullYear(), 
@@ -405,7 +396,6 @@ const [hideCompleted, setHideCompleted] = useState(() => {
         });
       }
   
-      // Add future tasks operation
       const chunkSize = 10;
       for (let i = 0; i < futureTasks.length; i += chunkSize) {
         const chunk = futureTasks.slice(i, i + chunkSize);
@@ -416,15 +406,11 @@ const [hideCompleted, setHideCompleted] = useState(() => {
         );
       }
   
-      // Execute all database operations in parallel
       await Promise.all(operations);
-  
-      // Final sync to ensure everything is up to date
       await fetchTodos();
   
     } catch (error) {
       console.error('RepeatTask failed:', error);
-      // Revert UI if operation failed
       setTasks(prev => ({
         ...prev,
         [day]: prev[day].map(t =>
@@ -484,6 +470,31 @@ const [hideCompleted, setHideCompleted] = useState(() => {
     setUrlInput('');
   };
 
+  // New function for updating notes
+  const updateTaskNotes = async (taskId, day, notes) => {
+    const { error } = await supabase
+      .from('todos')
+      .update({ notes: notes })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error updating todo notes:', error);
+      return;
+    }
+
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task =>
+        task.id === taskId 
+          ? { ...task, notes }
+          : task
+      )
+    }));
+    setShowNoteModal(false);
+    setCurrentNoteTask(null);
+    setNoteInput('');
+  };
+
   const handleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -500,30 +511,63 @@ const [hideCompleted, setHideCompleted] = useState(() => {
   const handleLogout = async () => {
     console.log('Logout button clicked');
     try {
-      // First clear all localStorage
       localStorage.clear();
-      
-      // Then try the official logout
       await supabase.auth.signOut();
       console.log('Logout completed');
-      
-      // Force a complete page reload
       setTimeout(() => {
         window.location.replace('/');
       }, 100);
     } catch (error) {
       console.error('Error logging out:', error);
-      // Even if there's an error, still redirect
       window.location.href = '/';
     }
   };
 
-  // Add this with your other handler functions
-const handleToggleHideCompleted = () => {
-  const newValue = !hideCompleted;
-  setHideCompleted(newValue);
-  localStorage.setItem('hideCompleted', newValue);
-};
+  const handleToggleHideCompleted = () => {
+    const newValue = !hideCompleted;
+    setHideCompleted(newValue);
+    localStorage.setItem('hideCompleted', newValue);
+  };
+
+  // Note Modal Component
+  const NoteModal = ({ task, day, onClose }) => {
+    const [localNote, setLocalNote] = useState(task?.notes || '');
+    
+    if (!task) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold mb-4">Edit Note</h3>
+          <textarea
+            value={localNote}
+            onChange={(e) => setLocalNote(e.target.value)}
+            placeholder="Add your notes here..."
+            className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows="6"
+            autoFocus
+          />
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                updateTaskNotes(task.id, day, localNote);
+                onClose();
+              }}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (!session) {
     return (
@@ -550,63 +594,59 @@ const handleToggleHideCompleted = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
-  <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
-    {/* Left side - navigation */}
-    <div className="flex items-center">
-      <button 
-        onClick={() => handleNavigation(-1)}
-        disabled={isNavigating}
-        className="text-gray-500 hover:text-gray-700 mr-2"
-      >
-        <ArrowLeft size={20} />
-      </button>
-      <button 
-        onClick={() => handleNavigation(1)}
-        disabled={isNavigating}
-        className="text-gray-500 hover:text-gray-700"
-      >
-        <ArrowRight size={20} />
-      </button>
-    </div>
-    
-    {/* Middle - toggle and theme */}
-    <div className="flex items-center gap-5">
-      <ToggleSwitch 
-        isOn={hideCompleted} 
-        handleToggle={handleToggleHideCompleted}
-      />
-      
-      <ThemeSelector 
-        value={colorTheme}
-        onChange={(value) => {
-          setColorTheme(value);
-          localStorage.setItem('todoTheme', value);
-        }}
-      />
-    </div>
-    
-    {/* Right side - logout */}
-    <div>
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleLogout();
-        }}
-        className="text-gray-500 hover:text-gray-700 px-2 py-1 z-50 relative"
-        style={{
-          touchAction: 'manipulation',
-          WebkitTapHighlightColor: 'rgba(0,0,0,0)',
-          WebkitTouchCallout: 'none',
-          cursor: 'pointer'
-        }}
-      >
-        Sign Out
-      </button>
-    </div>
-  </div>
-</div>
-
+        <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
+          <div className="flex items-center">
+            <button 
+              onClick={() => handleNavigation(-1)}
+              disabled={isNavigating}
+              className="text-gray-500 hover:text-gray-700 mr-2"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <button 
+              onClick={() => handleNavigation(1)}
+              disabled={isNavigating}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-5">
+            <ToggleSwitch 
+              isOn={hideCompleted} 
+              handleToggle={handleToggleHideCompleted}
+            />
+            
+            <ThemeSelector 
+              value={colorTheme}
+              onChange={(value) => {
+                setColorTheme(value);
+                localStorage.setItem('todoTheme', value);
+              }}
+            />
+          </div>
+          
+          <div>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleLogout();
+              }}
+              className="text-gray-500 hover:text-gray-700 px-2 py-1 z-50 relative"
+              style={{
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'rgba(0,0,0,0)',
+                WebkitTouchCallout: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
 
       <div className="pt-16 px-4">
         <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
@@ -630,16 +670,16 @@ const handleToggleHideCompleted = () => {
                       {formatDate(getDateForDay(index))}
                     </p>
                     <div className="space-y-3">
-                    {tasks[day]
-  .filter(task => !hideCompleted || !task.completed)
-  .sort((a, b) => {
-    if (a.completed !== b.completed) {
-      return b.completed - a.completed;
-    }
-    return a.text.localeCompare(b.text);
-  })
-  .map(task => (
-    <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
+                      {tasks[day]
+                        .filter(task => !hideCompleted || !task.completed)
+                        .sort((a, b) => {
+                          if (a.completed !== b.completed) {
+                            return b.completed - a.completed;
+                          }
+                          return a.text.localeCompare(b.text);
+                        })
+                        .map(task => (
+                          <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -671,32 +711,46 @@ const handleToggleHideCompleted = () => {
                                 autoFocus
                               />
                             ) : (
-                              <div className="flex-grow flex items-center gap-2 min-w-0"> {/* Added min-w-0 to allow truncation */}
-<span
-  onClick={(e) => {
-    e.stopPropagation();
-    setEditingTaskId(task.id);
-    setEditingTaskText(task.text);
-  }}
-  className={`${
-    task.completed ? 'line-through text-gray-400' : 
-    index >= 4 ? 'text-white' : 'text-gray-700'
-  } truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200`}
-  title={task.text}
->
-  {task.text}
-</span>
+                              <div className="flex-grow flex items-center gap-2 min-w-0">
+                                <span
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingTaskId(task.id);
+                                    setEditingTaskText(task.text);
+                                  }}
+                                  className={`${
+                                    task.completed ? 'line-through text-gray-400' : 
+                                    index >= 4 ? 'text-white' : 'text-gray-700'
+                                  } truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200`}
+                                  title={task.text}
+                                >
+                                  {task.text}
+                                </span>
                                 {task.completed && task.completedAt && (
                                   <span className="ml-1 text-[10px] opacity-75">
                                     ({formatCompletionTime(task.completedAt)})
                                   </span>
                                 )}
                                 {task.recurring && (
-  <RecurringIndicator 
-    frequency={task.repeatFrequency || 'daily'} 
-    isDarkBackground={index >= 4} 
-  />
-)}
+                                  <RecurringIndicator 
+                                    frequency={task.repeatFrequency || 'daily'} 
+                                    isDarkBackground={index >= 4} 
+                                  />
+                                )}
+                                {task.notes && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCurrentNoteTask(task);
+                                      setShowNoteModal(true);
+                                      setNoteInput(task.notes);
+                                    }}
+                                    className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'} hover:text-yellow-500`}
+                                    title="View/Edit Note"
+                                  >
+                                    <StickyNote size={14} fill="currentColor" />
+                                  </button>
+                                )}
                                 {task.url && (
                                   <a 
                                     href={task.url}
@@ -712,7 +766,19 @@ const handleToggleHideCompleted = () => {
                               </div>
                             )}
                             <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
-                            <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+                              <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCurrentNoteTask(task);
+                                  setShowNoteModal(true);
+                                  setNoteInput(task.notes || '');
+                                }}
+                                className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
+                                title="Add/Edit Note"
+                              >
+                                <StickyNote size={16} />
+                              </button>
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -780,16 +846,16 @@ const handleToggleHideCompleted = () => {
               {selectedDay === 'task_bank' && (
                 <>
                   <div className="space-y-3">
-                  {tasks.TASK_BANK
-  .filter(task => !hideCompleted || !task.completed)
-  .sort((a, b) => {
-    if (a.completed !== b.completed) {
-      return b.completed - a.completed;
-    }
-    return a.text.localeCompare(b.text);
-  })
-  .map(task => (
-    <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
+                    {tasks.TASK_BANK
+                      .filter(task => !hideCompleted || !task.completed)
+                      .sort((a, b) => {
+                        if (a.completed !== b.completed) {
+                          return b.completed - a.completed;
+                        }
+                        return a.text.localeCompare(b.text);
+                      })
+                      .map(task => (
+                        <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -835,11 +901,25 @@ const handleToggleHideCompleted = () => {
                                 )}
                               </span>
                               {task.recurring && (
-  <RecurringIndicator 
-    frequency={task.repeatFrequency || 'daily'} 
-    isDarkBackground={true} 
-  />
-)}
+                                <RecurringIndicator 
+                                  frequency={task.repeatFrequency || 'daily'} 
+                                  isDarkBackground={true} 
+                                />
+                              )}
+                              {task.notes && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCurrentNoteTask(task);
+                                    setShowNoteModal(true);
+                                    setNoteInput(task.notes);
+                                  }}
+                                  className="text-white/60 hover:text-yellow-500"
+                                  title="View/Edit Note"
+                                >
+                                  <StickyNote size={14} fill="currentColor" />
+                                </button>
+                              )}
                               {task.url && (
                                 <a 
                                   href={task.url}
@@ -855,6 +935,18 @@ const handleToggleHideCompleted = () => {
                             </div>
                           )}
                           <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentNoteTask(task);
+                                setShowNoteModal(true);
+                                setNoteInput(task.notes || '');
+                              }}
+                              className="text-white hover:text-yellow-500"
+                              title="Add/Edit Note"
+                            >
+                              <StickyNote size={16} />
+                            </button>
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -902,6 +994,18 @@ const handleToggleHideCompleted = () => {
           </div>
         </div>
       </div>
+      
+      {showNoteModal && (
+        <NoteModal 
+          task={currentNoteTask} 
+          day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]} 
+          onClose={() => {
+            setShowNoteModal(false);
+            setCurrentNoteTask(null);
+            setNoteInput('');
+          }}
+        />
+      )}
     </div>
   );
 }
