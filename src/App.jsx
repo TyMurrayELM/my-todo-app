@@ -734,7 +734,7 @@ function App() {
         
         {/* Mobile expanded actions */}
         {isMobile && isExpanded && (
-          <div className={`mt-2 ml-8 p-3 rounded-lg ${isDarkBackground ? 'bg-white/10' : 'bg-gray-100'} transition-all duration-200`}>
+          <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
             <div className="flex items-center justify-around gap-2">
               <div className="relative">
                 <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
@@ -746,7 +746,7 @@ function App() {
                   setShowNoteModal(true);
                   setNoteInput(task.notes || '');
                 }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white hover:bg-white/20' : 'text-gray-600 hover:bg-gray-200'}`}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
               >
                 <StickyNote size={20} fill={task.notes ? "currentColor" : "none"} />
@@ -759,7 +759,7 @@ function App() {
                     updateTaskUrl(task.id, day, url);
                   }
                 }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white hover:bg-white/20' : 'text-gray-600 hover:bg-gray-200'}`}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title="Add URL"
               >
                 <Link size={20} />
@@ -771,7 +771,7 @@ function App() {
                     const nextDayIndex = (days.indexOf(day) + 1) % 7;
                     moveTask(task.id, day, days[nextDayIndex]);
                   }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white hover:bg-white/20' : 'text-gray-600 hover:bg-gray-200'}`}
+                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                   title="Move to next day"
                 >
                   <SkipForward size={20} />
@@ -782,7 +782,7 @@ function App() {
                   e.stopPropagation();
                   deleteTask(task.id, day, task);
                 }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-red-400 hover:bg-white/20' : 'text-red-500 hover:bg-gray-200'}`}
+                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
               >
                 <X size={20} />
               </button>
