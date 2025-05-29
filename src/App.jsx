@@ -164,10 +164,8 @@ function App() {
   useEffect(() => {
     if (session) {
       fetchTodos();
-      // Check and extend recurring tasks on app load
-      extendRecurringTasks();
     }
-  }, [session, currentDate, fetchTodos, extendRecurringTasks]);
+  }, [session, currentDate, fetchTodos]);
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
@@ -175,130 +173,6 @@ function App() {
     date.setDate(date.getDate() + dayIndex);
     return date;
   };
-
-  // Auto-extend recurring tasks that are running low
-  const extendRecurringTasks = useCallback(async () => {
-    if (!session) return;
-    
-    try {
-      // Get all unique recurring task templates
-      const { data: recurringTasks, error } = await supabase
-        .from('todos')
-        .select('text, repeat_frequency')
-        .eq('recurring', true)
-        .eq('user_id', session.user.id);
-      
-      if (error) {
-        console.error('Error fetching recurring tasks:', error);
-        return;
-      }
-
-      // Get unique combinations of text and frequency
-      const uniqueTasks = recurringTasks.reduce((acc, task) => {
-        const key = `${task.text}|${task.repeat_frequency}`;
-        if (!acc[key]) {
-          acc[key] = { text: task.text, frequency: task.repeat_frequency };
-        }
-        return acc;
-      }, {});
-
-      // Check each unique recurring task
-      for (const taskData of Object.values(uniqueTasks)) {
-        // Get the latest future occurrence
-        const { data: latestTask, error: latestError } = await supabase
-          .from('todos')
-          .select('actual_date')
-          .eq('text', taskData.text)
-          .eq('repeat_frequency', taskData.frequency)
-          .eq('recurring', true)
-          .gte('actual_date', new Date().toISOString())
-          .order('actual_date', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (latestError || !latestTask) continue;
-
-        const latestDate = new Date(latestTask.actual_date);
-        const daysUntilLatest = Math.floor((latestDate - new Date()) / (1000 * 60 * 60 * 24));
-
-        // If less than 30 days of tasks remaining, create more
-        if (daysUntilLatest < 30) {
-          console.log(`Extending recurring task: ${taskData.text} (${taskData.frequency})`);
-          
-          // Get all the days this task appears on
-          const { data: existingTasks, error: existingError } = await supabase
-            .from('todos')
-            .select('day')
-            .eq('text', taskData.text)
-            .eq('repeat_frequency', taskData.frequency)
-            .eq('recurring', true)
-            .limit(1);
-
-          if (existingError || !existingTasks.length) continue;
-
-          const taskDay = existingTasks[0].day;
-          const futureTasks = [];
-          
-          // Start from the day after the latest task
-          const startDate = new Date(latestDate);
-          startDate.setDate(startDate.getDate() + 1);
-          
-          // Create 60 more days worth
-          for (let i = 0; i < 60; i++) {
-            const targetDate = new Date(startDate);
-            
-            if (taskData.frequency === 'daily') {
-              targetDate.setDate(startDate.getDate() + i);
-            } 
-            else if (taskData.frequency === 'weekly') {
-              targetDate.setDate(startDate.getDate() + (i * 7));
-            }
-            else if (taskData.frequency === 'monthly') {
-              targetDate.setMonth(startDate.getMonth() + i);
-              
-              const originalDay = startDate.getDate();
-              const maxDaysInMonth = new Date(
-                targetDate.getFullYear(), 
-                targetDate.getMonth() + 1, 
-                0
-              ).getDate();
-              
-              if (originalDay > maxDaysInMonth) {
-                targetDate.setDate(maxDaysInMonth);
-              }
-            }
-            
-            // Only create if it matches the correct day pattern
-            const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-            const targetDayName = dayNames[targetDate.getDay()];
-            
-            if (taskData.frequency === 'daily' || 
-                (taskData.frequency === 'weekly' && targetDayName === taskDay) ||
-                taskData.frequency === 'monthly') {
-              futureTasks.push({
-                user_id: session.user.id,
-                text: taskData.text,
-                day: dayNames[targetDate.getDay()],
-                actual_date: targetDate.toISOString(),
-                completed: false,
-                recurring: true,
-                repeat_frequency: taskData.frequency
-              });
-            }
-          }
-          
-          // Insert in chunks
-          const chunkSize = 10;
-          for (let i = 0; i < futureTasks.length; i += chunkSize) {
-            const chunk = futureTasks.slice(i, i + chunkSize);
-            await supabase.from('todos').insert(chunk);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error extending recurring tasks:', error);
-    }
-  }, [session]);
 
   const formatDate = (date) => {
     return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
@@ -502,7 +376,7 @@ function App() {
   
       const futureTasks = [];
       
-      for (let i = 1; i <= 60; i++) {
+      for (let i = 1; i <= 30; i++) {
         const targetDate = new Date(clickedTaskDate);
         
         if (frequency === 'daily') {
