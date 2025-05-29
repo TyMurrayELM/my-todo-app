@@ -15,6 +15,8 @@ function App() {
     return localStorage.getItem('todoTheme') || 'amber';
   });
   const [isRepeating, setIsRepeating] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -49,6 +51,18 @@ function App() {
   const [noteInput, setNoteInput] = useState('');
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [currentNoteTask, setCurrentNoteTask] = useState(null);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const getBackgroundColor = (index) => {
     const themes = {
@@ -176,6 +190,7 @@ function App() {
     setCurrentDate(newDate);
     setDays(newDays);
     setSelectedDay(0);
+    setExpandedTaskId(null);
     
     setTimeout(() => {
       setIsNavigating(false);
@@ -529,6 +544,12 @@ function App() {
     localStorage.setItem('hideCompleted', newValue);
   };
 
+  const handleTaskClick = (taskId) => {
+    if (isMobile) {
+      setExpandedTaskId(expandedTaskId === taskId ? null : taskId);
+    }
+  };
+
   // Note Modal Component
   const NoteModal = ({ task, day, onClose }) => {
     const [localNote, setLocalNote] = useState(task?.notes || '');
@@ -565,6 +586,209 @@ function App() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  // Task Component with expandable actions for mobile
+  const TaskItem = ({ task, day, index }) => {
+    const isExpanded = expandedTaskId === task.id;
+    const isDarkBackground = index >= 4;
+    
+    return (
+      <div className="relative">
+        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : ''} relative`}>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleTask(task.id, day);
+            }}
+            className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
+              ${task.completed ? 'bg-green-500 border-green-500' : isDarkBackground ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
+          >
+            {task.completed && <Check size={16} className="text-white" />}
+          </button>
+          
+          {editingTaskId === task.id ? (
+            <input
+              type="text"
+              value={editingTaskText}
+              onChange={(e) => setEditingTaskText(e.target.value)}
+              onBlur={() => updateTaskText(task.id, day, editingTaskText)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  updateTaskText(task.id, day, editingTaskText);
+                } else if (e.key === 'Escape') {
+                  setEditingTaskId(null);
+                  setEditingTaskText('');
+                }
+              }}
+              className={`flex-grow bg-transparent border-none focus:outline-none ${
+                isDarkBackground ? 'text-white' : 'text-gray-700'
+              }`}
+              onClick={(e) => e.stopPropagation()}
+              autoFocus
+            />
+          ) : (
+            <div 
+              className="flex-grow flex items-center gap-2 min-w-0 cursor-pointer"
+              onClick={() => handleTaskClick(task.id)}
+            >
+              <span
+                onClick={(e) => {
+                  if (!isMobile) {
+                    e.stopPropagation();
+                    setEditingTaskId(task.id);
+                    setEditingTaskText(task.text);
+                  }
+                }}
+                className={`${
+                  task.completed ? 'line-through text-gray-400' : 
+                  isDarkBackground ? 'text-white' : 'text-gray-700'
+                } ${!isMobile ? 'truncate group-hover:whitespace-normal group-hover:overflow-visible' : ''} transition-all duration-200`}
+                title={task.text}
+              >
+                {task.text}
+              </span>
+              {task.completed && task.completedAt && (
+                <span className="ml-1 text-[10px] opacity-75 flex-shrink-0">
+                  ({formatCompletionTime(task.completedAt)})
+                </span>
+              )}
+              {/* Status indicators - always visible */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {task.recurring && (
+                  <RecurringIndicator 
+                    frequency={task.repeatFrequency || 'daily'} 
+                    isDarkBackground={isDarkBackground} 
+                  />
+                )}
+                {task.notes && (
+                  <span className={`${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
+                    <StickyNote size={14} fill="currentColor" />
+                  </span>
+                )}
+                {task.url && (
+                  <span className={`${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
+                    <Link size={14} />
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Desktop hover actions */}
+          {!isMobile && (
+            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
+              <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentNoteTask(task);
+                  setShowNoteModal(true);
+                  setNoteInput(task.notes || '');
+                }}
+                className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
+                title={task.notes ? "Edit Note" : "Add Note"}
+              >
+                <StickyNote size={16} fill={task.notes ? "currentColor" : "none"} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = prompt('Enter URL:');
+                  if (url) {
+                    updateTaskUrl(task.id, day, url);
+                  }
+                }}
+                className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-blue-500`}
+                title="Add URL"
+              >
+                <Link size={16} />
+              </button>
+              {index < 6 && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
+                    moveTask(task.id, day, days[nextDayIndex]);
+                  }}
+                  className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
+                  title="Move to next day"
+                >
+                  <SkipForward size={16} />
+                </button>
+              )}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTask(task.id, day, task);
+                }}
+                className="text-gray-400 hover:text-red-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {/* Mobile expanded actions */}
+        {isMobile && isExpanded && (
+          <div className={`mt-2 ml-8 p-3 rounded-lg ${isDarkBackground ? 'bg-white/10' : 'bg-gray-100'} transition-all duration-200`}>
+            <div className="flex items-center justify-around gap-2">
+              <div className="relative">
+                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentNoteTask(task);
+                  setShowNoteModal(true);
+                  setNoteInput(task.notes || '');
+                }}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white hover:bg-white/20' : 'text-gray-600 hover:bg-gray-200'}`}
+                title={task.notes ? "Edit Note" : "Add Note"}
+              >
+                <StickyNote size={20} fill={task.notes ? "currentColor" : "none"} />
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = prompt('Enter URL:');
+                  if (url) {
+                    updateTaskUrl(task.id, day, url);
+                  }
+                }}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white hover:bg-white/20' : 'text-gray-600 hover:bg-gray-200'}`}
+                title="Add URL"
+              >
+                <Link size={20} />
+              </button>
+              {day !== 'TASK_BANK' && index < 6 && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
+                    moveTask(task.id, day, days[nextDayIndex]);
+                  }}
+                  className={`p-2 rounded ${isDarkBackground ? 'text-white hover:bg-white/20' : 'text-gray-600 hover:bg-gray-200'}`}
+                  title="Move to next day"
+                >
+                  <SkipForward size={20} />
+                </button>
+              )}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTask(task.id, day, task);
+                }}
+                className={`p-2 rounded ${isDarkBackground ? 'text-red-400 hover:bg-white/20' : 'text-red-500 hover:bg-gray-200'}`}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -679,143 +903,12 @@ function App() {
                           return a.text.localeCompare(b.text);
                         })
                         .map(task => (
-                          <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleTask(task.id, day);
-                              }}
-                              className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
-                                ${task.completed ? 'bg-green-500 border-green-500' : index >= 4 ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
-                            >
-                              {task.completed && <Check size={16} className="text-white" />}
-                            </button>
-                            {editingTaskId === task.id ? (
-                              <input
-                                type="text"
-                                value={editingTaskText}
-                                onChange={(e) => setEditingTaskText(e.target.value)}
-                                onBlur={() => updateTaskText(task.id, day, editingTaskText)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    updateTaskText(task.id, day, editingTaskText);
-                                  } else if (e.key === 'Escape') {
-                                    setEditingTaskId(null);
-                                    setEditingTaskText('');
-                                  }
-                                }}
-                                className={`flex-grow bg-transparent border-none focus:outline-none ${
-                                  index >= 4 ? 'text-white' : 'text-gray-700'
-                                }`}
-                                onClick={(e) => e.stopPropagation()}
-                                autoFocus
-                              />
-                            ) : (
-                              <div className="flex-grow flex items-center gap-2 min-w-0">
-                                <span
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingTaskId(task.id);
-                                    setEditingTaskText(task.text);
-                                  }}
-                                  className={`${
-                                    task.completed ? 'line-through text-gray-400' : 
-                                    index >= 4 ? 'text-white' : 'text-gray-700'
-                                  } truncate group-hover:whitespace-normal group-hover:overflow-visible transition-all duration-200`}
-                                  title={task.text}
-                                >
-                                  {task.text}
-                                </span>
-                                {task.completed && task.completedAt && (
-                                  <span className="ml-1 text-[10px] opacity-75">
-                                    ({formatCompletionTime(task.completedAt)})
-                                  </span>
-                                )}
-                                {task.recurring && (
-                                  <RecurringIndicator 
-                                    frequency={task.repeatFrequency || 'daily'} 
-                                    isDarkBackground={index >= 4} 
-                                  />
-                                )}
-                                {task.notes && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCurrentNoteTask(task);
-                                      setShowNoteModal(true);
-                                      setNoteInput(task.notes);
-                                    }}
-                                    className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'} hover:text-yellow-500`}
-                                    title="View/Edit Note"
-                                  >
-                                    <StickyNote size={14} fill="currentColor" />
-                                  </button>
-                                )}
-                                {task.url && (
-                                  <a 
-                                    href={task.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={`${index >= 4 ? 'text-white/60' : 'text-gray-400'} hover:text-blue-500`}
-                                    title="Open URL"
-                                  >
-                                    <Link size={14} />
-                                  </a>
-                                )}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
-                              <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCurrentNoteTask(task);
-                                  setShowNoteModal(true);
-                                  setNoteInput(task.notes || '');
-                                }}
-                                className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
-                                title="Add/Edit Note"
-                              >
-                                <StickyNote size={16} />
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const url = prompt('Enter URL:');
-                                  if (url) {
-                                    updateTaskUrl(task.id, day, url);
-                                  }
-                                }}
-                                className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-blue-500`}
-                                title="Add URL"
-                              >
-                                <Link size={16} />
-                              </button>
-                              {index < 6 && (
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
-                                    moveTask(task.id, day, days[nextDayIndex]);
-                                  }}
-                                  className={`${index >= 4 ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
-                                  title="Move to next day"
-                                >
-                                  <SkipForward size={16} />
-                                </button>
-                              )}
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteTask(task.id, day, task);
-                                }}
-                                className="text-gray-400 hover:text-red-500"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          </div>
+                          <TaskItem 
+                            key={task.id} 
+                            task={task} 
+                            day={day} 
+                            index={index}
+                          />
                         ))}
                       <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => e.stopPropagation()}>
                         <input
@@ -855,122 +948,12 @@ function App() {
                         return a.text.localeCompare(b.text);
                       })
                       .map(task => (
-                        <div key={task.id} className="group flex items-start gap-3 pr-20 relative">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleTask(task.id, 'TASK_BANK');
-                            }}
-                            className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
-                              ${task.completed ? 'bg-green-500 border-green-500' : 'border-white hover:border-green-500'}`}
-                          >
-                            {task.completed && <Check size={16} className="text-white" />}
-                          </button>
-                          {editingTaskId === task.id ? (
-                            <input
-                              type="text"
-                              value={editingTaskText}
-                              onChange={(e) => setEditingTaskText(e.target.value)}
-                              onBlur={() => updateTaskText(task.id, 'TASK_BANK', editingTaskText)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  updateTaskText(task.id, 'TASK_BANK', editingTaskText);
-                                } else if (e.key === 'Escape') {
-                                  setEditingTaskId(null);
-                                  setEditingTaskText('');
-                                }
-                              }}
-                              className="flex-grow bg-transparent border-none focus:outline-none text-white"
-                              onClick={(e) => e.stopPropagation()}
-                              autoFocus
-                            />
-                          ) : (
-                            <div className="flex-grow flex items-center gap-2 text-white">
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingTaskId(task.id);
-                                  setEditingTaskText(task.text);
-                                }}
-                              >
-                                {task.text}
-                                {task.completed && task.completedAt && (
-                                  <span className="ml-2 text-sm opacity-60">
-                                    ({formatCompletionDate(task.completedAt)})
-                                  </span>
-                                )}
-                              </span>
-                              {task.recurring && (
-                                <RecurringIndicator 
-                                  frequency={task.repeatFrequency || 'daily'} 
-                                  isDarkBackground={true} 
-                                />
-                              )}
-                              {task.notes && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCurrentNoteTask(task);
-                                    setShowNoteModal(true);
-                                    setNoteInput(task.notes);
-                                  }}
-                                  className="text-white/60 hover:text-yellow-500"
-                                  title="View/Edit Note"
-                                >
-                                  <StickyNote size={14} fill="currentColor" />
-                                </button>
-                              )}
-                              {task.url && (
-                                <a 
-                                  href={task.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="text-white hover:text-blue-500"
-                                  title="Open URL"
-                                >
-                                  <Link size={14} />
-                                </a>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCurrentNoteTask(task);
-                                setShowNoteModal(true);
-                                setNoteInput(task.notes || '');
-                              }}
-                              className="text-white hover:text-yellow-500"
-                              title="Add/Edit Note"
-                            >
-                              <StickyNote size={16} />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const url = prompt('Enter URL:');
-                                if (url) {
-                                  updateTaskUrl(task.id, 'TASK_BANK', url);
-                                }
-                              }}
-                              className="text-white hover:text-blue-500"
-                              title="Add URL"
-                            >
-                              <Link size={16} />
-                            </button>
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteTask(task.id, 'TASK_BANK', task);
-                              }}
-                              className="text-white hover:text-red-500"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
+                        <TaskItem 
+                          key={task.id} 
+                          task={task} 
+                          day="TASK_BANK" 
+                          index={7}
+                        />
                       ))}
                     <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-2" onClick={e => e.stopPropagation()}>
                       <input
