@@ -376,7 +376,7 @@ function App() {
   
       const futureTasks = [];
       
-      for (let i = 1; i <= 30; i++) {
+      for (let i = 1; i <= 60; i++) {
         const targetDate = new Date(clickedTaskDate);
         
         if (frequency === 'daily') {
@@ -632,15 +632,17 @@ function App() {
           ) : (
             <div 
               className="flex-grow flex items-center gap-2 min-w-0 cursor-pointer"
-              onClick={() => handleTaskClick(task.id)}
+              onClick={() => {
+                if (isMobile && editingTaskId !== task.id) {
+                  handleTaskClick(task.id);
+                }
+              }}
             >
               <span
                 onClick={(e) => {
-                  if (!isMobile) {
-                    e.stopPropagation();
-                    setEditingTaskId(task.id);
-                    setEditingTaskText(task.text);
-                  }
+                  e.stopPropagation();
+                  setEditingTaskId(task.id);
+                  setEditingTaskText(task.text);
                 }}
                 className={`${
                   task.completed ? 'line-through text-gray-400' : 
