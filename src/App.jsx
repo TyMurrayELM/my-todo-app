@@ -676,7 +676,7 @@ function App() {
                 )}
                 {task.url && (
                   <span className={`${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
-                    <Link size={14} />
+                    <Link size={14} color="#10b981" />
                   </span>
                 )}
               </div>
@@ -714,7 +714,7 @@ function App() {
                 className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-blue-500`}
                 title="Add URL"
               >
-                <Link size={16} />
+                <Link size={16} color={task.url ? "#10b981" : "currentColor"} />
               </button>
               {index < 6 && (
                 <button 
@@ -776,7 +776,7 @@ function App() {
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title="Add URL"
               >
-                <Link size={20} />
+                <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
               {day !== 'TASK_BANK' && index < 6 && (
                 <button 
