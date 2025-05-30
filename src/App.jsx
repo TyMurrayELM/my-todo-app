@@ -756,8 +756,11 @@ function App() {
         
         {/* Mobile expanded actions */}
         {isMobile && isExpanded && (
-          <div className={`mt-2 ml-2 mr-2 p-3 rounded-lg transition-all duration-200 relative overflow-visible`}>
+          <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
             <div className="flex items-center justify-around gap-2">
+              <div className="relative">
+                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+              </div>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -774,11 +777,6 @@ function App() {
                   className={task.notes ? "text-gray-600" : ""}
                 />
               </button>
-              <div className="relative">
-                <div className="[&>*]:left-0 [&>*]:right-auto">
-                  <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
-                </div>
-              </div>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();

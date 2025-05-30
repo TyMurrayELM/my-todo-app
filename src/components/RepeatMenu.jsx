@@ -39,7 +39,7 @@ const RepeatMenu = ({ onSelect }) => {
       </button>
       
       {isOpen && (
-        <div className="absolute right-0 mt-1 w-40 bg-white border rounded shadow-lg z-10">
+        <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-40 bg-white border rounded shadow-lg z-10">
           {options.map(option => (
             <div
               key={option.id}
