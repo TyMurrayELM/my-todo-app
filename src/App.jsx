@@ -596,8 +596,8 @@ function App() {
     const isDarkBackground = index >= 4;
     
     return (
-      <div className="relative group">
-        <div className={`flex items-start gap-3 relative`}>
+      <div className="relative">
+        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : ''} relative`}>
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -659,7 +659,7 @@ function App() {
                 className={`${
                   task.completed ? 'line-through text-gray-400' : 
                   isDarkBackground ? 'text-white' : 'text-gray-700'
-                } transition-all duration-200`}
+                } ${!isMobile ? 'truncate group-hover:whitespace-normal group-hover:overflow-visible' : ''} transition-all duration-200`}
                 title={task.text}
               >
                 {task.text}
@@ -690,15 +690,11 @@ function App() {
               </div>
             </div>
           )}
-        </div>
-        
-        {/* Desktop hover actions - now shown below */}
-        {!isMobile && (
-          <div className={`mt-2 ml-8 p-3 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200`}>
-            <div className="flex items-center justify-around gap-2">
-              <div className="relative">
-                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
-              </div>
+          
+          {/* Desktop hover actions */}
+          {!isMobile && (
+            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
+              <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -706,11 +702,11 @@ function App() {
                   setShowNoteModal(true);
                   setNoteInput(task.notes || '');
                 }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
                 title={task.notes ? "Edit Note" : "Add Note"}
               >
                 <StickyNote 
-                  size={20} 
+                  size={16} 
                   fill={task.notes ? "#10b981" : "none"} 
                   className={task.notes ? "text-gray-600" : ""}
                 />
@@ -727,22 +723,22 @@ function App() {
                     }
                   }
                 }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-blue-500`}
                 title={task.url ? "Open URL" : "Add URL"}
               >
-                <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
+                <Link size={16} color={task.url ? "#10b981" : "currentColor"} />
               </button>
-              {day !== 'TASK_BANK' && index < 6 && (
+              {index < 6 && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
                     const nextDayIndex = (days.indexOf(day) + 1) % 7;
                     moveTask(task.id, day, days[nextDayIndex]);
                   }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                  className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
                   title="Move to next day"
                 >
-                  <SkipForward size={20} />
+                  <SkipForward size={16} />
                 </button>
               )}
               <button 
@@ -750,13 +746,13 @@ function App() {
                   e.stopPropagation();
                   deleteTask(task.id, day, task);
                 }}
-                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
+                className="text-gray-400 hover:text-red-500"
               >
-                <X size={20} />
+                <X size={16} />
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         
         {/* Mobile expanded actions */}
         {isMobile && isExpanded && (
