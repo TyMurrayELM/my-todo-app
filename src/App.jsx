@@ -697,7 +697,11 @@ function App() {
                 className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
                 title={task.notes ? "Edit Note" : "Add Note"}
               >
-                <StickyNote size={16} fill={task.notes ? "currentColor" : "none"} />
+                <StickyNote 
+                  size={16} 
+                  fill={task.notes ? "#10b981" : "none"} 
+                  className={task.notes ? "text-gray-600" : ""}
+                />
               </button>
               <button 
                 onClick={(e) => {
@@ -755,7 +759,11 @@ function App() {
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
               >
-                <StickyNote size={20} fill={task.notes ? "currentColor" : "none"} />
+                <StickyNote 
+                  size={20} 
+                  fill={task.notes ? "#10b981" : "none"} 
+                  className={task.notes ? "text-gray-600" : ""}
+                />
               </button>
               <button 
                 onClick={(e) => {
