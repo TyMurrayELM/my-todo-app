@@ -594,9 +594,14 @@ function App() {
   const TaskItem = ({ task, day, index }) => {
     const isExpanded = expandedTaskId === task.id;
     const isDarkBackground = index >= 4;
+    const [isHovered, setIsHovered] = useState(false);
     
     return (
-      <div className="relative group">
+      <div 
+        className="relative group"
+        onMouseEnter={() => !isMobile && setIsHovered(true)}
+        onMouseLeave={() => !isMobile && setIsHovered(false)}
+      >
         <div className={`flex items-start gap-3 relative`}>
           <button 
             onClick={(e) => {
@@ -693,9 +698,10 @@ function App() {
         </div>
         
         {/* Desktop hover actions - now shown below */}
-        <div className={`${!isMobile ? 'max-h-0 overflow-hidden transition-[max-height] duration-200 ease-in-out group-hover:max-h-24' : 'hidden'}`}>
-          <div className={`mt-2 ml-8 p-3 rounded-lg`}>
-            <div className="flex items-center justify-around gap-2">
+        {!isMobile && (
+          <div className={`transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100`}>
+            <div className={`mt-2 ml-8 p-3 rounded-lg`}>
+              <div className="flex items-center justify-around gap-2">
               <div className="relative">
                 <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
               </div>
@@ -757,7 +763,7 @@ function App() {
               </div>
             </div>
           </div>
-        </div>
+        )}
         
         {/* Mobile expanded actions */}
         {isMobile && isExpanded && (
