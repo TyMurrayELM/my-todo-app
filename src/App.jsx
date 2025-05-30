@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote, ChevronUp } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
@@ -756,11 +756,8 @@ function App() {
         
         {/* Mobile expanded actions */}
         {isMobile && isExpanded && (
-          <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
+          <div className={`mt-2 ml-2 mr-2 p-3 rounded-lg transition-all duration-200 relative overflow-visible`}>
             <div className="flex items-center justify-around gap-2">
-              <div className="relative">
-                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
-              </div>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -777,6 +774,11 @@ function App() {
                   className={task.notes ? "text-gray-600" : ""}
                 />
               </button>
+              <div className="relative">
+                <div className="[&>*]:right-0 [&>*]:left-auto">
+                  <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+                </div>
+              </div>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
