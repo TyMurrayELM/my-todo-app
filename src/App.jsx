@@ -775,7 +775,7 @@ function App() {
                 />
               </button>
               <div className="relative">
-                <div className="[&>*]:right-0 [&>*]:left-auto">
+                <div className="[&>*]:left-0 [&>*]:right-auto">
                   <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
                 </div>
               </div>
