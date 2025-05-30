@@ -697,10 +697,10 @@ function App() {
           )}
         </div>
         
-{/* Desktop hover actions - now shown below */}
-{!isMobile && (
-  <div className={`transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 overflow-hidden`}>
-    <div className={`ml-8 p-3 rounded-lg`}>
+        {/* Desktop hover actions - now shown below */}
+        {!isMobile && (
+          <div className={`transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100`}>
+            <div className={`mt-2 ml-8 p-3 rounded-lg`}>
               <div className="flex items-center justify-around gap-2">
               <div className="relative">
                 <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
