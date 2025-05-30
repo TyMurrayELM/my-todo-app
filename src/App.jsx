@@ -597,7 +597,7 @@ function App() {
     
     return (
       <div className="relative">
-        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : isExpanded ? 'pr-8' : ''} relative`}>
+        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : ''} relative`}>
           <button 
             onClick={(e) => {
               e.stopPropagation();
