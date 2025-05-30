@@ -633,19 +633,27 @@ function App() {
             <div 
               className="flex-grow flex items-center gap-2 min-w-0 cursor-pointer"
               onClick={() => {
-                if (isMobile && editingTaskId !== task.id) {
-                  handleTaskClick(task.id);
+                if (isMobile) {
+                  // Toggle expand/collapse
+                  setExpandedTaskId(expandedTaskId === task.id ? null : task.id);
                 }
               }}
             >
               <span
                 onClick={(e) => {
                   e.stopPropagation();
-                  setEditingTaskId(task.id);
-                  setEditingTaskText(task.text);
-                  // On mobile, also expand the actions when starting to edit
-                  if (isMobile) {
-                    setExpandedTaskId(task.id);
+                  // If already editing and expanded, collapse it
+                  if (isMobile && editingTaskId === task.id && expandedTaskId === task.id) {
+                    setExpandedTaskId(null);
+                    setEditingTaskId(null);
+                    setEditingTaskText('');
+                  } else {
+                    // Otherwise, start editing and expand on mobile
+                    setEditingTaskId(task.id);
+                    setEditingTaskText(task.text);
+                    if (isMobile) {
+                      setExpandedTaskId(task.id);
+                    }
                   }
                 }}
                 className={`${
@@ -907,7 +915,12 @@ function App() {
                     <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
                       {formatDate(getDateForDay(index))}
                     </p>
-                    <div className="space-y-3">
+                    <div className="space-y-3" onClick={(e) => {
+                      // Close expanded task when clicking empty space on mobile
+                      if (isMobile && e.target === e.currentTarget) {
+                        setExpandedTaskId(null);
+                      }
+                    }}>
                       {tasks[day]
                         .filter(task => !hideCompleted || !task.completed)
                         .sort((a, b) => {
@@ -924,7 +937,13 @@ function App() {
                             index={index}
                           />
                         ))}
-                      <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => e.stopPropagation()}>
+                      <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => {
+                        e.stopPropagation();
+                        // Close expanded task when clicking the add task input on mobile
+                        if (isMobile) {
+                          setExpandedTaskId(null);
+                        }
+                      }}>
                         <input
                           type="text"
                           value={newTask}
@@ -952,7 +971,12 @@ function App() {
               <h2 className="text-2xl font-bold text-white">Task Bank</h2>
               {selectedDay === 'task_bank' && (
                 <>
-                  <div className="space-y-3">
+                  <div className="space-y-3" onClick={(e) => {
+                    // Close expanded task when clicking empty space on mobile
+                    if (isMobile && e.target === e.currentTarget) {
+                      setExpandedTaskId(null);
+                    }
+                  }}>
                     {tasks.TASK_BANK
                       .filter(task => !hideCompleted || !task.completed)
                       .sort((a, b) => {
@@ -969,7 +993,13 @@ function App() {
                           index={7}
                         />
                       ))}
-                    <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-2" onClick={e => e.stopPropagation()}>
+                    <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-2" onClick={e => {
+                      e.stopPropagation();
+                      // Close expanded task when clicking the add task input on mobile
+                      if (isMobile) {
+                        setExpandedTaskId(null);
+                      }
+                    }}>
                       <input
                         type="text"
                         value={newTask}
