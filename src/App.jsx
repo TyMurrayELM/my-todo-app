@@ -594,10 +594,15 @@ function App() {
   const TaskItem = ({ task, day, index }) => {
     const isExpanded = expandedTaskId === task.id;
     const isDarkBackground = index >= 4;
+    const [isHovered, setIsHovered] = useState(false);
     
     return (
-      <div className="relative">
-        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : ''} relative`}>
+      <div 
+        className="relative group"
+        onMouseEnter={() => !isMobile && setIsHovered(true)}
+        onMouseLeave={() => !isMobile && setIsHovered(false)}
+      >
+        <div className={`flex items-start gap-3 relative`}>
           <button 
             onClick={(e) => {
               e.stopPropagation();
@@ -659,7 +664,7 @@ function App() {
                 className={`${
                   task.completed ? 'line-through text-gray-400' : 
                   isDarkBackground ? 'text-white' : 'text-gray-700'
-                } ${!isMobile ? 'truncate group-hover:whitespace-normal group-hover:overflow-visible' : ''} transition-all duration-200`}
+                } transition-all duration-200`}
                 title={task.text}
               >
                 {task.text}
@@ -690,11 +695,16 @@ function App() {
               </div>
             </div>
           )}
-          
-          {/* Desktop hover actions */}
-          {!isMobile && (
-            <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute right-0">
-              <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+        </div>
+        
+        {/* Desktop hover actions - now shown below */}
+        {!isMobile && (
+          <div className={`overflow-hidden transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100`}>
+            <div className={`mt-2 ml-8 p-3 rounded-lg`}>
+              <div className="flex items-center justify-around gap-2">
+              <div className="relative">
+                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+              </div>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -702,11 +712,11 @@ function App() {
                   setShowNoteModal(true);
                   setNoteInput(task.notes || '');
                 }}
-                className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
               >
                 <StickyNote 
-                  size={16} 
+                  size={20} 
                   fill={task.notes ? "#10b981" : "none"} 
                   className={task.notes ? "text-gray-600" : ""}
                 />
@@ -723,22 +733,22 @@ function App() {
                     }
                   }
                 }}
-                className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-blue-500`}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.url ? "Open URL" : "Add URL"}
               >
-                <Link size={16} color={task.url ? "#10b981" : "currentColor"} />
+                <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
-              {index < 6 && (
+              {day !== 'TASK_BANK' && index < 6 && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
                     const nextDayIndex = (days.indexOf(day) + 1) % 7;
                     moveTask(task.id, day, days[nextDayIndex]);
                   }}
-                  className={`${isDarkBackground ? 'text-white' : 'text-gray-400'} hover:text-yellow-500`}
+                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                   title="Move to next day"
                 >
-                  <SkipForward size={16} />
+                  <SkipForward size={20} />
                 </button>
               )}
               <button 
@@ -746,13 +756,14 @@ function App() {
                   e.stopPropagation();
                   deleteTask(task.id, day, task);
                 }}
-                className="text-gray-400 hover:text-red-500"
+                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
               >
-                <X size={16} />
+                <X size={20} />
               </button>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         
         {/* Mobile expanded actions */}
         {isMobile && isExpanded && (
