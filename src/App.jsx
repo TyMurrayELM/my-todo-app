@@ -671,7 +671,7 @@ function App() {
                 )}
                 {task.notes && (
                   <span className={`${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
-                    <StickyNote size={14} fill="currentColor" />
+                    <StickyNote size={14} fill="#10b981" />
                   </span>
                 )}
                 {task.url && (
