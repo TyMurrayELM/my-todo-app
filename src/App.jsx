@@ -643,6 +643,10 @@ function App() {
                   e.stopPropagation();
                   setEditingTaskId(task.id);
                   setEditingTaskText(task.text);
+                  // On mobile, also expand the actions when starting to edit
+                  if (isMobile) {
+                    setExpandedTaskId(task.id);
+                  }
                 }}
                 className={`${
                   task.completed ? 'line-through text-gray-400' : 
