@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote, ChevronUp } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
@@ -597,7 +597,7 @@ function App() {
     
     return (
       <div className="relative">
-        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : ''} relative`}>
+        <div className={`group flex items-start gap-3 ${!isMobile ? 'pr-20' : isExpanded ? 'pr-8' : ''} relative`}>
           <button 
             onClick={(e) => {
               e.stopPropagation();
