@@ -354,6 +354,17 @@ function App() {
   
       const operations = [];
   
+      // Delete ALL future recurring tasks with the same text (to handle frequency changes)
+      operations.push(
+        supabase
+          .from('todos')
+          .delete()
+          .eq('text', task.text.trim())
+          .eq('recurring', true)
+          .gt('actual_date', clickedDayFormatted)
+      );
+  
+      // Delete duplicates on the same day
       operations.push(
         supabase
           .from('todos')
