@@ -609,12 +609,10 @@ function App() {
     const [isHovered, setIsHovered] = useState(false);
     const editInputRef = useRef(null);
     
-    // Focus and set cursor position when editing starts
+    // Focus when editing starts
     useEffect(() => {
       if (editingTaskId === task.id && editInputRef.current) {
         editInputRef.current.focus();
-        // Set cursor position to end of text
-        editInputRef.current.setSelectionRange(editingTaskText.length, editingTaskText.length);
       }
     }, [editingTaskId, task.id]);
     
