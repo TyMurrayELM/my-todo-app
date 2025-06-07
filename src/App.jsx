@@ -632,7 +632,7 @@ function App() {
     
     return (
       <div 
-        className="relative group pb-4"
+        className="relative group pb-3"
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
