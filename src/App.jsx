@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
@@ -439,25 +439,37 @@ function App() {
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
-  
-    const { error } = await supabase
-      .from('todos')
-      .update({ text: newText.trim() })
-      .eq('id', taskId);
-  
-    if (error) {
-      console.error('Error updating todo:', error);
-      return;
+    
+    // Find the current task to check if it's recurring
+    const currentTask = tasks[day].find(t => t.id === taskId);
+    
+    if (currentTask && currentTask.recurring) {
+      // Update all recurring tasks with the same text
+      const { error } = await supabase
+        .from('todos')
+        .update({ text: newText.trim() })
+        .eq('text', currentTask.text.trim())
+        .eq('recurring', true);
+    
+      if (error) {
+        console.error('Error updating recurring todos:', error);
+        return;
+      }
+    } else {
+      // Update just this single task
+      const { error } = await supabase
+        .from('todos')
+        .update({ text: newText.trim() })
+        .eq('id', taskId);
+    
+      if (error) {
+        console.error('Error updating todo:', error);
+        return;
+      }
     }
-  
-    setTasks(prev => ({
-      ...prev,
-      [day]: prev[day].map(task => 
-        task.id === taskId 
-          ? { ...task, text: newText.trim() }
-          : task
-      )
-    }));
+    
+    // Refresh all tasks to show the updates
+    await fetchTodos();
     setEditingTaskId(null);
     setEditingTaskText('');
   };
@@ -595,6 +607,16 @@ function App() {
     const isExpanded = expandedTaskId === task.id;
     const isDarkBackground = index >= 4;
     const [isHovered, setIsHovered] = useState(false);
+    const editInputRef = useRef(null);
+    
+    // Focus and set cursor position when editing starts
+    useEffect(() => {
+      if (editingTaskId === task.id && editInputRef.current) {
+        editInputRef.current.focus();
+        // Set cursor position to end of text
+        editInputRef.current.setSelectionRange(editingTaskText.length, editingTaskText.length);
+      }
+    }, [editingTaskId, task.id]);
     
     return (
       <div 
@@ -616,6 +638,7 @@ function App() {
           
           {editingTaskId === task.id ? (
             <input
+              ref={editInputRef}
               type="text"
               value={editingTaskText}
               onChange={(e) => setEditingTaskText(e.target.value)}
@@ -632,7 +655,6 @@ function App() {
                 isDarkBackground ? 'text-white' : 'text-gray-700'
               }`}
               onClick={(e) => e.stopPropagation()}
-              autoFocus
             />
           ) : (
             <div 
