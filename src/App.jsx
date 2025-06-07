@@ -638,12 +638,11 @@ function App() {
             <input
               ref={editInputRef}
               type="text"
-              value={editingTaskText}
-              onChange={(e) => setEditingTaskText(e.target.value)}
-              onBlur={() => updateTaskText(task.id, day, editingTaskText)}
+              defaultValue={task.text}
+              onBlur={(e) => updateTaskText(task.id, day, e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  updateTaskText(task.id, day, editingTaskText);
+                  updateTaskText(task.id, day, e.target.value);
                 } else if (e.key === 'Escape') {
                   setEditingTaskId(null);
                   setEditingTaskText('');
@@ -671,11 +670,9 @@ function App() {
                   if (isMobile && editingTaskId === task.id && expandedTaskId === task.id) {
                     setExpandedTaskId(null);
                     setEditingTaskId(null);
-                    setEditingTaskText('');
                   } else {
                     // Otherwise, start editing and expand on mobile
                     setEditingTaskId(task.id);
-                    setEditingTaskText(task.text);
                     if (isMobile) {
                       setExpandedTaskId(task.id);
                     }
