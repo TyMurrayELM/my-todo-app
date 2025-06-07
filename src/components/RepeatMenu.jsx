@@ -8,6 +8,7 @@ const RepeatMenu = ({ onSelect }) => {
   const options = [
     { id: 'daily', label: 'Daily', icon: <Repeat size={14} /> },
     { id: 'weekly', label: 'Weekly', icon: <Calendar size={14} /> },
+    { id: 'bi-weekly', label: 'Bi-weekly', icon: <Calendar size={14} /> },
     { id: 'monthly', label: 'Monthly', icon: <Calendar size={14} /> }
   ];
   
@@ -39,7 +40,7 @@ const RepeatMenu = ({ onSelect }) => {
       </button>
       
       {isOpen && (
-        <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-40 bg-white border rounded shadow-lg z-10">
+        <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-44 bg-white border rounded shadow-lg z-[100]">
           {options.map(option => (
             <div
               key={option.id}
@@ -55,6 +56,7 @@ const RepeatMenu = ({ onSelect }) => {
               <span className="text-xs text-gray-500 ml-auto">
                 {option.id === 'daily' ? 'Every day' : 
                  option.id === 'weekly' ? 'Same day weekly' : 
+                 option.id === 'bi-weekly' ? 'Every 2 weeks' :
                  'Same day monthly'}
               </span>
             </div>

@@ -12,6 +12,9 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
     case 'weekly':
       label = 'w';
       break;
+    case 'bi-weekly':
+      label = '2w';
+      break;
     case 'monthly':
       label = 'm';
       break;
