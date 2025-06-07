@@ -721,6 +721,10 @@ function App() {
                     }
                   }
                 }}
+                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
+              >
+                <X size={20} />
+              </button>
                 className={`${
                   task.completed ? 'line-through text-gray-400' : 
                   isDarkBackground ? 'text-white' : 'text-gray-700'
@@ -776,6 +780,9 @@ function App() {
                   setNoteInput(task.notes || '');
                   if (isMobile) setPrimedTaskId(null);
                 }}
+                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                title={task.notes ? "Edit Note" : "Add Note"}
+              >
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
@@ -802,6 +809,9 @@ function App() {
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.url ? "Open URL" : "Add URL"}
               >
+                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                title={task.url ? "Open URL" : "Add URL"}
+              >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
               {day !== 'TASK_BANK' && index < 6 && (
@@ -815,6 +825,9 @@ function App() {
                   className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                   title="Move to next day"
                 >
+                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                  title="Move to next day"
+                >
                   <SkipForward size={20} />
                 </button>
               )}
@@ -824,6 +837,8 @@ function App() {
                   if (isMobile) setPrimedTaskId(null);
                   deleteTask(task.id, day, task);
                 }}
+                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
+              >
                 className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
               >
                 <X size={20} />
