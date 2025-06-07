@@ -17,6 +17,7 @@ function App() {
   const [isRepeating, setIsRepeating] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [primedTaskId, setPrimedTaskId] = useState(null);
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -63,6 +64,17 @@ function App() {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Auto-reset primed task after 3 seconds
+  useEffect(() => {
+    if (primedTaskId) {
+      const timer = setTimeout(() => {
+        setPrimedTaskId(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [primedTaskId]);
 
   const getBackgroundColor = (index) => {
     const themes = {
@@ -191,6 +203,7 @@ function App() {
     setDays(newDays);
     setSelectedDay(0);
     setExpandedTaskId(null);
+    setPrimedTaskId(null);
     
     setTimeout(() => {
       setIsNavigating(false);
@@ -258,6 +271,18 @@ function App() {
   };
 
   const toggleTask = async (taskId, day) => {
+    // Mobile double-click logic
+    if (isMobile) {
+      if (primedTaskId === taskId) {
+        // Second click - complete the task
+        setPrimedTaskId(null);
+      } else {
+        // First click - prime the task
+        setPrimedTaskId(taskId);
+        return; // Don't complete yet
+      }
+    }
+    
     const updatedTasks = { ...tasks };
     const taskIndex = updatedTasks[day].findIndex(task => task.id === taskId);
     const newCompleted = !updatedTasks[day][taskIndex].completed;
@@ -632,7 +657,7 @@ function App() {
     
     return (
       <div 
-        className="relative group pb-3"
+        className="relative group pb-4"
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
@@ -643,7 +668,9 @@ function App() {
               toggleTask(task.id, day);
             }}
             className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
-              ${task.completed ? 'bg-green-500 border-green-500' : isDarkBackground ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
+              ${task.completed ? 'bg-green-500 border-green-500' : 
+                primedTaskId === task.id ? 'border-green-500' :
+                isDarkBackground ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
           >
             {task.completed && <Check size={16} className="text-white" />}
           </button>
@@ -674,6 +701,7 @@ function App() {
                 if (isMobile) {
                   // Toggle expand/collapse
                   setExpandedTaskId(expandedTaskId === task.id ? null : task.id);
+                  setPrimedTaskId(null); // Clear primed state
                 }
               }}
             >
@@ -689,6 +717,7 @@ function App() {
                     setEditingTaskId(task.id);
                     if (isMobile) {
                       setExpandedTaskId(task.id);
+                      setPrimedTaskId(null); // Clear primed state when editing
                     }
                   }
                 }}
@@ -734,7 +763,10 @@ function App() {
     <div className={`ml-8 p-3 rounded-lg relative z-50`}>
               <div className="flex items-center justify-around gap-2">
               <div className="relative">
-                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+                <RepeatMenu onSelect={(frequency) => {
+                  if (isMobile) setPrimedTaskId(null);
+                  repeatTask(task, day, frequency);
+                }} />
               </div>
               <button 
                 onClick={(e) => {
@@ -742,6 +774,8 @@ function App() {
                   setCurrentNoteTask(task);
                   setShowNoteModal(true);
                   setNoteInput(task.notes || '');
+                  if (isMobile) setPrimedTaskId(null);
+                }}
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
@@ -755,6 +789,7 @@ function App() {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (isMobile) setPrimedTaskId(null);
                   if (task.url) {
                     window.open(task.url, '_blank');
                   } else {
@@ -773,6 +808,7 @@ function App() {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isMobile) setPrimedTaskId(null);
                     const nextDayIndex = (days.indexOf(day) + 1) % 7;
                     moveTask(task.id, day, days[nextDayIndex]);
                   }}
@@ -785,6 +821,7 @@ function App() {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (isMobile) setPrimedTaskId(null);
                   deleteTask(task.id, day, task);
                 }}
                 className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
@@ -801,7 +838,10 @@ function App() {
           <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
             <div className="flex items-center justify-around gap-2">
               <div className="relative">
-                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+                <RepeatMenu onSelect={(frequency) => {
+                  if (isMobile) setPrimedTaskId(null);
+                  repeatTask(task, day, frequency);
+                }} />
               </div>
               <button 
                 onClick={(e) => {
@@ -809,6 +849,7 @@ function App() {
                   setCurrentNoteTask(task);
                   setShowNoteModal(true);
                   setNoteInput(task.notes || '');
+                  if (isMobile) setPrimedTaskId(null);
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
@@ -822,6 +863,7 @@ function App() {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (isMobile) setPrimedTaskId(null);
                   if (task.url) {
                     window.open(task.url, '_blank');
                   } else {
@@ -840,6 +882,7 @@ function App() {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isMobile) setPrimedTaskId(null);
                     const nextDayIndex = (days.indexOf(day) + 1) % 7;
                     moveTask(task.id, day, days[nextDayIndex]);
                   }}
@@ -852,7 +895,9 @@ function App() {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (isMobile) setPrimedTaskId(null);
                   deleteTask(task.id, day, task);
+                }}
                 }}
                 className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
               >
@@ -950,7 +995,10 @@ function App() {
             {days.map((day, index) => (
               <div 
                 key={day}
-                onClick={() => setSelectedDay(index)}
+                onClick={() => {
+                  setSelectedDay(index);
+                  if (isMobile) setPrimedTaskId(null);
+                }}
                 className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer overflow-visible
                   ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
               >
@@ -969,6 +1017,7 @@ function App() {
                       // Close expanded task when clicking empty space on mobile
                       if (isMobile && e.target === e.currentTarget) {
                         setExpandedTaskId(null);
+                        setPrimedTaskId(null);
                       }
                     }}>
                       {tasks[day]
@@ -992,6 +1041,7 @@ function App() {
                         // Close expanded task when clicking the add task input on mobile
                         if (isMobile) {
                           setExpandedTaskId(null);
+                          setPrimedTaskId(null);
                         }
                       }}>
                         <input
@@ -1015,7 +1065,10 @@ function App() {
               </div>
             ))}
             <div 
-              onClick={() => setSelectedDay('task_bank')}
+              onClick={() => {
+                setSelectedDay('task_bank');
+                if (isMobile) setPrimedTaskId(null);
+              }}
               className="bg-black p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
             >
               <h2 className="text-2xl font-bold text-white">Task Bank</h2>
@@ -1025,6 +1078,7 @@ function App() {
                     // Close expanded task when clicking empty space on mobile
                     if (isMobile && e.target === e.currentTarget) {
                       setExpandedTaskId(null);
+                      setPrimedTaskId(null);
                     }
                   }}>
                     {tasks.TASK_BANK
@@ -1048,6 +1102,7 @@ function App() {
                       // Close expanded task when clicking the add task input on mobile
                       if (isMobile) {
                         setExpandedTaskId(null);
+                        setPrimedTaskId(null);
                       }
                     }}>
                       <input
