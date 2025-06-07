@@ -385,6 +385,9 @@ function App() {
         else if (frequency === 'weekly') {
           targetDate.setDate(clickedTaskDate.getDate() + (i * 7));
         }
+        else if (frequency === 'bi-weekly') {
+          targetDate.setDate(clickedTaskDate.getDate() + (i * 14));
+        }
         else if (frequency === 'monthly') {
           targetDate.setMonth(clickedTaskDate.getMonth() + i);
           
