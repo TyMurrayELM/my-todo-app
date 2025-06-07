@@ -716,8 +716,8 @@ function App() {
         
 {/* Desktop hover actions - now shown below */}
 {!isMobile && (
-  <div className={`transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 overflow-hidden`}>
-    <div className={`ml-8 p-3 rounded-lg`}>
+  <div className={`transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 overflow-visible`}>
+    <div className={`ml-8 p-3 rounded-lg relative z-50`}>
               <div className="flex items-center justify-around gap-2">
               <div className="relative">
                 <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
@@ -931,13 +931,13 @@ function App() {
       </div>
 
       <div className="pt-16 px-4">
-        <div className="max-w-md mx-auto rounded-3xl shadow-lg overflow-hidden">
-          <div className="divide-y divide-gray-200">
+        <div className="max-w-md mx-auto rounded-3xl shadow-lg">
+          <div className="divide-y divide-gray-200 overflow-visible">
             {days.map((day, index) => (
               <div 
                 key={day}
                 onClick={() => setSelectedDay(index)}
-                className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer
+                className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer overflow-visible
                   ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
               >
                 <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'} flex items-center gap-2`}>
@@ -951,7 +951,7 @@ function App() {
                     <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
                       {formatDate(getDateForDay(index))}
                     </p>
-                    <div className="space-y-3" onClick={(e) => {
+                    <div className="space-y-3 overflow-visible" onClick={(e) => {
                       // Close expanded task when clicking empty space on mobile
                       if (isMobile && e.target === e.currentTarget) {
                         setExpandedTaskId(null);
