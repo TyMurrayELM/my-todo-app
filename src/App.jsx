@@ -632,7 +632,7 @@ function App() {
     
     return (
       <div 
-        className="relative group pb-2"
+        className="relative group pb-4"
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
@@ -987,7 +987,7 @@ function App() {
                             index={index}
                           />
                         ))}
-                      <form onSubmit={(e) => addTask(e, day)} className="pt-2" onClick={e => {
+                      <form onSubmit={(e) => addTask(e, day)} className="pt-6" onClick={e => {
                         e.stopPropagation();
                         // Close expanded task when clicking the add task input on mobile
                         if (isMobile) {
@@ -1043,7 +1043,7 @@ function App() {
                           index={7}
                         />
                       ))}
-                    <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-2" onClick={e => {
+                    <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-6" onClick={e => {
                       e.stopPropagation();
                       // Close expanded task when clicking the add task input on mobile
                       if (isMobile) {
