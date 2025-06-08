@@ -8,7 +8,8 @@ const MoveMenu = ({ onSelect }) => {
   const options = [
     { id: 'next-day', label: 'Next Day', icon: <SkipForward size={14} /> },
     { id: 'next-week', label: 'Next Week', icon: <Calendar size={14} /> },
-    { id: 'next-weekday', label: 'Next Weekday', icon: <CalendarDays size={14} /> }
+    { id: 'next-weekday', label: 'Next Weekday', icon: <CalendarDays size={14} /> },
+    { id: 'next-weekend', label: 'Next Weekend', icon: <Calendar size={14} /> }
   ];
   
   useEffect(() => {
@@ -61,7 +62,8 @@ const MoveMenu = ({ onSelect }) => {
               <span className="text-xs text-gray-500 ml-auto">
                 {option.id === 'next-day' ? 'Tomorrow' : 
                  option.id === 'next-week' ? '+7 days' : 
-                 'Skip weekend'}
+                 option.id === 'next-weekday' ? 'Skip weekend' :
+                 'Saturday'}
               </span>
             </div>
           ))}

@@ -227,6 +227,11 @@ function App() {
       while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
         targetDate.setDate(targetDate.getDate() + 1);
       }
+    } else if (moveType === 'next-weekend') {
+      // Move to next Saturday
+      const daysUntilSaturday = (6 - currentTaskDate.getDay() + 7) % 7;
+      const daysToAdd = daysUntilSaturday === 0 ? 7 : daysUntilSaturday;
+      targetDate.setDate(currentTaskDate.getDate() + daysToAdd);
     }
     
     // Figure out which day this lands on
