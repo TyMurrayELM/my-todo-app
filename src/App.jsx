@@ -478,7 +478,7 @@ function App() {
         futureTasks.push({
           user_id: session.user.id,
           text: task.text.trim(),
-          day: days[targetDate.getDay()],
+          day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()],
           actual_date: targetDate.toISOString(),
           completed: false,
           recurring: true,
