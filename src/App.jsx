@@ -657,7 +657,7 @@ function App() {
     
     return (
       <div 
-        className="relative group pb-4"
+        className="relative group pb-3"
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
@@ -721,10 +721,6 @@ function App() {
                     }
                   }
                 }}
-                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
-              >
-                <X size={20} />
-              </button>
                 className={`${
                   task.completed ? 'line-through text-gray-400' : 
                   isDarkBackground ? 'text-white' : 'text-gray-700'
@@ -767,10 +763,7 @@ function App() {
     <div className={`ml-8 p-3 rounded-lg relative z-50`}>
               <div className="flex items-center justify-around gap-2">
               <div className="relative">
-                <RepeatMenu onSelect={(frequency) => {
-                  if (isMobile) setPrimedTaskId(null);
-                  repeatTask(task, day, frequency);
-                }} />
+                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
               </div>
               <button 
                 onClick={(e) => {
@@ -778,11 +771,6 @@ function App() {
                   setCurrentNoteTask(task);
                   setShowNoteModal(true);
                   setNoteInput(task.notes || '');
-                  if (isMobile) setPrimedTaskId(null);
-                }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.notes ? "Edit Note" : "Add Note"}
-              >
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? "Edit Note" : "Add Note"}
@@ -796,7 +784,6 @@ function App() {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isMobile) setPrimedTaskId(null);
                   if (task.url) {
                     window.open(task.url, '_blank');
                   } else {
@@ -809,22 +796,15 @@ function App() {
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.url ? "Open URL" : "Add URL"}
               >
-                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.url ? "Open URL" : "Add URL"}
-              >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
               {day !== 'TASK_BANK' && index < 6 && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (isMobile) setPrimedTaskId(null);
                     const nextDayIndex = (days.indexOf(day) + 1) % 7;
                     moveTask(task.id, day, days[nextDayIndex]);
                   }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title="Move to next day"
-                >
                   className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                   title="Move to next day"
                 >
@@ -834,11 +814,8 @@ function App() {
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isMobile) setPrimedTaskId(null);
                   deleteTask(task.id, day, task);
                 }}
-                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
-              >
                 className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
               >
                 <X size={20} />
@@ -912,7 +889,6 @@ function App() {
                   e.stopPropagation();
                   if (isMobile) setPrimedTaskId(null);
                   deleteTask(task.id, day, task);
-                }}
                 }}
                 className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
               >
