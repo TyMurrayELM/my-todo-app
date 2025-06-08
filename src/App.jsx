@@ -436,6 +436,24 @@ function App() {
         if (frequency === 'daily') {
           targetDate.setDate(clickedTaskDate.getDate() + i);
         } 
+        else if (frequency === 'weekdays') {
+          // Only add tasks on weekdays (Mon-Fri)
+          let daysAdded = 0;
+          let currentDate = new Date(clickedTaskDate);
+          
+          while (daysAdded < i) {
+            currentDate.setDate(currentDate.getDate() + 1);
+            const dayOfWeek = currentDate.getDay();
+            
+            // Skip weekends (0 = Sunday, 6 = Saturday)
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+              daysAdded++;
+              if (daysAdded === i) {
+                targetDate.setTime(currentDate.getTime());
+              }
+            }
+          }
+        }
         else if (frequency === 'weekly') {
           targetDate.setDate(clickedTaskDate.getDate() + (i * 7));
         }

@@ -7,6 +7,7 @@ const RepeatMenu = ({ onSelect }) => {
   
   const options = [
     { id: 'daily', label: 'Daily', icon: <Repeat size={14} /> },
+    { id: 'weekdays', label: 'Weekdays', icon: <Calendar size={14} /> },
     { id: 'weekly', label: 'Weekly', icon: <Calendar size={14} /> },
     { id: 'bi-weekly', label: 'Bi-weekly', icon: <Calendar size={14} /> },
     { id: 'monthly', label: 'Monthly', icon: <Calendar size={14} /> }
@@ -55,6 +56,7 @@ const RepeatMenu = ({ onSelect }) => {
               <span className="text-sm">{option.label}</span>
               <span className="text-xs text-gray-500 ml-auto">
                 {option.id === 'daily' ? 'Every day' : 
+                 option.id === 'weekdays' ? 'Mon-Fri' :
                  option.id === 'weekly' ? 'Same day weekly' : 
                  option.id === 'bi-weekly' ? 'Every 2 weeks' :
                  'Same day monthly'}
