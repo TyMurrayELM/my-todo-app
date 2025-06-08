@@ -3,6 +3,7 @@ import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote 
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
+import MoveMenu from './components/MoveMenu';
 import RecurringIndicator from './components/RecurringIndicator';
 import ToggleSwitch from './components/ToggleSwitch';
 
@@ -210,15 +211,33 @@ function App() {
     }, 50);
   };
 
-  const moveTask = async (taskId, fromDay, toDay) => {
+  const moveTask = async (taskId, fromDay, moveType = 'next-day') => {
+    // Calculate the target date based on move type
     const fromDayIndex = days.indexOf(fromDay);
-    const nextDate = getDateForDay(fromDayIndex + 1).toISOString().split('T')[0];
+    const currentTaskDate = getDateForDay(fromDayIndex);
+    let targetDate = new Date(currentTaskDate);
+    
+    if (moveType === 'next-day') {
+      targetDate.setDate(currentTaskDate.getDate() + 1);
+    } else if (moveType === 'next-week') {
+      targetDate.setDate(currentTaskDate.getDate() + 7);
+    } else if (moveType === 'next-weekday') {
+      // Move to next weekday
+      targetDate.setDate(currentTaskDate.getDate() + 1);
+      while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
+    }
+    
+    // Figure out which day this lands on
+    const targetDayOfWeek = targetDate.getDay();
+    const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDayOfWeek];
     
     const { error } = await supabase
       .from('todos')
       .update({ 
-        day: toDay,
-        actual_date: nextDate 
+        day: targetDayName,
+        actual_date: targetDate.toISOString()
       })
       .eq('id', taskId);
   
@@ -227,14 +246,8 @@ function App() {
       return;
     }
   
-    setTasks(prev => {
-      const task = prev[fromDay].find(t => t.id === taskId);
-      return {
-        ...prev,
-        [fromDay]: prev[fromDay].filter(t => t.id !== taskId),
-        [toDay]: [...prev[toDay], { ...task, actual_date: nextDate }]
-      };
-    });
+    // Refresh todos to show the change
+    await fetchTodos();
   };
 
   const addTask = async (e, day) => {
@@ -799,17 +812,9 @@ function App() {
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
               {day !== 'TASK_BANK' && index < 6 && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
-                    moveTask(task.id, day, days[nextDayIndex]);
-                  }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title="Move to next day"
-                >
-                  <SkipForward size={20} />
-                </button>
+                <div className="relative">
+                  <MoveMenu onSelect={(moveType) => moveTask(task.id, day, moveType)} />
+                </div>
               )}
               <button 
                 onClick={(e) => {
@@ -871,18 +876,12 @@ function App() {
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
               {day !== 'TASK_BANK' && index < 6 && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
+                <div className="relative">
+                  <MoveMenu onSelect={(moveType) => {
                     if (isMobile) setPrimedTaskId(null);
-                    const nextDayIndex = (days.indexOf(day) + 1) % 7;
-                    moveTask(task.id, day, days[nextDayIndex]);
-                  }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title="Move to next day"
-                >
-                  <SkipForward size={20} />
-                </button>
+                    moveTask(task.id, day, moveType);
+                  }} />
+                </div>
               )}
               <button 
                 onClick={(e) => {

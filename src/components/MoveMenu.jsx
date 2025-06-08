@@ -28,11 +28,17 @@ const MoveMenu = ({ onSelect }) => {
     <div className="relative" ref={menuRef}>
       <button 
         onClick={(e) => {
+          e.preventDefault();
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="flex items-center text-inherit hover:text-blue-500"
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className="flex items-center text-inherit hover:text-blue-500 p-2"
         title="Move task"
+        type="button"
       >
         <SkipForward size={16} />
         <ChevronDown size={14} className="ml-1" />
