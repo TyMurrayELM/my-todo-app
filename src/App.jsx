@@ -88,6 +88,26 @@ function App() {
     return themes[colorTheme][index];
   };
 
+  const getProgressBarColor = (index) => {
+    const themes = {
+      amber: ['bg-amber-500', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700', 'bg-amber-800', 'bg-amber-900', 'bg-amber-900'],
+      blue: ['bg-blue-500', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700', 'bg-blue-800', 'bg-blue-900', 'bg-blue-900'],
+      green: ['bg-green-500', 'bg-green-500', 'bg-green-600', 'bg-green-700', 'bg-green-800', 'bg-green-900', 'bg-green-900'],
+      purple: ['bg-purple-500', 'bg-purple-500', 'bg-purple-600', 'bg-purple-700', 'bg-purple-800', 'bg-purple-900', 'bg-purple-900'],
+      pink: ['bg-pink-500', 'bg-pink-500', 'bg-pink-600', 'bg-pink-700', 'bg-pink-800', 'bg-pink-900', 'bg-pink-900']
+    };
+    return themes[colorTheme][index];
+  };
+
+  const calculateProgress = (dayTasks) => {
+    if (!dayTasks || dayTasks.length === 0) return { percentage: 0, completed: 0, total: 0 };
+    const visibleTasks = hideCompleted ? dayTasks.filter(task => !task.completed) : dayTasks;
+    const completed = dayTasks.filter(task => task.completed).length;
+    const total = dayTasks.length;
+    const percentage = total > 0 ? (completed / total) * 100 : 0;
+    return { percentage, completed, total };
+  };
+
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
     
@@ -689,6 +709,33 @@ function App() {
     );
   };
 
+  // Progress Bar Component
+  const ProgressBar = ({ day, index }) => {
+    const { percentage, completed, total } = calculateProgress(tasks[day]);
+    const isDarkBackground = index >= 4;
+    
+    if (total === 0) return null;
+    
+    return (
+      <div className="mb-3">
+        <div className="flex justify-between items-center mb-1">
+          <span className={`text-xs ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}>
+            {completed}/{total} completed
+          </span>
+          <span className={`text-xs font-medium ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}>
+            {Math.round(percentage)}%
+          </span>
+        </div>
+        <div className={`w-full h-2 rounded-full ${isDarkBackground ? 'bg-white/20' : 'bg-gray-200'} overflow-hidden`}>
+          <div 
+            className={`h-full ${getProgressBarColor(index)} transition-all duration-500 ease-out rounded-full`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   // Task Component with expandable actions for mobile
   const TaskItem = ({ task, day, index }) => {
     const isExpanded = expandedTaskId === task.id;
@@ -1038,6 +1085,7 @@ function App() {
                     <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
                       {formatDate(getDateForDay(index))}
                     </p>
+                    <ProgressBar day={day} index={index} />
                     <div className="space-y-3 overflow-visible" onClick={(e) => {
                       // Close expanded task when clicking empty space on mobile
                       if (isMobile && e.target === e.currentTarget) {
@@ -1099,6 +1147,7 @@ function App() {
               <h2 className="text-2xl font-bold text-white">Task Bank</h2>
               {selectedDay === 'task_bank' && (
                 <>
+                  <ProgressBar day="TASK_BANK" index={7} />
                   <div className="space-y-3" onClick={(e) => {
                     // Close expanded task when clicking empty space on mobile
                     if (isMobile && e.target === e.currentTarget) {
