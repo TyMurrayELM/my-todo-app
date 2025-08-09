@@ -393,40 +393,46 @@ function App() {
     try {
       const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
       clickedTaskDate.setHours(0, 0, 0, 0);
-      const clickedDayFormatted = clickedTaskDate.toISOString().split('T')[0];
-  
-      const operations = [];
+      const clickedDayFormatted = clickedTaskDate.toISOString();
   
       // Delete ALL future recurring tasks with the same text (to handle frequency changes)
-      operations.push(
-        supabase
-          .from('todos')
-          .delete()
-          .eq('text', task.text.trim())
-          .eq('recurring', true)
-          .gt('actual_date', clickedDayFormatted)
-      );
+      const { error: deleteError1 } = await supabase
+        .from('todos')
+        .delete()
+        .eq('text', task.text.trim())
+        .eq('recurring', true)
+        .gt('actual_date', clickedDayFormatted);
+      
+      if (deleteError1) {
+        console.error('Error deleting future recurring tasks:', deleteError1);
+      }
   
       // Delete duplicates on the same day
-      operations.push(
-        supabase
-          .from('todos')
-          .delete()
-          .eq('text', task.text.trim())
-          .eq('day', day)
-          .eq('actual_date', clickedDayFormatted)
-          .neq('id', task.id)
-      );
+      const { error: deleteError2 } = await supabase
+        .from('todos')
+        .delete()
+        .eq('text', task.text.trim())
+        .eq('day', day)
+        .eq('actual_date', clickedDayFormatted.split('T')[0])
+        .neq('id', task.id);
+      
+      if (deleteError2) {
+        console.error('Error deleting duplicate tasks:', deleteError2);
+      }
   
-      operations.push(
-        supabase
-          .from('todos')
-          .update({ 
-            recurring: true,
-            repeat_frequency: frequency 
-          })
-          .eq('id', task.id)
-      );
+      // Update the current task
+      const { error: updateError } = await supabase
+        .from('todos')
+        .update({ 
+          recurring: true,
+          repeat_frequency: frequency 
+        })
+        .eq('id', task.id);
+      
+      if (updateError) {
+        console.error('Error updating task:', updateError);
+        throw updateError;
+      }
   
       const futureTasks = [];
       
@@ -475,6 +481,9 @@ function App() {
           }
         }
         
+        // Ensure the targetDate has the correct time set
+        targetDate.setHours(0, 0, 0, 0);
+        
         futureTasks.push({
           user_id: session.user.id,
           text: task.text.trim(),
@@ -486,17 +495,20 @@ function App() {
         });
       }
   
+      // Insert future tasks in chunks
       const chunkSize = 10;
       for (let i = 0; i < futureTasks.length; i += chunkSize) {
         const chunk = futureTasks.slice(i, i + chunkSize);
-        operations.push(
-          supabase
-            .from('todos')
-            .insert(chunk)
-        );
+        const { error: insertError } = await supabase
+          .from('todos')
+          .insert(chunk);
+        
+        if (insertError) {
+          console.error(`Error inserting chunk ${i/chunkSize + 1}:`, insertError);
+          throw insertError;
+        }
       }
   
-      await Promise.all(operations);
       await fetchTodos();
   
     } catch (error) {
