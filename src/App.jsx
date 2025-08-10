@@ -88,19 +88,17 @@ function App() {
     return themes[colorTheme][index];
   };
 
-  const getProgressBarGradient = (percentage) => {
-    // Create a gradient that gets darker as percentage increases
+  const getProgressBarGradient = () => {
+    // Create a full gradient from light to dark
     const themes = {
-      amber: { light: '#fcd34d', mid: '#f59e0b', dark: '#92400e' },
-      blue: { light: '#93c5fd', mid: '#3b82f6', dark: '#1e3a8a' },
-      green: { light: '#86efac', mid: '#22c55e', dark: '#14532d' },
-      purple: { light: '#d8b4fe', mid: '#a855f7', dark: '#3b0764' },
-      pink: { light: '#fbcfe8', mid: '#ec4899', dark: '#500724' }
+      amber: 'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',
+      blue: 'linear-gradient(to right, #93c5fd 0%, #60a5fa 20%, #3b82f6 40%, #2563eb 60%, #1d4ed8 80%, #1e3a8a 100%)',
+      green: 'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
+      purple: 'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
+      pink: 'linear-gradient(to right, #fbcfe8 0%, #f9a8d4 20%, #ec4899 40%, #db2777 60%, #be185d 80%, #500724 100%)'
     };
     
-    const theme = themes[colorTheme];
-    // Create a gradient that transitions based on how full the bar is
-    return `linear-gradient(to right, ${theme.light}, ${theme.mid} ${percentage}%, ${theme.dark})`;
+    return themes[colorTheme];
   };
 
   const calculateProgress = (dayTasks) => {
@@ -735,7 +733,9 @@ function App() {
             className="h-full transition-all duration-500 ease-out rounded-full"
             style={{ 
               width: `${percentage}%`,
-              background: getProgressBarGradient(percentage)
+              background: getProgressBarGradient(),
+              backgroundSize: `${10000/percentage}% 100%`,
+              backgroundPosition: 'left'
             }}
           />
         </div>
