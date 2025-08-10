@@ -88,15 +88,19 @@ function App() {
     return themes[colorTheme][index];
   };
 
-  const getProgressBarColor = (index) => {
+  const getProgressBarGradient = (percentage) => {
+    // Create a gradient that gets darker as percentage increases
     const themes = {
-      amber: ['bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700', 'bg-amber-800', 'bg-amber-900', 'bg-amber-950'],
-      blue: ['bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700', 'bg-blue-800', 'bg-blue-900', 'bg-blue-950'],
-      green: ['bg-green-300', 'bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-green-700', 'bg-green-800', 'bg-green-900', 'bg-green-950'],
-      purple: ['bg-purple-300', 'bg-purple-400', 'bg-purple-500', 'bg-purple-600', 'bg-purple-700', 'bg-purple-800', 'bg-purple-900', 'bg-purple-950'],
-      pink: ['bg-pink-300', 'bg-pink-400', 'bg-pink-500', 'bg-pink-600', 'bg-pink-700', 'bg-pink-800', 'bg-pink-900', 'bg-pink-950']
+      amber: { light: '#fcd34d', mid: '#f59e0b', dark: '#92400e' },
+      blue: { light: '#93c5fd', mid: '#3b82f6', dark: '#1e3a8a' },
+      green: { light: '#86efac', mid: '#22c55e', dark: '#14532d' },
+      purple: { light: '#d8b4fe', mid: '#a855f7', dark: '#3b0764' },
+      pink: { light: '#fbcfe8', mid: '#ec4899', dark: '#500724' }
     };
-    return themes[colorTheme][index] || themes[colorTheme][7];
+    
+    const theme = themes[colorTheme];
+    // Create a gradient that transitions based on how full the bar is
+    return `linear-gradient(to right, ${theme.light}, ${theme.mid} ${percentage}%, ${theme.dark})`;
   };
 
   const calculateProgress = (dayTasks) => {
@@ -728,8 +732,11 @@ function App() {
         </div>
         <div className={`w-full h-2 rounded-full ${isDarkBackground ? 'bg-white/20' : 'bg-gray-200'} overflow-hidden`}>
           <div 
-            className={`h-full ${getProgressBarColor(index)} transition-all duration-500 ease-out rounded-full`}
-            style={{ width: `${percentage}%` }}
+            className="h-full transition-all duration-500 ease-out rounded-full"
+            style={{ 
+              width: `${percentage}%`,
+              background: getProgressBarGradient(percentage)
+            }}
           />
         </div>
       </div>
