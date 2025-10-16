@@ -20,9 +20,9 @@ function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [primedTaskId, setPrimedTaskId] = useState(null);
   
-  // NEW: State for managing which tasks have their sub-items expanded
+  // State for managing which tasks have their sub-items expanded
   const [expandedSubItems, setExpandedSubItems] = useState({});
-  // NEW: State for adding new sub-items
+  // State for adding new sub-items
   const [addingSubItemTo, setAddingSubItemTo] = useState(null);
   const [newSubItemText, setNewSubItemText] = useState('');
   
@@ -116,6 +116,51 @@ function App() {
     return { percentage, completed, total };
   };
 
+  // Helper function to check if a date matches a recurring rule
+  const shouldShowOnDate = (task, targetDate) => {
+    if (!task.recurring || !task.repeat_frequency) return false;
+
+    const taskStartDate = new Date(task.actual_date);
+    taskStartDate.setHours(0, 0, 0, 0);
+    const checkDate = new Date(targetDate);
+    checkDate.setHours(0, 0, 0, 0);
+
+    // Don't show before the start date
+    if (checkDate < taskStartDate) return false;
+
+    const daysDiff = Math.floor((checkDate - taskStartDate) / (1000 * 60 * 60 * 24));
+    const targetDayOfWeek = checkDate.getDay();
+
+    switch (task.repeat_frequency) {
+      case 'daily':
+        return true;
+      
+      case 'weekdays':
+        return targetDayOfWeek !== 0 && targetDayOfWeek !== 6; // Mon-Fri
+      
+      case 'weekly':
+        return daysDiff % 7 === 0;
+      
+      case 'bi-weekly':
+        return daysDiff % 14 === 0;
+      
+      case 'monthly':
+        const taskDay = taskStartDate.getDate();
+        const targetDay = checkDate.getDate();
+        const monthsDiff = (checkDate.getFullYear() - taskStartDate.getFullYear()) * 12 + 
+                          (checkDate.getMonth() - taskStartDate.getMonth());
+        
+        // Handle end-of-month edge cases
+        const daysInTargetMonth = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, 0).getDate();
+        const adjustedTaskDay = Math.min(taskDay, daysInTargetMonth);
+        
+        return monthsDiff >= 0 && targetDay === adjustedTaskDay;
+      
+      default:
+        return false;
+    }
+  };
+
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
     
@@ -128,16 +173,34 @@ function App() {
     const startStr = start.toISOString();
     const endStr = end.toISOString();
   
-    const { data, error } = await supabase
+    // Fetch all todos (both one-time and recurring templates)
+    const { data: allTodos, error: todosError } = await supabase
       .from('todos')
       .select('*')
-      .or(`day.eq.TASK_BANK,and(actual_date.gte.${startStr},actual_date.lte.${endStr})`)
+      .or(`day.eq.TASK_BANK,and(actual_date.lte.${endStr},or(recurring.eq.false,recurring.eq.true))`)
       .order('created_at');
   
-    if (error) {
-      console.error('Error fetching todos:', error);
+    if (todosError) {
+      console.error('Error fetching todos:', todosError);
       setIsLoading(false);
       return;
+    }
+
+    // Fetch completion records for recurring tasks
+    const recurringTodoIds = allTodos.filter(t => t.recurring).map(t => t.id);
+    let completionRecords = [];
+    
+    if (recurringTodoIds.length > 0) {
+      const { data: completions, error: completionsError } = await supabase
+        .from('recurring_completions')
+        .select('*')
+        .in('todo_id', recurringTodoIds)
+        .gte('completion_date', start.toISOString().split('T')[0])
+        .lte('completion_date', end.toISOString().split('T')[0]);
+      
+      if (!completionsError && completions) {
+        completionRecords = completions;
+      }
     }
   
     const todosByDay = {
@@ -152,8 +215,8 @@ function App() {
     };
   
     // Separate parent tasks and sub-items
-    const parentTasks = data.filter(todo => !todo.parent_task_id);
-    const subItems = data.filter(todo => todo.parent_task_id);
+    const parentTasks = allTodos.filter(todo => !todo.parent_task_id);
+    const subItems = allTodos.filter(todo => todo.parent_task_id);
 
     // Create a map of parent task IDs to their sub-items
     const subItemsMap = {};
@@ -170,23 +233,51 @@ function App() {
       });
     });
 
-    // Process parent tasks and attach their sub-items
+    // Process parent tasks
     parentTasks.forEach(todo => {
-      const taskObj = {
-        id: todo.id,
-        text: todo.text.trim(),
-        completed: todo.completed,
-        recurring: todo.recurring,
-        repeatFrequency: todo.repeat_frequency || 'daily',
-        url: todo.url,
-        notes: todo.notes,
-        completedAt: todo.completed_at,
-        subItems: subItemsMap[todo.id] || [] // Attach sub-items array
-      };
-
       if (todo.day === 'TASK_BANK') {
-        todosByDay.TASK_BANK.push(taskObj);
+        // Task Bank items don't recur
+        todosByDay.TASK_BANK.push({
+          id: todo.id,
+          text: todo.text.trim(),
+          completed: todo.completed,
+          recurring: todo.recurring,
+          repeatFrequency: todo.repeat_frequency || 'daily',
+          url: todo.url,
+          notes: todo.notes,
+          completedAt: todo.completed_at,
+          subItems: subItemsMap[todo.id] || [],
+          isRecurringInstance: false
+        });
+      } else if (todo.recurring) {
+        // Generate instances for each day in the week
+        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+          const targetDate = getDateForDay(dayIndex);
+          
+          if (shouldShowOnDate(todo, targetDate)) {
+            const dateStr = targetDate.toISOString().split('T')[0];
+            const completion = completionRecords.find(
+              c => c.todo_id === todo.id && c.completion_date === dateStr
+            );
+            
+            todosByDay[days[dayIndex]].push({
+              id: `${todo.id}_${dateStr}`, // Unique ID for this instance
+              originalId: todo.id, // Keep reference to template
+              text: todo.text.trim(),
+              completed: !!completion,
+              recurring: true,
+              repeatFrequency: todo.repeat_frequency || 'daily',
+              url: todo.url,
+              notes: todo.notes,
+              completedAt: completion?.completed_at || null,
+              subItems: subItemsMap[todo.id] || [], // Sub-items from template
+              isRecurringInstance: true,
+              instanceDate: dateStr
+            });
+          }
+        }
       } else {
+        // Regular one-time task
         const todoDate = new Date(todo.actual_date);
         const dayIndex = days.findIndex(day => {
           const thisDate = getDateForDay(days.indexOf(day));
@@ -194,13 +285,23 @@ function App() {
         });
         
         if (dayIndex !== -1) {
-          todosByDay[days[dayIndex]].push(taskObj);
+          todosByDay[days[dayIndex]].push({
+            id: todo.id,
+            text: todo.text.trim(),
+            completed: todo.completed,
+            recurring: false,
+            repeatFrequency: null,
+            url: todo.url,
+            notes: todo.notes,
+            completedAt: todo.completed_at,
+            subItems: subItemsMap[todo.id] || [],
+            isRecurringInstance: false
+          });
         }
       }
     });
   
     setTasks(todosByDay);
-    console.log('Tasks for current day after fetch:', todosByDay[days[selectedDay]]);
     setIsLoading(false);
   }, [session, currentDate, isNavigating, days, selectedDay]);
 
@@ -330,12 +431,15 @@ function App() {
     }
   };
 
-  // NEW: Function to add a sub-item
+  // Function to add a sub-item
   const addSubItem = async (parentTaskId, day) => {
     if (!newSubItemText.trim()) return;
 
-    const parentTask = tasks[day].find(t => t.id === parentTaskId);
+    const parentTask = tasks[day].find(t => t.id === parentTaskId || t.originalId === parentTaskId);
     if (!parentTask) return;
+
+    // Use originalId for recurring tasks, regular id for one-time tasks
+    const actualParentId = parentTask.originalId || parentTask.id;
 
     const { data, error } = await supabase
       .from('todos')
@@ -344,9 +448,9 @@ function App() {
           user_id: session.user.id,
           text: newSubItemText.trim(),
           day: day,
-          actual_date: parentTask.day === 'TASK_BANK' ? new Date().toISOString() : getDateForDay(days.indexOf(day)).toISOString(),
+          actual_date: new Date().toISOString(),
           completed: false,
-          parent_task_id: parentTaskId
+          parent_task_id: actualParentId
         }
       ])
       .select()
@@ -357,50 +461,13 @@ function App() {
       return;
     }
 
-    // If parent is recurring, add this sub-item to all future occurrences
-    if (parentTask.recurring) {
-      const currentTaskDate = new Date(parentTask.day === 'TASK_BANK' ? new Date() : getDateForDay(days.indexOf(day)));
-      currentTaskDate.setHours(0, 0, 0, 0);
-
-      // Get all future recurring tasks with the same text
-      const { data: futureParentTasks, error: fetchError } = await supabase
-        .from('todos')
-        .select('id, actual_date')
-        .eq('text', parentTask.text.trim())
-        .eq('recurring', true)
-        .gt('actual_date', currentTaskDate.toISOString())
-        .is('parent_task_id', null);
-
-      if (fetchError) {
-        console.error('Error fetching future recurring tasks:', fetchError);
-      } else if (futureParentTasks && futureParentTasks.length > 0) {
-        // Create sub-items for all future occurrences
-        const futureSubItems = futureParentTasks.map(futureTask => ({
-          user_id: session.user.id,
-          text: newSubItemText.trim(),
-          day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date(futureTask.actual_date).getDay()],
-          actual_date: futureTask.actual_date,
-          completed: false,
-          parent_task_id: futureTask.id
-        }));
-
-        const { error: insertError } = await supabase
-          .from('todos')
-          .insert(futureSubItems);
-
-        if (insertError) {
-          console.error('Error adding sub-items to future tasks:', insertError);
-        }
-      }
-    }
-
     // Refresh to get updated sub-items
     await fetchTodos();
     setNewSubItemText('');
     setAddingSubItemTo(null);
   };
 
-  // NEW: Function to toggle sub-item completion
+  // Function to toggle sub-item completion
   const toggleSubItem = async (subItemId, day) => {
     const parentTask = tasks[day].find(task => 
       task.subItems && task.subItems.some(sub => sub.id === subItemId)
@@ -429,7 +496,7 @@ function App() {
     await fetchTodos();
   };
 
-  // NEW: Function to delete a sub-item
+  // Function to delete a sub-item
   const deleteSubItem = async (subItemId, day) => {
     const { error } = await supabase
       .from('todos')
@@ -444,7 +511,7 @@ function App() {
     await fetchTodos();
   };
 
-  // NEW: Toggle sub-items expansion
+  // Toggle sub-items expansion
   const toggleSubItems = (taskId) => {
     setExpandedSubItems(prev => ({
       ...prev,
@@ -465,27 +532,61 @@ function App() {
       }
     }
     
-    const updatedTasks = { ...tasks };
-    const taskIndex = updatedTasks[day].findIndex(task => task.id === taskId);
-    const newCompleted = !updatedTasks[day][taskIndex].completed;
-    const completedAt = newCompleted ? new Date().toISOString() : null;
-  
-    const { error } = await supabase
-      .from('todos')
-      .update({ 
-        completed: newCompleted,
-        completed_at: completedAt
-      })
-      .eq('id', taskId);
-  
-    if (error) {
-      console.error('Error updating todo:', error);
-      return;
+    const task = tasks[day].find(t => t.id === taskId);
+    if (!task) return;
+
+    if (task.isRecurringInstance) {
+      // Handle recurring instance
+      const newCompleted = !task.completed;
+      
+      if (newCompleted) {
+        // Add completion record
+        const { error } = await supabase
+          .from('recurring_completions')
+          .insert([{
+            user_id: session.user.id,
+            todo_id: task.originalId,
+            completion_date: task.instanceDate,
+            completed_at: new Date().toISOString()
+          }]);
+        
+        if (error) {
+          console.error('Error marking recurring task complete:', error);
+          return;
+        }
+      } else {
+        // Remove completion record
+        const { error } = await supabase
+          .from('recurring_completions')
+          .delete()
+          .eq('todo_id', task.originalId)
+          .eq('completion_date', task.instanceDate);
+        
+        if (error) {
+          console.error('Error unmarking recurring task:', error);
+          return;
+        }
+      }
+    } else {
+      // Handle regular task
+      const newCompleted = !task.completed;
+      const completedAt = newCompleted ? new Date().toISOString() : null;
+    
+      const { error } = await supabase
+        .from('todos')
+        .update({ 
+          completed: newCompleted,
+          completed_at: completedAt
+        })
+        .eq('id', taskId);
+    
+      if (error) {
+        console.error('Error updating todo:', error);
+        return;
+      }
     }
   
-    updatedTasks[day][taskIndex].completed = newCompleted;
-    updatedTasks[day][taskIndex].completedAt = completedAt;
-    setTasks(updatedTasks);
+    await fetchTodos();
   };
 
   const formatCompletionTime = (isoString) => {
@@ -509,231 +610,54 @@ function App() {
   };
 
   const deleteTask = async (taskId, day, task) => {
-    if (task.recurring) {
-      await deleteRecurringTasks(task.text, day);
-    } else {
-      const { error } = await supabase
-        .from('todos')
-        .delete()
-        .eq('id', taskId);
-  
-      if (error) {
-        console.error('Error deleting todo:', error);
-        return;
-      }
+    if (task.isRecurringInstance) {
+      // For recurring instances, just show a message
+      // We can't delete the template or it affects all instances
+      alert('This is a recurring task. To stop it from appearing, you can uncheck the recurring setting on any instance.');
+      return;
     }
-  
-    fetchTodos();
-  };
-
-  const deleteRecurringTasks = async (text, currentDay) => {
-    const currentDayIndex = days.indexOf(currentDay);
-    const startDate = getDateForDay(currentDayIndex).toISOString();
-  
+    
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('text', text.trim())
-      .eq('recurring', true)
-      .gte('actual_date', startDate);
-  
+      .eq('id', taskId);
+
     if (error) {
-      console.error('Error deleting recurring todos:', error);
+      console.error('Error deleting todo:', error);
       return;
     }
+  
+    fetchTodos();
   };
 
   const repeatTask = useCallback(async (task, day, frequency = 'daily') => {
     if (isRepeating) return;
     setIsRepeating(true);
   
-    setTasks(prev => ({
-      ...prev,
-      [day]: prev[day].map(t => 
-        t.id === task.id ? { ...t, recurring: true, repeatFrequency: frequency } : t
-      )
-    }));
-  
     try {
+      const taskId = task.originalId || task.id;
       const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
       clickedTaskDate.setHours(0, 0, 0, 0);
-      const clickedDayFormatted = clickedTaskDate.toISOString();
-  
-      // Delete ALL future recurring tasks with the same text (to handle frequency changes)
-      const { error: deleteError1 } = await supabase
-        .from('todos')
-        .delete()
-        .eq('text', task.text.trim())
-        .eq('recurring', true)
-        .gt('actual_date', clickedDayFormatted);
       
-      if (deleteError1) {
-        console.error('Error deleting future recurring tasks:', deleteError1);
-      }
-  
-      // Delete duplicates on the same day
-      const { error: deleteError2 } = await supabase
-        .from('todos')
-        .delete()
-        .eq('text', task.text.trim())
-        .eq('day', day)
-        .eq('actual_date', clickedDayFormatted.split('T')[0])
-        .neq('id', task.id);
-      
-      if (deleteError2) {
-        console.error('Error deleting duplicate tasks:', deleteError2);
-      }
-  
-      // Update the current task
+      // Update the task to be recurring
       const { error: updateError } = await supabase
         .from('todos')
         .update({ 
           recurring: true,
-          repeat_frequency: frequency 
+          repeat_frequency: frequency,
+          actual_date: clickedTaskDate.toISOString()
         })
-        .eq('id', task.id);
+        .eq('id', taskId);
       
       if (updateError) {
         console.error('Error updating task:', updateError);
         throw updateError;
       }
   
-      const futureTasks = [];
-      const futureSubItems = [];
-      
-      for (let i = 1; i <= 60; i++) {
-        const targetDate = new Date(clickedTaskDate);
-        
-        if (frequency === 'daily') {
-          targetDate.setDate(clickedTaskDate.getDate() + i);
-        } 
-        else if (frequency === 'weekdays') {
-          // Only add tasks on weekdays (Mon-Fri)
-          let daysAdded = 0;
-          let currentDate = new Date(clickedTaskDate);
-          
-          while (daysAdded < i) {
-            currentDate.setDate(currentDate.getDate() + 1);
-            const dayOfWeek = currentDate.getDay();
-            
-            // Skip weekends (0 = Sunday, 6 = Saturday)
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-              daysAdded++;
-              if (daysAdded === i) {
-                targetDate.setTime(currentDate.getTime());
-              }
-            }
-          }
-        }
-        else if (frequency === 'weekly') {
-          targetDate.setDate(clickedTaskDate.getDate() + (i * 7));
-        }
-        else if (frequency === 'bi-weekly') {
-          targetDate.setDate(clickedTaskDate.getDate() + (i * 14));
-        }
-        else if (frequency === 'monthly') {
-          targetDate.setMonth(clickedTaskDate.getMonth() + i);
-          
-          const originalDay = clickedTaskDate.getDate();
-          const maxDaysInMonth = new Date(
-            targetDate.getFullYear(), 
-            targetDate.getMonth() + 1, 
-            0
-          ).getDate();
-          
-          if (originalDay > maxDaysInMonth) {
-            targetDate.setDate(maxDaysInMonth);
-          }
-        }
-        
-        // Ensure the targetDate has the correct time set
-        targetDate.setHours(0, 0, 0, 0);
-        
-        // Use a temporary ID for tracking which sub-items belong to which parent
-        const tempParentId = `temp_${i}_${task.id}`;
-        
-        futureTasks.push({
-          user_id: session.user.id,
-          text: task.text.trim(),
-          day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()],
-          actual_date: targetDate.toISOString(),
-          completed: false,
-          recurring: true,
-          repeat_frequency: frequency,
-          temp_id: tempParentId
-        });
-        
-        // If the task has sub-items, prepare them for insertion
-        if (task.subItems && task.subItems.length > 0) {
-          task.subItems.forEach(subItem => {
-            futureSubItems.push({
-              user_id: session.user.id,
-              text: subItem.text.trim(),
-              day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()],
-              actual_date: targetDate.toISOString(),
-              completed: false,
-              temp_parent_id: tempParentId
-            });
-          });
-        }
-      }
-  
-      // Insert future tasks in chunks and map temp IDs to real IDs
-      const chunkSize = 10;
-      const tempIdToRealId = {};
-      
-      for (let i = 0; i < futureTasks.length; i += chunkSize) {
-        const chunk = futureTasks.slice(i, i + chunkSize);
-        const { data: insertedTasks, error: insertError } = await supabase
-          .from('todos')
-          .insert(chunk.map(({ temp_id, ...rest }) => rest))
-          .select();
-        
-        if (insertError) {
-          console.error(`Error inserting chunk ${i/chunkSize + 1}:`, insertError);
-          throw insertError;
-        }
-        
-        // Map temp IDs to real IDs
-        insertedTasks.forEach((insertedTask, index) => {
-          const tempId = chunk[index].temp_id;
-          tempIdToRealId[tempId] = insertedTask.id;
-        });
-      }
-      
-      // Now insert sub-items with the real parent IDs
-      if (futureSubItems.length > 0) {
-        const subItemsWithRealParentIds = futureSubItems.map(subItem => ({
-          ...subItem,
-          parent_task_id: tempIdToRealId[subItem.temp_parent_id]
-        })).filter(subItem => subItem.parent_task_id); // Filter out any that didn't get mapped
-        
-        // Remove temp_parent_id before inserting
-        const cleanSubItems = subItemsWithRealParentIds.map(({ temp_parent_id, ...rest }) => rest);
-        
-        for (let i = 0; i < cleanSubItems.length; i += chunkSize) {
-          const chunk = cleanSubItems.slice(i, i + chunkSize);
-          const { error: subItemInsertError } = await supabase
-            .from('todos')
-            .insert(chunk);
-          
-          if (subItemInsertError) {
-            console.error(`Error inserting sub-items chunk ${i/chunkSize + 1}:`, subItemInsertError);
-            throw subItemInsertError;
-          }
-        }
-      }
-  
       await fetchTodos();
   
     } catch (error) {
       console.error('RepeatTask failed:', error);
-      setTasks(prev => ({
-        ...prev,
-        [day]: prev[day].map(t =>
-          t.id === task.id ? { ...t, recurring: false, repeatFrequency: null } : t
-        )
-      }));
     } finally {
       setIsRepeating(false);
     }
@@ -742,32 +666,20 @@ function App() {
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
     
-    // Find the current task to check if it's recurring
-    const currentTask = tasks[day].find(t => t.id === taskId);
+    const task = tasks[day].find(t => t.id === taskId);
+    if (!task) return;
+
+    const actualId = task.originalId || task.id;
     
-    if (currentTask && currentTask.recurring) {
-      // Update all recurring tasks with the same text
-      const { error } = await supabase
-        .from('todos')
-        .update({ text: newText.trim() })
-        .eq('text', currentTask.text.trim())
-        .eq('recurring', true);
-    
-      if (error) {
-        console.error('Error updating recurring todos:', error);
-        return;
-      }
-    } else {
-      // Update just this single task
-      const { error } = await supabase
-        .from('todos')
-        .update({ text: newText.trim() })
-        .eq('id', taskId);
-    
-      if (error) {
-        console.error('Error updating todo:', error);
-        return;
-      }
+    // Update the task (or template for recurring)
+    const { error } = await supabase
+      .from('todos')
+      .update({ text: newText.trim() })
+      .eq('id', actualId);
+  
+    if (error) {
+      console.error('Error updating todo:', error);
+      return;
     }
     
     // Refresh all tasks to show the updates
@@ -777,48 +689,44 @@ function App() {
   };
 
   const updateTaskUrl = async (taskId, day, url) => {
+    const task = tasks[day].find(t => t.id === taskId);
+    if (!task) return;
+
+    const actualId = task.originalId || task.id;
+
     const { error } = await supabase
       .from('todos')
       .update({ url: url })
-      .eq('id', taskId);
+      .eq('id', actualId);
   
     if (error) {
       console.error('Error updating todo URL:', error);
       return;
     }
   
-    setTasks(prev => ({
-      ...prev,
-      [day]: prev[day].map(task =>
-        task.id === taskId 
-          ? { ...task, url }
-          : task
-      )
-    }));
+    await fetchTodos();
     setEditingUrlTaskId(null);
     setUrlInput('');
   };
 
   // New function for updating notes
   const updateTaskNotes = async (taskId, day, notes) => {
+    const task = tasks[day].find(t => t.id === taskId);
+    if (!task) return;
+
+    const actualId = task.originalId || task.id;
+
     const { error } = await supabase
       .from('todos')
       .update({ notes: notes })
-      .eq('id', taskId);
+      .eq('id', actualId);
 
     if (error) {
       console.error('Error updating todo notes:', error);
       return;
     }
 
-    setTasks(prev => ({
-      ...prev,
-      [day]: prev[day].map(task =>
-        task.id === taskId 
-          ? { ...task, notes }
-          : task
-      )
-    }));
+    await fetchTodos();
     setShowNoteModal(false);
     setCurrentNoteTask(null);
     setNoteInput('');
@@ -1011,7 +919,7 @@ function App() {
                 }
               }}
             >
-              {/* NEW: Chevron for expanding/collapsing sub-items */}
+              {/* Chevron for expanding/collapsing sub-items */}
               {hasSubItems && (
                 <button
                   onClick={(e) => {
@@ -1055,7 +963,7 @@ function App() {
               )}
               {/* Status indicators - always visible */}
               <div className="flex items-center gap-1 flex-shrink-0">
-                {/* NEW: Show sub-item count */}
+                {/* Show sub-item count */}
                 {hasSubItems && (
                   <span className={`text-xs ${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
                     ({task.subItems.filter(s => s.completed).length}/{task.subItems.length})
@@ -1079,7 +987,7 @@ function App() {
                 )}
               </div>
               
-              {/* NEW: Plus button to add sub-item */}
+              {/* Plus button to add sub-item */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1094,7 +1002,7 @@ function App() {
           )}
         </div>
 
-        {/* NEW: Sub-items display */}
+        {/* Sub-items display */}
         {isSubItemsExpanded && hasSubItems && (
           <div className="ml-8 mt-2 space-y-2">
             {task.subItems.map(subItem => (
@@ -1130,7 +1038,7 @@ function App() {
           </div>
         )}
 
-        {/* NEW: Add sub-item input */}
+        {/* Add sub-item input */}
         {addingSubItemTo === task.id && (
           <div className="ml-8 mt-2">
             <input
@@ -1204,7 +1112,7 @@ function App() {
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
-              {day !== 'TASK_BANK' && index < 6 && (
+              {day !== 'TASK_BANK' && index < 6 && !task.isRecurringInstance && (
                 <div className="relative">
                   <MoveMenu onSelect={(moveType) => moveTask(task.id, day, moveType)} />
                 </div>
@@ -1268,7 +1176,7 @@ function App() {
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
-              {day !== 'TASK_BANK' && index < 6 && (
+              {day !== 'TASK_BANK' && index < 6 && !task.isRecurringInstance && (
                 <div className="relative">
                   <MoveMenu onSelect={(moveType) => {
                     if (isMobile) setPrimedTaskId(null);
