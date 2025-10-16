@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote, Plus, ChevronRight, ChevronDown } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
@@ -19,6 +19,12 @@ function App() {
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [primedTaskId, setPrimedTaskId] = useState(null);
+  
+  // NEW: State for managing which tasks have their sub-items expanded
+  const [expandedSubItems, setExpandedSubItems] = useState({});
+  // NEW: State for adding new sub-items
+  const [addingSubItemTo, setAddingSubItemTo] = useState(null);
+  const [newSubItemText, setNewSubItemText] = useState('');
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -145,18 +151,41 @@ function App() {
       TASK_BANK: []
     };
   
-    data.forEach(todo => {
+    // Separate parent tasks and sub-items
+    const parentTasks = data.filter(todo => !todo.parent_task_id);
+    const subItems = data.filter(todo => todo.parent_task_id);
+
+    // Create a map of parent task IDs to their sub-items
+    const subItemsMap = {};
+    subItems.forEach(subItem => {
+      if (!subItemsMap[subItem.parent_task_id]) {
+        subItemsMap[subItem.parent_task_id] = [];
+      }
+      subItemsMap[subItem.parent_task_id].push({
+        id: subItem.id,
+        text: subItem.text.trim(),
+        completed: subItem.completed,
+        completedAt: subItem.completed_at,
+        parentTaskId: subItem.parent_task_id
+      });
+    });
+
+    // Process parent tasks and attach their sub-items
+    parentTasks.forEach(todo => {
+      const taskObj = {
+        id: todo.id,
+        text: todo.text.trim(),
+        completed: todo.completed,
+        recurring: todo.recurring,
+        repeatFrequency: todo.repeat_frequency || 'daily',
+        url: todo.url,
+        notes: todo.notes,
+        completedAt: todo.completed_at,
+        subItems: subItemsMap[todo.id] || [] // Attach sub-items array
+      };
+
       if (todo.day === 'TASK_BANK') {
-        todosByDay.TASK_BANK.push({
-          id: todo.id,
-          text: todo.text.trim(),
-          completed: todo.completed,
-          recurring: todo.recurring,
-          repeatFrequency: todo.repeat_frequency || 'daily',
-          url: todo.url,
-          notes: todo.notes,
-          completedAt: todo.completed_at
-        });
+        todosByDay.TASK_BANK.push(taskObj);
       } else {
         const todoDate = new Date(todo.actual_date);
         const dayIndex = days.findIndex(day => {
@@ -165,16 +194,7 @@ function App() {
         });
         
         if (dayIndex !== -1) {
-          todosByDay[days[dayIndex]].push({
-            id: todo.id,
-            text: todo.text.trim(),
-            completed: todo.completed,
-            recurring: todo.recurring,
-            repeatFrequency: todo.repeat_frequency || 'daily',
-            url: todo.url,
-            notes: todo.notes,
-            completedAt: todo.completed_at
-          });
+          todosByDay[days[dayIndex]].push(taskObj);
         }
       }
     });
@@ -304,10 +324,95 @@ function App() {
   
       setTasks(prev => ({
         ...prev,
-        [day]: [...prev[day], { id: data.id, text: data.text, completed: false }]
+        [day]: [...prev[day], { id: data.id, text: data.text, completed: false, subItems: [] }]
       }));
       setNewTask('');
     }
+  };
+
+  // NEW: Function to add a sub-item
+  const addSubItem = async (parentTaskId, day) => {
+    if (!newSubItemText.trim()) return;
+
+    const parentTask = tasks[day].find(t => t.id === parentTaskId);
+    if (!parentTask) return;
+
+    const { data, error } = await supabase
+      .from('todos')
+      .insert([
+        {
+          user_id: session.user.id,
+          text: newSubItemText.trim(),
+          day: day,
+          actual_date: parentTask.day === 'TASK_BANK' ? new Date().toISOString() : getDateForDay(days.indexOf(day)).toISOString(),
+          completed: false,
+          parent_task_id: parentTaskId
+        }
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding sub-item:', error);
+      return;
+    }
+
+    // Refresh to get updated sub-items
+    await fetchTodos();
+    setNewSubItemText('');
+    setAddingSubItemTo(null);
+  };
+
+  // NEW: Function to toggle sub-item completion
+  const toggleSubItem = async (subItemId, day) => {
+    const parentTask = tasks[day].find(task => 
+      task.subItems && task.subItems.some(sub => sub.id === subItemId)
+    );
+    
+    if (!parentTask) return;
+
+    const subItem = parentTask.subItems.find(sub => sub.id === subItemId);
+    const newCompleted = !subItem.completed;
+    const completedAt = newCompleted ? new Date().toISOString() : null;
+
+    const { error } = await supabase
+      .from('todos')
+      .update({ 
+        completed: newCompleted,
+        completed_at: completedAt
+      })
+      .eq('id', subItemId);
+
+    if (error) {
+      console.error('Error updating sub-item:', error);
+      return;
+    }
+
+    // Refresh tasks
+    await fetchTodos();
+  };
+
+  // NEW: Function to delete a sub-item
+  const deleteSubItem = async (subItemId, day) => {
+    const { error } = await supabase
+      .from('todos')
+      .delete()
+      .eq('id', subItemId);
+
+    if (error) {
+      console.error('Error deleting sub-item:', error);
+      return;
+    }
+
+    await fetchTodos();
+  };
+
+  // NEW: Toggle sub-items expansion
+  const toggleSubItems = (taskId) => {
+    setExpandedSubItems(prev => ({
+      ...prev,
+      [taskId]: !prev[taskId]
+    }));
   };
 
   const toggleTask = async (taskId, day) => {
@@ -638,7 +743,7 @@ function App() {
         queryParams: {
           prompt: 'select_account',
         },
-        redirectTo: 'https://www.tabs.day'
+        redirectTo: window.location.origin
       }
     });
     if (error) console.error('Error logging in:', error);
@@ -749,6 +854,7 @@ function App() {
     const isDarkBackground = index >= 4;
     const [isHovered, setIsHovered] = useState(false);
     const editInputRef = useRef(null);
+    const subItemInputRef = useRef(null);
     
     // Focus when editing starts
     useEffect(() => {
@@ -756,6 +862,16 @@ function App() {
         editInputRef.current.focus();
       }
     }, [editingTaskId, task.id]);
+
+    // Focus when adding sub-item
+    useEffect(() => {
+      if (addingSubItemTo === task.id && subItemInputRef.current) {
+        subItemInputRef.current.focus();
+      }
+    }, [addingSubItemTo, task.id]);
+    
+    const hasSubItems = task.subItems && task.subItems.length > 0;
+    const isSubItemsExpanded = expandedSubItems[task.id];
     
     return (
       <div 
@@ -807,6 +923,19 @@ function App() {
                 }
               }}
             >
+              {/* NEW: Chevron for expanding/collapsing sub-items */}
+              {hasSubItems && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSubItems(task.id);
+                  }}
+                  className={`flex-shrink-0 ${isDarkBackground ? 'text-white/60' : 'text-gray-400'} hover:text-gray-600`}
+                >
+                  {isSubItemsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+              )}
+              
               <span
                 onClick={(e) => {
                   e.stopPropagation();
@@ -838,6 +967,12 @@ function App() {
               )}
               {/* Status indicators - always visible */}
               <div className="flex items-center gap-1 flex-shrink-0">
+                {/* NEW: Show sub-item count */}
+                {hasSubItems && (
+                  <span className={`text-xs ${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
+                    ({task.subItems.filter(s => s.completed).length}/{task.subItems.length})
+                  </span>
+                )}
                 {task.recurring && (
                   <RecurringIndicator 
                     frequency={task.repeatFrequency || 'daily'} 
@@ -855,9 +990,90 @@ function App() {
                   </span>
                 )}
               </div>
+              
+              {/* NEW: Plus button to add sub-item */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAddingSubItemTo(addingSubItemTo === task.id ? null : task.id);
+                }}
+                className={`flex-shrink-0 p-1 rounded ${isDarkBackground ? 'text-white/60 hover:text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                title="Add sub-item"
+              >
+                <Plus size={14} />
+              </button>
             </div>
           )}
         </div>
+
+        {/* NEW: Sub-items display */}
+        {isSubItemsExpanded && hasSubItems && (
+          <div className="ml-8 mt-2 space-y-2">
+            {task.subItems.map(subItem => (
+              <div key={subItem.id} className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSubItem(subItem.id, day);
+                  }}
+                  className={`w-4 h-4 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
+                    ${subItem.completed ? 'bg-green-500 border-green-500' : 
+                      isDarkBackground ? 'border-white/50 hover:border-green-500' : 'border-gray-400 hover:border-green-500'}`}
+                >
+                  {subItem.completed && <Check size={12} className="text-white" />}
+                </button>
+                <span className={`text-sm flex-grow ${
+                  subItem.completed ? 'line-through text-gray-400' : 
+                  isDarkBackground ? 'text-white/80' : 'text-gray-600'
+                }`}>
+                  {subItem.text}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSubItem(subItem.id, day);
+                  }}
+                  className={`p-1 rounded ${isDarkBackground ? 'text-white/40 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* NEW: Add sub-item input */}
+        {addingSubItemTo === task.id && (
+          <div className="ml-8 mt-2">
+            <input
+              ref={subItemInputRef}
+              type="text"
+              value={newSubItemText}
+              onChange={(e) => setNewSubItemText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addSubItem(task.id, day);
+                } else if (e.key === 'Escape') {
+                  setAddingSubItemTo(null);
+                  setNewSubItemText('');
+                }
+              }}
+              onBlur={() => {
+                if (newSubItemText.trim()) {
+                  addSubItem(task.id, day);
+                } else {
+                  setAddingSubItemTo(null);
+                  setNewSubItemText('');
+                }
+              }}
+              placeholder="Add sub-item..."
+              className={`w-full text-sm bg-transparent border-b ${
+                isDarkBackground ? 'border-white/30 text-white placeholder-white/50' : 'border-gray-300 text-gray-700 placeholder-gray-400'
+              } focus:outline-none focus:border-green-500`}
+            />
+          </div>
+        )}
         
 {/* Desktop hover actions - now shown below */}
 {!isMobile && (
