@@ -357,6 +357,43 @@ function App() {
       return;
     }
 
+    // If parent is recurring, add this sub-item to all future occurrences
+    if (parentTask.recurring) {
+      const currentTaskDate = new Date(parentTask.day === 'TASK_BANK' ? new Date() : getDateForDay(days.indexOf(day)));
+      currentTaskDate.setHours(0, 0, 0, 0);
+
+      // Get all future recurring tasks with the same text
+      const { data: futureParentTasks, error: fetchError } = await supabase
+        .from('todos')
+        .select('id, actual_date')
+        .eq('text', parentTask.text.trim())
+        .eq('recurring', true)
+        .gt('actual_date', currentTaskDate.toISOString())
+        .is('parent_task_id', null);
+
+      if (fetchError) {
+        console.error('Error fetching future recurring tasks:', fetchError);
+      } else if (futureParentTasks && futureParentTasks.length > 0) {
+        // Create sub-items for all future occurrences
+        const futureSubItems = futureParentTasks.map(futureTask => ({
+          user_id: session.user.id,
+          text: newSubItemText.trim(),
+          day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][new Date(futureTask.actual_date).getDay()],
+          actual_date: futureTask.actual_date,
+          completed: false,
+          parent_task_id: futureTask.id
+        }));
+
+        const { error: insertError } = await supabase
+          .from('todos')
+          .insert(futureSubItems);
+
+        if (insertError) {
+          console.error('Error adding sub-items to future tasks:', insertError);
+        }
+      }
+    }
+
     // Refresh to get updated sub-items
     await fetchTodos();
     setNewSubItemText('');
