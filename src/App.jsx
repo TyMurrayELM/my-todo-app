@@ -887,8 +887,8 @@ function App() {
             }}
             className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
               ${task.completed ? 'bg-green-500 border-green-500' : 
-                primedTaskId === task.id ? 'border-green-500' :
-                isDarkBackground ? 'border-white hover:border-green-500' : 'border-black hover:border-green-500'}`}
+                primedTaskId === task.id ? 'bg-white border-green-500' :
+                isDarkBackground ? 'bg-white border-white hover:border-green-500' : 'bg-white border-black hover:border-green-500'}`}
           >
             {task.completed && <Check size={16} className="text-white" />}
           </button>
@@ -1018,7 +1018,7 @@ function App() {
                   }}
                   className={`w-4 h-4 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
                     ${subItem.completed ? 'bg-green-500 border-green-500' : 
-                      isDarkBackground ? 'border-white/50 hover:border-green-500' : 'border-gray-400 hover:border-green-500'}`}
+                      isDarkBackground ? 'bg-white border-white/50 hover:border-green-500' : 'bg-white border-gray-400 hover:border-green-500'}`}
                 >
                   {subItem.completed && <Check size={12} className="text-white" />}
                 </button>
