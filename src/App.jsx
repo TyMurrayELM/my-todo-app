@@ -562,6 +562,7 @@ function App() {
       }
   
       const futureTasks = [];
+      const futureSubItems = [];
       
       for (let i = 1; i <= 60; i++) {
         const targetDate = new Date(clickedTaskDate);
@@ -611,6 +612,9 @@ function App() {
         // Ensure the targetDate has the correct time set
         targetDate.setHours(0, 0, 0, 0);
         
+        // Use a temporary ID for tracking which sub-items belong to which parent
+        const tempParentId = `temp_${i}_${task.id}`;
+        
         futureTasks.push({
           user_id: session.user.id,
           text: task.text.trim(),
@@ -618,21 +622,68 @@ function App() {
           actual_date: targetDate.toISOString(),
           completed: false,
           recurring: true,
-          repeat_frequency: frequency
+          repeat_frequency: frequency,
+          temp_id: tempParentId
         });
+        
+        // If the task has sub-items, prepare them for insertion
+        if (task.subItems && task.subItems.length > 0) {
+          task.subItems.forEach(subItem => {
+            futureSubItems.push({
+              user_id: session.user.id,
+              text: subItem.text.trim(),
+              day: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getDay()],
+              actual_date: targetDate.toISOString(),
+              completed: false,
+              temp_parent_id: tempParentId
+            });
+          });
+        }
       }
   
-      // Insert future tasks in chunks
+      // Insert future tasks in chunks and map temp IDs to real IDs
       const chunkSize = 10;
+      const tempIdToRealId = {};
+      
       for (let i = 0; i < futureTasks.length; i += chunkSize) {
         const chunk = futureTasks.slice(i, i + chunkSize);
-        const { error: insertError } = await supabase
+        const { data: insertedTasks, error: insertError } = await supabase
           .from('todos')
-          .insert(chunk);
+          .insert(chunk.map(({ temp_id, ...rest }) => rest))
+          .select();
         
         if (insertError) {
           console.error(`Error inserting chunk ${i/chunkSize + 1}:`, insertError);
           throw insertError;
+        }
+        
+        // Map temp IDs to real IDs
+        insertedTasks.forEach((insertedTask, index) => {
+          const tempId = chunk[index].temp_id;
+          tempIdToRealId[tempId] = insertedTask.id;
+        });
+      }
+      
+      // Now insert sub-items with the real parent IDs
+      if (futureSubItems.length > 0) {
+        const subItemsWithRealParentIds = futureSubItems.map(subItem => ({
+          ...subItem,
+          parent_task_id: tempIdToRealId[subItem.temp_parent_id]
+        })).filter(subItem => subItem.parent_task_id); // Filter out any that didn't get mapped
+        
+        // Remove temp_parent_id before inserting
+        const cleanSubItems = subItemsWithRealParentIds.map(({ temp_parent_id, ...rest }) => rest);
+        
+        for (let i = 0; i < cleanSubItems.length; i += chunkSize) {
+          const chunk = cleanSubItems.slice(i, i + chunkSize);
+          const { error: subItemInsertError } = await supabase
+            .from('todos')
+            .insert(chunk);
+          
+          if (subItemInsertError) {
+            console.error(`Error inserting sub-items chunk ${i/chunkSize + 1}:`, subItemInsertError);
+            throw subItemInsertError;
+          }
         }
       }
   
