@@ -610,17 +610,21 @@ function App() {
   };
 
   const deleteTask = async (taskId, day, task) => {
-    if (task.isRecurringInstance) {
-      // For recurring instances, just show a message
-      // We can't delete the template or it affects all instances
-      alert('This is a recurring task. To stop it from appearing, you can uncheck the recurring setting on any instance.');
-      return;
+    // Get the actual task ID (template ID for recurring instances)
+    const actualId = task.isRecurringInstance ? task.originalId : taskId;
+    
+    // Confirm deletion for recurring tasks
+    if (task.recurring) {
+      const confirmDelete = window.confirm(
+        'This is a recurring task. Deleting it will remove it from all future dates. Are you sure?'
+      );
+      if (!confirmDelete) return;
     }
     
     const { error } = await supabase
       .from('todos')
       .delete()
-      .eq('id', taskId);
+      .eq('id', actualId);
 
     if (error) {
       console.error('Error deleting todo:', error);
