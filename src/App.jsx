@@ -355,6 +355,9 @@ function App() {
   };
 
   const moveTask = async (taskId, fromDay, moveType = 'next-day') => {
+    const task = tasks[fromDay].find(t => t.id === taskId);
+    if (!task) return;
+
     // Calculate the target date based on move type
     const fromDayIndex = days.indexOf(fromDay);
     const currentTaskDate = getDateForDay(fromDayIndex);
@@ -381,17 +384,86 @@ function App() {
     const targetDayOfWeek = targetDate.getDay();
     const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDayOfWeek];
     
-    const { error } = await supabase
-      .from('todos')
-      .update({ 
-        day: targetDayName,
-        actual_date: targetDate.toISOString()
-      })
-      .eq('id', taskId);
-  
-    if (error) {
-      console.error('Error moving todo:', error);
-      return;
+    if (task.isRecurringInstance) {
+      // For recurring instances: create a one-time task on target date
+      // and mark today as skipped
+      
+      // 1. Create one-time task on target date
+      const { error: createError } = await supabase
+        .from('todos')
+        .insert([{
+          user_id: session.user.id,
+          text: task.text,
+          day: targetDayName,
+          actual_date: targetDate.toISOString(),
+          completed: false,
+          recurring: false,
+          url: task.url,
+          notes: task.notes
+        }]);
+      
+      if (createError) {
+        console.error('Error creating moved task:', createError);
+        return;
+      }
+
+      // 2. Mark today's instance as completed (to hide it)
+      const { error: skipError } = await supabase
+        .from('recurring_completions')
+        .insert([{
+          user_id: session.user.id,
+          todo_id: task.originalId,
+          completion_date: task.instanceDate,
+          completed_at: new Date().toISOString()
+        }]);
+      
+      if (skipError) {
+        console.error('Error skipping today:', skipError);
+        return;
+      }
+
+      // 3. Copy sub-items to the new task if any exist
+      if (task.subItems && task.subItems.length > 0) {
+        // First get the newly created task ID
+        const { data: newTask } = await supabase
+          .from('todos')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .eq('text', task.text)
+          .eq('day', targetDayName)
+          .eq('actual_date', targetDate.toISOString())
+          .eq('recurring', false)
+          .single();
+
+        if (newTask) {
+          const subItemsToCreate = task.subItems.map(sub => ({
+            user_id: session.user.id,
+            text: sub.text,
+            day: targetDayName,
+            actual_date: targetDate.toISOString(),
+            completed: false,
+            parent_task_id: newTask.id
+          }));
+
+          await supabase
+            .from('todos')
+            .insert(subItemsToCreate);
+        }
+      }
+    } else {
+      // For regular tasks: just move them normally
+      const { error } = await supabase
+        .from('todos')
+        .update({ 
+          day: targetDayName,
+          actual_date: targetDate.toISOString()
+        })
+        .eq('id', taskId);
+    
+      if (error) {
+        console.error('Error moving todo:', error);
+        return;
+      }
     }
   
     // Refresh todos to show the change
@@ -1116,7 +1188,7 @@ function App() {
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
-              {day !== 'TASK_BANK' && index < 6 && !task.isRecurringInstance && (
+              {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
                   <MoveMenu onSelect={(moveType) => moveTask(task.id, day, moveType)} />
                 </div>
@@ -1180,7 +1252,7 @@ function App() {
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
-              {day !== 'TASK_BANK' && index < 6 && !task.isRecurringInstance && (
+              {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
                   <MoveMenu onSelect={(moveType) => {
                     if (isMobile) setPrimedTaskId(null);
