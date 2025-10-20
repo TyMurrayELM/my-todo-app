@@ -1481,7 +1481,7 @@ function App() {
                       ))}
                     <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-6" onClick={e => {
                       e.stopPropagation();
-                      // Close expanded task when clicking the add task input on mobile
+                      // Close expanded task when clicking the add task input on mobil
                       if (isMobile) {
                         setExpandedTaskId(null);
                         setPrimedTaskId(null);
