@@ -337,6 +337,12 @@ function App() {
     return `${year}-${month}-${day}`;
   };
 
+  const parseUTCDateAsLocal = (dateString) => {
+    // Parse a YYYY-MM-DD string as if it's in local time, not UTC
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  };
+
   const formatDate = (date) => {
     return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
   };
@@ -1475,7 +1481,7 @@ function App() {
                       ))}
                     <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-6" onClick={e => {
                       e.stopPropagation();
-                      // Close expanded task when clicking the add task input on mobil
+                      // Close expanded task when clicking the add task input on mobile
                       if (isMobile) {
                         setExpandedTaskId(null);
                         setPrimedTaskId(null);
