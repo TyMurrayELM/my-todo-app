@@ -195,8 +195,8 @@ function App() {
         .from('recurring_completions')
         .select('*')
         .in('todo_id', recurringTodoIds)
-        .gte('completion_date', start.toISOString().split('T')[0])
-        .lte('completion_date', end.toISOString().split('T')[0]);
+        .gte('completion_date', getLocalDateString(start))
+        .lte('completion_date', getLocalDateString(end));
       
       if (!completionsError && completions) {
         completionRecords = completions;
@@ -255,7 +255,7 @@ function App() {
           const targetDate = getDateForDay(dayIndex);
           
           if (shouldShowOnDate(todo, targetDate)) {
-            const dateStr = targetDate.toISOString().split('T')[0];
+            const dateStr = getLocalDateString(targetDate);
             const completion = completionRecords.find(
               c => c.todo_id === todo.id && c.completion_date === dateStr
             );
@@ -281,7 +281,7 @@ function App() {
         const todoDate = new Date(todo.actual_date);
         const dayIndex = days.findIndex(day => {
           const thisDate = getDateForDay(days.indexOf(day));
-          return thisDate.toISOString().split('T')[0] === todoDate.toISOString().split('T')[0];
+          return getLocalDateString(thisDate) === getLocalDateString(todoDate);
         });
         
         if (dayIndex !== -1) {
@@ -328,6 +328,13 @@ function App() {
     date.setHours(0, 0, 0, 0);
     date.setDate(date.getDate() + dayIndex);
     return date;
+  };
+
+  const getLocalDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const formatDate = (date) => {
