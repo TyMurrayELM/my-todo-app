@@ -120,7 +120,7 @@ function App() {
   const shouldShowOnDate = (task, targetDate) => {
     if (!task.recurring || !task.repeat_frequency) return false;
 
-    const taskStartDate = new Date(task.actual_date);
+    const taskStartDate = parseUTCDateAsLocal(task.actual_date);
     taskStartDate.setHours(0, 0, 0, 0);
     const checkDate = new Date(targetDate);
     checkDate.setHours(0, 0, 0, 0);
@@ -278,7 +278,7 @@ function App() {
         }
       } else {
         // Regular one-time task
-        const todoDate = new Date(todo.actual_date);
+        const todoDate = parseUTCDateAsLocal(todo.actual_date);
         const dayIndex = days.findIndex(day => {
           const thisDate = getDateForDay(days.indexOf(day));
           return getLocalDateString(thisDate) === getLocalDateString(todoDate);
@@ -341,6 +341,14 @@ function App() {
     // Parse a YYYY-MM-DD string as if it's in local time, not UTC
     const [year, month, day] = dateString.split('T')[0].split('-');
     return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  };
+
+  const getISOStringForLocalDate = (date) => {
+    // Create an ISO string but for the local date at noon to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}T12:00:00.000Z`;
   };
 
   const formatDate = (date) => {
@@ -408,7 +416,7 @@ function App() {
           user_id: session.user.id,
           text: task.text,
           day: targetDayName,
-          actual_date: targetDate.toISOString(),
+          actual_date: getISOStringForLocalDate(targetDate),
           completed: false,
           recurring: false,
           url: task.url,
@@ -444,7 +452,7 @@ function App() {
           .eq('user_id', session.user.id)
           .eq('text', task.text)
           .eq('day', targetDayName)
-          .eq('actual_date', targetDate.toISOString())
+          .eq('actual_date', getISOStringForLocalDate(targetDate))
           .eq('recurring', false)
           .single();
 
@@ -453,7 +461,7 @@ function App() {
             user_id: session.user.id,
             text: sub.text,
             day: targetDayName,
-            actual_date: targetDate.toISOString(),
+            actual_date: getISOStringForLocalDate(targetDate),
             completed: false,
             parent_task_id: newTask.id
           }));
@@ -469,7 +477,7 @@ function App() {
         .from('todos')
         .update({ 
           day: targetDayName,
-          actual_date: targetDate.toISOString()
+          actual_date: getISOStringForLocalDate(targetDate)
         })
         .eq('id', taskId);
     
@@ -487,7 +495,7 @@ function App() {
     e.preventDefault();
     if (newTask.trim()) {
       const taskDate = getDateForDay(days.indexOf(day));
-      const actualDate = taskDate.toISOString();
+      const actualDate = getISOStringForLocalDate(taskDate);
       
       const { data, error } = await supabase
         .from('todos')
@@ -734,7 +742,7 @@ function App() {
         .update({ 
           recurring: true,
           repeat_frequency: frequency,
-          actual_date: clickedTaskDate.toISOString()
+          actual_date: getISOStringForLocalDate(clickedTaskDate)
         })
         .eq('id', taskId);
       
@@ -1481,7 +1489,7 @@ function App() {
                       ))}
                     <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-6" onClick={e => {
                       e.stopPropagation();
-                      // Close expanded task when clicking the add task input on mobil
+                      // Close expanded task when clicking the add task input on mobile
                       if (isMobile) {
                         setExpandedTaskId(null);
                         setPrimedTaskId(null);
