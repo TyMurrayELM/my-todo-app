@@ -1205,9 +1205,9 @@ function App() {
           </div>
         )}
 
-        {/* Add sub-item input */}
-        {addingSubItemTo === task.id && (
-          <div className="ml-8 mt-2">
+        {/* Add sub-item input - always reserve space */}
+        <div className={`ml-8 transition-all duration-200 ${addingSubItemTo === task.id ? 'mt-2 h-7' : 'h-0 overflow-hidden'}`}>
+          {addingSubItemTo === task.id && (
             <input
               ref={subItemInputRef}
               type="text"
@@ -1235,8 +1235,8 @@ function App() {
                 isDarkBackground ? 'border-white/30 text-white placeholder-white/50' : 'border-gray-300 text-gray-700 placeholder-gray-400'
               } focus:outline-none focus:border-green-500`}
             />
-          </div>
-        )}
+          )}
+        </div>
         
 {/* Desktop hover actions - now shown below */}
 {!isMobile && (
