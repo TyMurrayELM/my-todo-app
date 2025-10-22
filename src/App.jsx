@@ -1244,7 +1244,7 @@ function App() {
         
 {/* Desktop hover actions - now shown below */}
 {!isMobile && (
-  <div className={`transition-all duration-200 max-h-0 opacity-0 group-hover:max-h-20 group-hover:opacity-100 overflow-visible`}>
+  <div className={`transition-all duration-200 ${(isHovered || addingSubItemTo === task.id) ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}>
     <div className={`ml-8 p-3 rounded-lg relative z-50`}>
               <div className="flex items-center justify-around gap-2">
               <div className="relative">
