@@ -977,7 +977,7 @@ function App() {
         </div>
       </div>
     );
-  });
+  };
 
   // Progress Bar Component
   const ProgressBar = ({ day, index }) => {
@@ -1012,7 +1012,7 @@ function App() {
   };
 
   // Task Component with expandable actions for mobile
-  const TaskItem = React.memo(({ task, day, index }) => {
+  const TaskItem = ({ task, day, index }) => {
     const isExpanded = expandedTaskId === task.id;
     const isDarkBackground = index >= 4;
     const [isHovered, setIsHovered] = useState(false);
@@ -1231,6 +1231,10 @@ function App() {
                 }
               }}
               placeholder="Add sub-item..."
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
               className={`w-full text-sm bg-transparent border-b h-7 ${
                 isDarkBackground ? 'border-white/30 text-white placeholder-white/50' : 'border-gray-300 text-gray-700 placeholder-gray-400'
               } focus:outline-none focus:border-green-500`}
