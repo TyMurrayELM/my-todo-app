@@ -1231,7 +1231,7 @@ function App() {
                 }
               }}
               placeholder="Add sub-item..."
-              className={`w-full text-sm bg-transparent border-b ${
+              className={`w-full text-sm bg-transparent border-b h-7 ${
                 isDarkBackground ? 'border-white/30 text-white placeholder-white/50' : 'border-gray-300 text-gray-700 placeholder-gray-400'
               } focus:outline-none focus:border-green-500`}
             />
