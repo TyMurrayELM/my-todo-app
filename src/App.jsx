@@ -977,7 +977,7 @@ function App() {
         </div>
       </div>
     );
-  };
+  });
 
   // Progress Bar Component
   const ProgressBar = ({ day, index }) => {
@@ -1012,7 +1012,7 @@ function App() {
   };
 
   // Task Component with expandable actions for mobile
-  const TaskItem = ({ task, day, index }) => {
+  const TaskItem = React.memo(({ task, day, index }) => {
     const isExpanded = expandedTaskId === task.id;
     const isDarkBackground = index >= 4;
     const [isHovered, setIsHovered] = useState(false);
