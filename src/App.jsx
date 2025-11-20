@@ -170,14 +170,16 @@ function App() {
     const end = getDateForDay(6);
     end.setHours(23, 59, 59, 999);
   
-    const startStr = start.toISOString();
-    const endStr = end.toISOString();
+    const startStr = getLocalDateString(start);
+    const endStr = getLocalDateString(end);
+  
+    console.log('Fetching todos between:', startStr, 'and', endStr);
   
     // Fetch all todos (both one-time and recurring templates)
     const { data: allTodos, error: todosError } = await supabase
       .from('todos')
       .select('*')
-      .or(`day.eq.TASK_BANK,and(actual_date.lte.${endStr},or(recurring.eq.false,recurring.eq.true))`)
+      .or(`day.eq.TASK_BANK,and(actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
       .order('created_at');
   
     if (todosError) {
@@ -185,6 +187,8 @@ function App() {
       setIsLoading(false);
       return;
     }
+
+    console.log('Fetched todos:', allTodos);
 
     // Fetch completion records for recurring tasks
     const recurringTodoIds = allTodos.filter(t => t.recurring).map(t => t.id);
@@ -195,8 +199,8 @@ function App() {
         .from('recurring_completions')
         .select('*')
         .in('todo_id', recurringTodoIds)
-        .gte('completion_date', getLocalDateString(start))
-        .lte('completion_date', getLocalDateString(end));
+        .gte('completion_date', startStr)
+        .lte('completion_date', endStr);
       
       if (!completionsError && completions) {
         completionRecords = completions;
@@ -212,8 +216,8 @@ function App() {
         .from('recurring_subitem_completions')
         .select('*')
         .in('subitem_id', subItemIds)
-        .gte('completion_date', getLocalDateString(start))
-        .lte('completion_date', getLocalDateString(end));
+        .gte('completion_date', startStr)
+        .lte('completion_date', endStr);
       
       if (!subCompletionsError && subCompletions) {
         subItemCompletionRecords = subCompletions;
@@ -312,33 +316,42 @@ function App() {
           }
         }
       } else {
-        // Regular one-time task
+        // Regular one-time task - FIX IS HERE
         const todoDate = parseUTCDateAsLocal(todo.actual_date);
-        const dayIndex = days.findIndex(day => {
-          const thisDate = getDateForDay(days.indexOf(day));
-          return getLocalDateString(thisDate) === getLocalDateString(todoDate);
-        });
+        const todoDateStr = getLocalDateString(todoDate);
         
-        if (dayIndex !== -1) {
-          todosByDay[days[dayIndex]].push({
-            id: todo.id,
-            text: todo.text.trim(),
-            completed: todo.completed,
-            recurring: false,
-            repeatFrequency: null,
-            url: todo.url,
-            notes: todo.notes,
-            completedAt: todo.completed_at,
-            subItems: subItemsMap[todo.id] || [],
-            isRecurringInstance: false
-          });
+        console.log('Processing regular task:', todo.text, 'with date:', todoDateStr);
+        
+        // Find which day index this date belongs to in our current week view
+        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+          const thisDate = getDateForDay(dayIndex);
+          const thisDateStr = getLocalDateString(thisDate);
+          
+          if (thisDateStr === todoDateStr) {
+            console.log('Matched to day:', days[dayIndex], 'at index', dayIndex);
+            
+            todosByDay[days[dayIndex]].push({
+              id: todo.id,
+              text: todo.text.trim(),
+              completed: todo.completed,
+              recurring: false,
+              repeatFrequency: null,
+              url: todo.url,
+              notes: todo.notes,
+              completedAt: todo.completed_at,
+              subItems: subItemsMap[todo.id] || [],
+              isRecurringInstance: false
+            });
+            break;
+          }
         }
       }
     });
   
+    console.log('Final tasks by day:', todosByDay);
     setTasks(todosByDay);
     setIsLoading(false);
-  }, [session, currentDate, isNavigating, days, selectedDay]);
+  }, [session, currentDate, isNavigating, days]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
