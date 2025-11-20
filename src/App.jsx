@@ -175,21 +175,39 @@ function App() {
   
     console.log('Fetching todos between:', startStr, 'and', endStr);
   
-    // Fetch all todos (both one-time and recurring templates)
+    // First, fetch parent tasks (tasks without parent_task_id)
     // For recurring tasks, we need their start date to be <= endStr (they could have started before our week)
     // For non-recurring tasks, we need them to be within our date range
-    const { data: allTodos, error: todosError } = await supabase
+    const { data: parentTodos, error: parentError } = await supabase
       .from('todos')
       .select('*')
+      .is('parent_task_id', null)
       .or(`day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
       .order('created_at');
   
-    if (todosError) {
-      console.error('Error fetching todos:', todosError);
+    if (parentError) {
+      console.error('Error fetching parent todos:', parentError);
       setIsLoading(false);
       return;
     }
 
+    // Now fetch all sub-items for these parent tasks
+    const parentIds = parentTodos.map(t => t.id);
+    let subItemTodos = [];
+    
+    if (parentIds.length > 0) {
+      const { data: subItems, error: subItemsError } = await supabase
+        .from('todos')
+        .select('*')
+        .in('parent_task_id', parentIds);
+      
+      if (!subItemsError && subItems) {
+        subItemTodos = subItems;
+      }
+    }
+
+    // Combine parent tasks and sub-items
+    const allTodos = [...parentTodos, ...subItemTodos];
     console.log('Fetched todos:', allTodos);
 
     // Fetch completion records for recurring tasks
