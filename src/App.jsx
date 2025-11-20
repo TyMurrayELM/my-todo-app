@@ -176,10 +176,12 @@ function App() {
     console.log('Fetching todos between:', startStr, 'and', endStr);
   
     // Fetch all todos (both one-time and recurring templates)
+    // For recurring tasks, we need their start date to be <= endStr (they could have started before our week)
+    // For non-recurring tasks, we need them to be within our date range
     const { data: allTodos, error: todosError } = await supabase
       .from('todos')
       .select('*')
-      .or(`day.eq.TASK_BANK,and(actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
+      .or(`day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
       .order('created_at');
   
     if (todosError) {
