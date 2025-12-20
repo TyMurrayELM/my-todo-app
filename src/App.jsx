@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote, Plus, ChevronRight, ChevronDown } from 'lucide-react';
+import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote, Plus, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
@@ -421,6 +421,65 @@ function App() {
 
   const formatDate = (date) => {
     return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
+  };
+
+  // Function to create Google Calendar URL
+  const createGoogleCalendarUrl = (task, day) => {
+    const dayIndex = days.indexOf(day);
+    const taskDate = dayIndex >= 0 ? getDateForDay(dayIndex) : new Date();
+    
+    // For recurring instances, use the instance date
+    if (task.instanceDate) {
+      const [year, month, dayNum] = task.instanceDate.split('-');
+      taskDate.setFullYear(parseInt(year), parseInt(month) - 1, parseInt(dayNum));
+    }
+    
+    // Format date for Google Calendar (YYYYMMDD)
+    const formatGoogleDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}${month}${day}`;
+    };
+    
+    const startDate = formatGoogleDate(taskDate);
+    // For all-day event, end date is the next day
+    const endDate = new Date(taskDate);
+    endDate.setDate(endDate.getDate() + 1);
+    const endDateStr = formatGoogleDate(endDate);
+    
+    // Build the description
+    let description = '';
+    if (task.notes) {
+      description += task.notes;
+    }
+    if (task.url) {
+      if (description) description += '\n\n';
+      description += `Link: ${task.url}`;
+    }
+    if (task.subItems && task.subItems.length > 0) {
+      if (description) description += '\n\n';
+      description += 'Sub-tasks:\n';
+      task.subItems.forEach(sub => {
+        description += `${sub.completed ? '✓' : '○'} ${sub.text}\n`;
+      });
+    }
+    
+    // Build Google Calendar URL
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: task.text,
+      dates: `${startDate}/${endDateStr}`,
+      details: description,
+    });
+    
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  // Function to open Google Calendar with task
+  const openGoogleCalendar = (task, day) => {
+    const url = createGoogleCalendarUrl(task, day);
+    window.open(url, '_blank');
   };
 
   const handleNavigation = async (direction) => {
@@ -1316,6 +1375,19 @@ function App() {
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
+              {/* Calendar button */}
+              {day !== 'TASK_BANK' && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openGoogleCalendar(task, day);
+                  }}
+                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                  title="Add to Google Calendar"
+                >
+                  <Calendar size={20} />
+                </button>
+              )}
               {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
                   <MoveMenu onSelect={(moveType) => moveTask(task.id, day, moveType)} />
@@ -1380,6 +1452,20 @@ function App() {
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
+              {/* Calendar button for mobile */}
+              {day !== 'TASK_BANK' && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isMobile) setPrimedTaskId(null);
+                    openGoogleCalendar(task, day);
+                  }}
+                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                  title="Add to Google Calendar"
+                >
+                  <Calendar size={20} />
+                </button>
+              )}
               {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
                   <MoveMenu onSelect={(moveType) => {
