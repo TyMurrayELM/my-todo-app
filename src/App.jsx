@@ -693,31 +693,77 @@ function App() {
 
     // Use originalId for recurring tasks, regular id for one-time tasks
     const actualParentId = parentTask.originalId || parentTask.id;
+    
+    // Create temporary ID for optimistic update
+    const tempId = `temp_${Date.now()}`;
+    const newSubItem = {
+      id: tempId,
+      text: newSubItemText.trim(),
+      completed: false,
+      completedAt: null,
+      parentTaskId: actualParentId,
+      isRecurringSubItem: parentTask.recurring || false
+    };
 
-    const { data, error } = await supabase
-      .from('todos')
-      .insert([
-        {
-          user_id: session.user.id,
-          text: newSubItemText.trim(),
-          day: day,
-          actual_date: new Date().toISOString(),
-          completed: false,
-          parent_task_id: actualParentId
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error adding sub-item:', error);
-      return;
-    }
-
-    // Refresh to get updated sub-items
-    await fetchTodos();
+    // Optimistic update - add to UI immediately
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task => 
+        (task.id === parentTaskId || task.originalId === parentTaskId)
+          ? { ...task, subItems: [...(task.subItems || []), newSubItem] }
+          : task
+      )
+    }));
+    
+    const savedText = newSubItemText.trim();
     setNewSubItemText('');
     setAddingSubItemTo(null);
+
+    // Sync to database
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .insert([
+          {
+            user_id: session.user.id,
+            text: savedText,
+            day: day,
+            actual_date: new Date().toISOString(),
+            completed: false,
+            parent_task_id: actualParentId
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Replace temp ID with real ID
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(task => 
+          (task.id === parentTaskId || task.originalId === parentTaskId)
+            ? {
+                ...task,
+                subItems: task.subItems.map(sub =>
+                  sub.id === tempId ? { ...sub, id: data.id } : sub
+                )
+              }
+            : task
+        )
+      }));
+    } catch (error) {
+      console.error('Error adding sub-item:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(task => 
+          (task.id === parentTaskId || task.originalId === parentTaskId)
+            ? { ...task, subItems: task.subItems.filter(sub => sub.id !== tempId) }
+            : task
+        )
+      }));
+    }
   };
 
   // Function to toggle sub-item completion
@@ -809,17 +855,44 @@ function App() {
 
   // Function to delete a sub-item
   const deleteSubItem = async (subItemId, day) => {
-    const { error } = await supabase
-      .from('todos')
-      .delete()
-      .eq('id', subItemId);
+    // Find the parent task and sub-item for potential revert
+    const parentTask = tasks[day].find(task => 
+      task.subItems && task.subItems.some(sub => sub.id === subItemId)
+    );
+    const deletedSubItem = parentTask?.subItems.find(sub => sub.id === subItemId);
 
-    if (error) {
+    // Optimistic update - remove from UI immediately
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task => 
+        task.subItems && task.subItems.some(sub => sub.id === subItemId)
+          ? { ...task, subItems: task.subItems.filter(sub => sub.id !== subItemId) }
+          : task
+      )
+    }));
+
+    // Sync to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', subItemId);
+
+      if (error) throw error;
+    } catch (error) {
       console.error('Error deleting sub-item:', error);
-      return;
+      // Revert optimistic update on failure
+      if (parentTask && deletedSubItem) {
+        setTasks(prev => ({
+          ...prev,
+          [day]: prev[day].map(task => 
+            task.id === parentTask.id
+              ? { ...task, subItems: [...task.subItems, deletedSubItem] }
+              : task
+          )
+        }));
+      }
     }
-
-    await fetchTodos();
   };
 
   // Toggle sub-items expansion
@@ -941,17 +1014,44 @@ function App() {
       if (!confirmDelete) return;
     }
     
-    const { error } = await supabase
-      .from('todos')
-      .delete()
-      .eq('id', actualId);
-
-    if (error) {
-      console.error('Error deleting todo:', error);
-      return;
+    // Store task for potential revert
+    const deletedTask = task;
+    
+    // Optimistic update - remove from UI immediately
+    // For recurring tasks, remove all instances across all days
+    if (task.recurring) {
+      setTasks(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(dayKey => {
+          updated[dayKey] = updated[dayKey].filter(t => 
+            t.id !== taskId && t.originalId !== actualId
+          );
+        });
+        return updated;
+      });
+    } else {
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].filter(t => t.id !== taskId)
+      }));
     }
-  
-    fetchTodos();
+
+    // Sync to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', actualId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: [...prev[day], deletedTask]
+      }));
+    }
   };
 
   const repeatTask = useCallback(async (task, day, frequency = 'daily') => {
@@ -994,22 +1094,52 @@ function App() {
     if (!task) return;
 
     const actualId = task.originalId || task.id;
+    const oldText = task.text;
     
-    // Update the task (or template for recurring)
-    const { error } = await supabase
-      .from('todos')
-      .update({ text: newText.trim() })
-      .eq('id', actualId);
-  
-    if (error) {
-      console.error('Error updating todo:', error);
-      return;
+    // Optimistic update - update UI immediately
+    // For recurring tasks, update all instances
+    if (task.recurring || task.isRecurringInstance) {
+      setTasks(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(dayKey => {
+          updated[dayKey] = updated[dayKey].map(t => 
+            (t.id === taskId || t.originalId === actualId)
+              ? { ...t, text: newText.trim() }
+              : t
+          );
+        });
+        return updated;
+      });
+    } else {
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId ? { ...t, text: newText.trim() } : t
+        )
+      }));
     }
     
-    // Refresh all tasks to show the updates
-    await fetchTodos();
     setEditingTaskId(null);
     setEditingTaskText('');
+
+    // Sync to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ text: newText.trim() })
+        .eq('id', actualId);
+    
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId ? { ...t, text: oldText } : t
+        )
+      }));
+    }
   };
 
   const updateTaskUrl = async (taskId, day, url) => {
@@ -1017,20 +1147,51 @@ function App() {
     if (!task) return;
 
     const actualId = task.originalId || task.id;
+    const oldUrl = task.url;
 
-    const { error } = await supabase
-      .from('todos')
-      .update({ url: url })
-      .eq('id', actualId);
-  
-    if (error) {
-      console.error('Error updating todo URL:', error);
-      return;
+    // Optimistic update - update UI immediately
+    if (task.recurring || task.isRecurringInstance) {
+      setTasks(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(dayKey => {
+          updated[dayKey] = updated[dayKey].map(t => 
+            (t.id === taskId || t.originalId === actualId)
+              ? { ...t, url: url }
+              : t
+          );
+        });
+        return updated;
+      });
+    } else {
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId ? { ...t, url: url } : t
+        )
+      }));
     }
-  
-    await fetchTodos();
+
     setEditingUrlTaskId(null);
     setUrlInput('');
+
+    // Sync to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ url: url })
+        .eq('id', actualId);
+    
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating todo URL:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId ? { ...t, url: oldUrl } : t
+        )
+      }));
+    }
   };
 
   // New function for updating notes
@@ -1039,21 +1200,52 @@ function App() {
     if (!task) return;
 
     const actualId = task.originalId || task.id;
+    const oldNotes = task.notes;
 
-    const { error } = await supabase
-      .from('todos')
-      .update({ notes: notes })
-      .eq('id', actualId);
-
-    if (error) {
-      console.error('Error updating todo notes:', error);
-      return;
+    // Optimistic update - update UI immediately
+    if (task.recurring || task.isRecurringInstance) {
+      setTasks(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(dayKey => {
+          updated[dayKey] = updated[dayKey].map(t => 
+            (t.id === taskId || t.originalId === actualId)
+              ? { ...t, notes: notes }
+              : t
+          );
+        });
+        return updated;
+      });
+    } else {
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId ? { ...t, notes: notes } : t
+        )
+      }));
     }
 
-    await fetchTodos();
     setShowNoteModal(false);
     setCurrentNoteTask(null);
     setNoteInput('');
+
+    // Sync to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ notes: notes })
+        .eq('id', actualId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating todo notes:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId ? { ...t, notes: oldNotes } : t
+        )
+      }));
+    }
   };
 
   const handleLogin = async () => {
