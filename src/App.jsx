@@ -730,58 +730,81 @@ function App() {
 
     const subItem = parentTask.subItems.find(sub => sub.id === subItemId);
     const newCompleted = !subItem.completed;
+    const completedAt = newCompleted ? new Date().toISOString() : null;
 
-    if (subItem.isRecurringSubItem && parentTask.isRecurringInstance) {
-      // Handle recurring sub-item - use completion tracking table
-      if (newCompleted) {
-        // Add completion record
-        const { error } = await supabase
-          .from('recurring_subitem_completions')
-          .insert([{
-            user_id: session.user.id,
-            subitem_id: subItemId,
-            parent_todo_id: parentTask.originalId,
-            completion_date: parentTask.instanceDate,
-            completed_at: new Date().toISOString()
-          }]);
-        
-        if (error) {
-          console.error('Error marking recurring sub-item complete:', error);
-          return;
+    // Optimistic update - update UI immediately
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task => 
+        task.id === parentTask.id
+          ? {
+              ...task,
+              subItems: task.subItems.map(sub =>
+                sub.id === subItemId
+                  ? { ...sub, completed: newCompleted, completedAt: completedAt }
+                  : sub
+              )
+            }
+          : task
+      )
+    }));
+
+    // Then sync to database in background
+    try {
+      if (subItem.isRecurringSubItem && parentTask.isRecurringInstance) {
+        // Handle recurring sub-item - use completion tracking table
+        if (newCompleted) {
+          const { error } = await supabase
+            .from('recurring_subitem_completions')
+            .insert([{
+              user_id: session.user.id,
+              subitem_id: subItemId,
+              parent_todo_id: parentTask.originalId,
+              completion_date: parentTask.instanceDate,
+              completed_at: completedAt
+            }]);
+          
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('recurring_subitem_completions')
+            .delete()
+            .eq('subitem_id', subItemId)
+            .eq('completion_date', parentTask.instanceDate);
+          
+          if (error) throw error;
         }
       } else {
-        // Remove completion record
+        // Handle regular sub-item - update the todo directly
         const { error } = await supabase
-          .from('recurring_subitem_completions')
-          .delete()
-          .eq('subitem_id', subItemId)
-          .eq('completion_date', parentTask.instanceDate);
-        
-        if (error) {
-          console.error('Error unmarking recurring sub-item:', error);
-          return;
-        }
-      }
-    } else {
-      // Handle regular sub-item - update the todo directly
-      const completedAt = newCompleted ? new Date().toISOString() : null;
+          .from('todos')
+          .update({ 
+            completed: newCompleted,
+            completed_at: completedAt
+          })
+          .eq('id', subItemId);
 
-      const { error } = await supabase
-        .from('todos')
-        .update({ 
-          completed: newCompleted,
-          completed_at: completedAt
-        })
-        .eq('id', subItemId);
-
-      if (error) {
-        console.error('Error updating sub-item:', error);
-        return;
+        if (error) throw error;
       }
+    } catch (error) {
+      console.error('Error updating sub-item:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(task => 
+          task.id === parentTask.id
+            ? {
+                ...task,
+                subItems: task.subItems.map(sub =>
+                  sub.id === subItemId
+                    ? { ...sub, completed: !newCompleted, completedAt: subItem.completedAt }
+                    : sub
+                )
+              }
+            : task
+        )
+      }));
     }
-
-    // Refresh tasks
-    await fetchTodos();
   };
 
   // Function to delete a sub-item
@@ -823,58 +846,67 @@ function App() {
     const task = tasks[day].find(t => t.id === taskId);
     if (!task) return;
 
-    if (task.isRecurringInstance) {
-      // Handle recurring instance
-      const newCompleted = !task.completed;
-      
-      if (newCompleted) {
-        // Add completion record
-        const { error } = await supabase
-          .from('recurring_completions')
-          .insert([{
-            user_id: session.user.id,
-            todo_id: task.originalId,
-            completion_date: task.instanceDate,
-            completed_at: new Date().toISOString()
-          }]);
-        
-        if (error) {
-          console.error('Error marking recurring task complete:', error);
-          return;
+    const newCompleted = !task.completed;
+    const completedAt = newCompleted ? new Date().toISOString() : null;
+
+    // Optimistic update - update UI immediately
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(t => 
+        t.id === taskId 
+          ? { ...t, completed: newCompleted, completedAt: completedAt }
+          : t
+      )
+    }));
+
+    // Then sync to database in background
+    try {
+      if (task.isRecurringInstance) {
+        // Handle recurring instance
+        if (newCompleted) {
+          const { error } = await supabase
+            .from('recurring_completions')
+            .insert([{
+              user_id: session.user.id,
+              todo_id: task.originalId,
+              completion_date: task.instanceDate,
+              completed_at: completedAt
+            }]);
+          
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('recurring_completions')
+            .delete()
+            .eq('todo_id', task.originalId)
+            .eq('completion_date', task.instanceDate);
+          
+          if (error) throw error;
         }
       } else {
-        // Remove completion record
+        // Handle regular task
         const { error } = await supabase
-          .from('recurring_completions')
-          .delete()
-          .eq('todo_id', task.originalId)
-          .eq('completion_date', task.instanceDate);
-        
-        if (error) {
-          console.error('Error unmarking recurring task:', error);
-          return;
-        }
+          .from('todos')
+          .update({ 
+            completed: newCompleted,
+            completed_at: completedAt
+          })
+          .eq('id', taskId);
+      
+        if (error) throw error;
       }
-    } else {
-      // Handle regular task
-      const newCompleted = !task.completed;
-      const completedAt = newCompleted ? new Date().toISOString() : null;
-    
-      const { error } = await supabase
-        .from('todos')
-        .update({ 
-          completed: newCompleted,
-          completed_at: completedAt
-        })
-        .eq('id', taskId);
-    
-      if (error) {
-        console.error('Error updating todo:', error);
-        return;
-      }
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      // Revert optimistic update on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(t => 
+          t.id === taskId 
+            ? { ...t, completed: !newCompleted, completedAt: task.completedAt }
+            : t
+        )
+      }));
     }
-  
-    await fetchTodos();
   };
 
   const formatCompletionTime = (isoString) => {
