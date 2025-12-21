@@ -25,6 +25,8 @@ function App() {
   // State for adding new sub-items
   const [addingSubItemTo, setAddingSubItemTo] = useState(null);
   const [newSubItemText, setNewSubItemText] = useState('');
+  // State for editing sub-items
+  const [editingSubItemId, setEditingSubItemId] = useState(null);
   // Track tasks that are visually complete but not yet sorted (for animation delay)
   const [pendingCompletions, setPendingCompletions] = useState({});
   
@@ -897,6 +899,62 @@ function App() {
     }
   };
 
+  // Update sub-item text
+  const updateSubItemText = async (subItemId, day, newText) => {
+    if (!newText.trim()) return;
+
+    const parentTask = tasks[day].find(task => 
+      task.subItems && task.subItems.some(sub => sub.id === subItemId)
+    );
+    if (!parentTask) return;
+
+    const oldSubItem = parentTask.subItems.find(sub => sub.id === subItemId);
+    const oldText = oldSubItem?.text;
+
+    // Optimistic update
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(task => 
+        task.id === parentTask.id
+          ? {
+              ...task,
+              subItems: task.subItems.map(sub =>
+                sub.id === subItemId ? { ...sub, text: newText.trim() } : sub
+              )
+            }
+          : task
+      )
+    }));
+
+    setEditingSubItemId(null);
+
+    // Sync to database
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ text: newText.trim() })
+        .eq('id', subItemId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating sub-item text:', error);
+      // Revert on failure
+      setTasks(prev => ({
+        ...prev,
+        [day]: prev[day].map(task => 
+          task.id === parentTask.id
+            ? {
+                ...task,
+                subItems: task.subItems.map(sub =>
+                  sub.id === subItemId ? { ...sub, text: oldText } : sub
+                )
+              }
+            : task
+        )
+      }));
+    }
+  };
+
   // Toggle sub-items expansion
   const toggleSubItems = (taskId) => {
     setExpandedSubItems(prev => ({
@@ -1576,12 +1634,38 @@ function App() {
                 >
                   {subItem.completed && <Check size={12} className="text-white" />}
                 </button>
-                <span className={`text-sm flex-grow ${
-                  subItem.completed ? 'line-through text-gray-400' : 
-                  isDarkBackground ? 'text-white/80' : 'text-gray-600'
-                }`}>
-                  {subItem.text}
-                </span>
+                {editingSubItemId === subItem.id ? (
+                  <input
+                    type="text"
+                    defaultValue={subItem.text}
+                    autoFocus
+                    onBlur={(e) => updateSubItemText(subItem.id, day, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        updateSubItemText(subItem.id, day, e.target.value);
+                      } else if (e.key === 'Escape') {
+                        setEditingSubItemId(null);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className={`text-sm flex-grow bg-transparent border-none focus:outline-none ${
+                      isDarkBackground ? 'text-white/80' : 'text-gray-600'
+                    }`}
+                  />
+                ) : (
+                  <span 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingSubItemId(subItem.id);
+                    }}
+                    className={`text-sm flex-grow cursor-pointer ${
+                      subItem.completed ? 'line-through text-gray-400' : 
+                      isDarkBackground ? 'text-white/80' : 'text-gray-600'
+                    }`}
+                  >
+                    {subItem.text}
+                  </span>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
