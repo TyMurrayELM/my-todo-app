@@ -1989,7 +1989,7 @@ function App() {
                         .filter(task => !hideCompleted || !task.completed)
                         .sort((a, b) => {
                           if (a.completed !== b.completed) {
-                            return b.completed - a.completed;
+                            return a.completed - b.completed;
                           }
                           return a.text.localeCompare(b.text);
                         })
@@ -2051,7 +2051,7 @@ function App() {
                       .filter(task => !hideCompleted || !task.completed)
                       .sort((a, b) => {
                         if (a.completed !== b.completed) {
-                          return b.completed - a.completed;
+                          return a.completed - b.completed;
                         }
                         return a.text.localeCompare(b.text);
                       })
