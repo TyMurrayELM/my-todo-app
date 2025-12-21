@@ -924,33 +924,43 @@ function App() {
     const newCompleted = !task.completed;
     const completedAt = newCompleted ? new Date().toISOString() : null;
 
-    // Step 1: Show visual feedback immediately (checkmark appears, but task doesn't move)
-    setPendingCompletions(prev => ({
-      ...prev,
-      [taskId]: newCompleted
-    }));
+    if (newCompleted) {
+      // COMPLETING: Show visual feedback immediately, delay the reorder
+      setPendingCompletions(prev => ({
+        ...prev,
+        [taskId]: true
+      }));
 
-    // Step 2: After delay, actually update the task state (this triggers reorder)
-    setTimeout(() => {
-      // Clear pending state
-      setPendingCompletions(prev => {
-        const next = { ...prev };
-        delete next[taskId];
-        return next;
-      });
-      
-      // Now update the actual task state
+      // After delay, actually update the task state (this triggers reorder)
+      setTimeout(() => {
+        setPendingCompletions(prev => {
+          const next = { ...prev };
+          delete next[taskId];
+          return next;
+        });
+        
+        setTasks(prev => ({
+          ...prev,
+          [day]: prev[day].map(t => 
+            t.id === taskId 
+              ? { ...t, completed: true, completedAt: completedAt }
+              : t
+          )
+        }));
+      }, 400);
+    } else {
+      // UNCOMPLETING: Update immediately, no delay needed
       setTasks(prev => ({
         ...prev,
         [day]: prev[day].map(t => 
           t.id === taskId 
-            ? { ...t, completed: newCompleted, completedAt: completedAt }
+            ? { ...t, completed: false, completedAt: null }
             : t
         )
       }));
-    }, 400);
+    }
 
-    // Sync to database in background (don't wait for visual delay)
+    // Sync to database in background
     try {
       if (task.isRecurringInstance) {
         // Handle recurring instance
