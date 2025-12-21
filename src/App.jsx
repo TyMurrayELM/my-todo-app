@@ -25,6 +25,10 @@ function App() {
   // State for adding new sub-items
   const [addingSubItemTo, setAddingSubItemTo] = useState(null);
   const [newSubItemText, setNewSubItemText] = useState('');
+  // State for delayed reordering after task completion
+  const [recentlyToggledIds, setRecentlyToggledIds] = useState(new Set());
+  // Ref to store task order before toggle (preserved across renders)
+  const taskOrderBeforeToggle = useRef({});
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -922,6 +926,30 @@ function App() {
     const newCompleted = !task.completed;
     const completedAt = newCompleted ? new Date().toISOString() : null;
 
+    // Save current task order BEFORE updating (for delayed reorder)
+    const currentOrder = tasks[day]
+      .filter(t => !hideCompleted || !t.completed)
+      .sort((a, b) => {
+        if (a.completed !== b.completed) return b.completed - a.completed;
+        return a.text.localeCompare(b.text);
+      })
+      .map(t => t.id);
+    taskOrderBeforeToggle.current[day] = currentOrder;
+
+    // Mark task as recently toggled (prevents immediate reordering)
+    setRecentlyToggledIds(prev => new Set([...prev, taskId]));
+    
+    // Remove from recently toggled after delay (allows reordering)
+    setTimeout(() => {
+      setRecentlyToggledIds(prev => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+      // Clear saved order
+      delete taskOrderBeforeToggle.current[day];
+    }, 400);
+
     // Optimistic update - update UI immediately
     setTasks(prev => ({
       ...prev,
@@ -1397,12 +1425,24 @@ function App() {
               e.stopPropagation();
               toggleTask(task.id, day);
             }}
-            className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
-              ${task.completed ? 'bg-green-500 border-green-500' : 
+            className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-all duration-200
+              ${task.completed ? 'bg-green-500 border-green-500 scale-110' : 
                 primedTaskId === task.id ? 'bg-white border-green-500' :
                 isDarkBackground ? 'bg-white border-white hover:border-green-500' : 'bg-white border-black hover:border-green-500'}`}
+            style={{
+              transform: task.completed ? 'scale(1.1)' : 'scale(1)',
+              transition: 'all 0.2s ease-out'
+            }}
           >
-            {task.completed && <Check size={16} className="text-white" />}
+            {task.completed && (
+              <Check 
+                size={16} 
+                className="text-white animate-check" 
+                style={{
+                  animation: 'checkPop 0.3s ease-out'
+                }}
+              />
+            )}
           </button>
           
           {editingTaskId === task.id ? (
@@ -1862,6 +1902,17 @@ function App() {
                       {tasks[day]
                         .filter(task => !hideCompleted || !task.completed)
                         .sort((a, b) => {
+                          // Use saved order if we're in the delay period
+                          const savedOrder = taskOrderBeforeToggle.current[day];
+                          if (savedOrder && recentlyToggledIds.size > 0) {
+                            const aIndex = savedOrder.indexOf(a.id);
+                            const bIndex = savedOrder.indexOf(b.id);
+                            // If both are in saved order, use that order
+                            if (aIndex !== -1 && bIndex !== -1) {
+                              return aIndex - bIndex;
+                            }
+                          }
+                          // Normal sorting
                           if (a.completed !== b.completed) {
                             return b.completed - a.completed;
                           }
@@ -1924,6 +1975,16 @@ function App() {
                     {tasks.TASK_BANK
                       .filter(task => !hideCompleted || !task.completed)
                       .sort((a, b) => {
+                        // Use saved order if we're in the delay period
+                        const savedOrder = taskOrderBeforeToggle.current['TASK_BANK'];
+                        if (savedOrder && recentlyToggledIds.size > 0) {
+                          const aIndex = savedOrder.indexOf(a.id);
+                          const bIndex = savedOrder.indexOf(b.id);
+                          if (aIndex !== -1 && bIndex !== -1) {
+                            return aIndex - bIndex;
+                          }
+                        }
+                        // Normal sorting
                         if (a.completed !== b.completed) {
                           return b.completed - a.completed;
                         }
