@@ -12,6 +12,12 @@ const RepeatMenu = ({ onSelect }) => {
       subtitle: 'Every day' 
     },
     { 
+      id: 'every-other-day', 
+      label: 'Every Other Day', 
+      icon: <Repeat size={14} />, 
+      subtitle: 'Every 2 days' 
+    },
+    { 
       id: 'weekdays', 
       label: 'Weekdays', 
       icon: <Calendar size={14} />, 

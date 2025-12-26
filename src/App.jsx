@@ -139,6 +139,9 @@ function App() {
       case 'daily':
         return true;
       
+      case 'every-other-day':
+        return daysDiff % 2 === 0;
+      
       case 'weekdays':
         return targetDayOfWeek !== 0 && targetDayOfWeek !== 6; // Mon-Fri
       
@@ -482,6 +485,8 @@ function App() {
       switch (task.repeatFrequency) {
         case 'daily':
           return `RRULE:FREQ=DAILY;UNTIL=${untilStr}`;
+        case 'every-other-day':
+          return `RRULE:FREQ=DAILY;INTERVAL=2;UNTIL=${untilStr}`;
         case 'weekdays':
           // Monday through Friday
           return `RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=${untilStr}`;

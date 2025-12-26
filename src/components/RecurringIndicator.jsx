@@ -11,6 +11,10 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
       label = 'd';
       title = 'Repeats daily';
       break;
+    case 'every-other-day':
+      label = '2d';
+      title = 'Repeats every other day';
+      break;
     case 'weekdays':
       label = 'wd';
       title = 'Repeats weekdays only';
