@@ -40,6 +40,12 @@ const RepeatMenu = ({ onSelect }) => {
       label: 'Monthly', 
       icon: <Calendar size={14} />, 
       subtitle: 'Same day monthly' 
+    },
+    { 
+      id: 'first-of-month', 
+      label: '1st of Month', 
+      icon: <Calendar size={14} />, 
+      subtitle: 'Every 1st' 
     }
   ];
 

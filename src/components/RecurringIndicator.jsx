@@ -31,6 +31,10 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
       label = 'm';
       title = 'Repeats monthly';
       break;
+    case 'first-of-month':
+      label = '1st';
+      title = 'Repeats on 1st of each month';
+      break;
     default:
       label = 'd'; // Default to daily
       title = 'Repeats daily';

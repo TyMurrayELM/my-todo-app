@@ -163,6 +163,9 @@ function App() {
         
         return monthsDiff >= 0 && targetDay === adjustedTaskDay;
       
+      case 'first-of-month':
+        return checkDate.getDate() === 1;
+      
       default:
         return false;
     }
@@ -496,6 +499,8 @@ function App() {
           return `RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=${untilStr}`;
         case 'monthly':
           return `RRULE:FREQ=MONTHLY;UNTIL=${untilStr}`;
+        case 'first-of-month':
+          return `RRULE:FREQ=MONTHLY;BYMONTHDAY=1;UNTIL=${untilStr}`;
         default:
           return null;
       }
