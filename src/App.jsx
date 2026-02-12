@@ -7,6 +7,26 @@ import MoveMenu from './components/MoveMenu';
 import RecurringIndicator from './components/RecurringIndicator';
 import ToggleSwitch from './components/ToggleSwitch';
 
+// Security: Dev-only logging to prevent information disclosure in production
+const isDev = import.meta.env.DEV;
+const log = (...args) => isDev && console.log(...args);
+const logError = (...args) => isDev && console.error(...args);
+
+// Security: URL validation to prevent javascript: protocol XSS
+const isValidUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+// Security: Input length limits
+const MAX_TASK_LENGTH = 500;
+const MAX_NOTES_LENGTH = 2000;
+const MAX_URL_LENGTH = 2000;
+
 function App() {
   const [session, setSession] = useState(null);
   const [selectedDay, setSelectedDay] = useState(0);
@@ -217,7 +237,7 @@ function App() {
     const startStr = getLocalDateString(start);
     const endStr = getLocalDateString(end);
   
-    console.log('Fetching todos between:', startStr, 'and', endStr);
+    log('Fetching todos between:', startStr, 'and', endStr);
   
     // First, fetch parent tasks (tasks without parent_task_id)
     // For recurring tasks, we need their start date to be <= endStr (they could have started before our week)
@@ -225,12 +245,13 @@ function App() {
     const { data: parentTodos, error: parentError } = await supabase
       .from('todos')
       .select('*')
+      .eq('user_id', session.user.id)
       .is('parent_task_id', null)
       .or(`day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
       .order('created_at');
   
     if (parentError) {
-      console.error('Error fetching parent todos:', parentError);
+      logError('Error fetching parent todos:', parentError);
       setIsLoading(false);
       return;
     }
@@ -243,6 +264,7 @@ function App() {
       const { data: subItems, error: subItemsError } = await supabase
         .from('todos')
         .select('*')
+        .eq('user_id', session.user.id)
         .in('parent_task_id', parentIds);
       
       if (!subItemsError && subItems) {
@@ -252,7 +274,7 @@ function App() {
 
     // Combine parent tasks and sub-items
     const allTodos = [...parentTodos, ...subItemTodos];
-    console.log('Fetched todos:', allTodos);
+    log('Fetched todos:', allTodos);
 
     // Fetch completion records for recurring tasks
     const recurringTodoIds = allTodos.filter(t => t.recurring).map(t => t.id);
@@ -262,6 +284,7 @@ function App() {
       const { data: completions, error: completionsError } = await supabase
         .from('recurring_completions')
         .select('*')
+        .eq('user_id', session.user.id)
         .in('todo_id', recurringTodoIds)
         .gte('completion_date', startStr)
         .lte('completion_date', endStr);
@@ -279,6 +302,7 @@ function App() {
       const { data: subCompletions, error: subCompletionsError } = await supabase
         .from('recurring_subitem_completions')
         .select('*')
+        .eq('user_id', session.user.id)
         .in('subitem_id', subItemIds)
         .gte('completion_date', startStr)
         .lte('completion_date', endStr);
@@ -384,7 +408,7 @@ function App() {
         const todoDate = parseUTCDateAsLocal(todo.actual_date);
         const todoDateStr = getLocalDateString(todoDate);
         
-        console.log('Processing regular task:', todo.text, 'with date:', todoDateStr);
+        log('Processing regular task:', todo.text, 'with date:', todoDateStr);
         
         // Find which day index this date belongs to in our current week view
         for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
@@ -392,7 +416,7 @@ function App() {
           const thisDateStr = getLocalDateString(thisDate);
           
           if (thisDateStr === todoDateStr) {
-            console.log('Matched to day:', days[dayIndex], 'at index', dayIndex);
+            log('Matched to day:', days[dayIndex], 'at index', dayIndex);
             
             todosByDay[days[dayIndex]].push({
               id: todo.id,
@@ -412,7 +436,7 @@ function App() {
       }
     });
   
-    console.log('Final tasks by day:', todosByDay);
+    log('Final tasks by day:', todosByDay);
     setTasks(todosByDay);
     setIsLoading(false);
   }, [session, currentDate, isNavigating, days]);
@@ -714,7 +738,7 @@ function App() {
         }]);
       
       if (createError) {
-        console.error('Error creating moved task:', createError);
+        logError('Error creating moved task:', createError);
         return;
       }
 
@@ -729,7 +753,7 @@ function App() {
         }]);
       
       if (skipError) {
-        console.error('Error skipping today:', skipError);
+        logError('Error skipping today:', skipError);
         return;
       }
 
@@ -765,14 +789,15 @@ function App() {
       // For regular tasks: just move them normally
       const { error } = await supabase
         .from('todos')
-        .update({ 
+        .update({
           day: targetDayName,
           actual_date: getISOStringForLocalDate(targetDate)
         })
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .eq('user_id', session.user.id);
     
       if (error) {
-        console.error('Error moving todo:', error);
+        logError('Error moving todo:', error);
         return;
       }
     }
@@ -784,6 +809,7 @@ function App() {
   const addTask = async (e, day) => {
     e.preventDefault();
     if (newTask.trim()) {
+      if (typeof newTask !== 'string' || newTask.trim().length > MAX_TASK_LENGTH) return;
       const taskDate = getDateForDay(days.indexOf(day));
       const actualDate = getISOStringForLocalDate(taskDate);
       
@@ -802,7 +828,7 @@ function App() {
         .single();
   
       if (error) {
-        console.error('Error adding todo:', error);
+        logError('Error adding todo:', error);
         return;
       }
   
@@ -817,6 +843,7 @@ function App() {
   // Function to add a sub-item
   const addSubItem = async (parentTaskId, day) => {
     if (!newSubItemText.trim()) return;
+    if (typeof newSubItemText !== 'string' || newSubItemText.trim().length > MAX_TASK_LENGTH) return;
 
     const parentTask = tasks[day].find(t => t.id === parentTaskId || t.originalId === parentTaskId);
     if (!parentTask) return;
@@ -883,7 +910,7 @@ function App() {
         )
       }));
     } catch (error) {
-      console.error('Error adding sub-item:', error);
+      logError('Error adding sub-item:', error);
       // Revert optimistic update on failure
       setTasks(prev => ({
         ...prev,
@@ -954,20 +981,21 @@ function App() {
         // Handle regular sub-item - update the todo directly
         const { error } = await supabase
           .from('todos')
-          .update({ 
+          .update({
             completed: newCompleted,
             completed_at: completedAt
           })
-          .eq('id', subItemId);
+          .eq('id', subItemId)
+          .eq('user_id', session.user.id);
 
         if (error) throw error;
       }
     } catch (error) {
-      console.error('Error updating sub-item:', error);
+      logError('Error updating sub-item:', error);
       // Revert optimistic update on failure
       setTasks(prev => ({
         ...prev,
-        [day]: prev[day].map(task => 
+        [day]: prev[day].map(task =>
           task.id === parentTask.id
             ? {
                 ...task,
@@ -1006,11 +1034,12 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', subItemId);
+        .eq('id', subItemId)
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error deleting sub-item:', error);
+      logError('Error deleting sub-item:', error);
       // Revert optimistic update on failure
       if (parentTask && deletedSubItem) {
         setTasks(prev => ({
@@ -1028,6 +1057,7 @@ function App() {
   // Update sub-item text
   const updateSubItemText = async (subItemId, day, newText) => {
     if (!newText.trim()) return;
+    if (typeof newText !== 'string' || newText.trim().length > MAX_TASK_LENGTH) return;
 
     const parentTask = tasks[day].find(task => 
       task.subItems && task.subItems.some(sub => sub.id === subItemId)
@@ -1059,11 +1089,12 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .update({ text: newText.trim() })
-        .eq('id', subItemId);
+        .eq('id', subItemId)
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating sub-item text:', error);
+      logError('Error updating sub-item text:', error);
       // Revert on failure
       setTasks(prev => ({
         ...prev,
@@ -1172,16 +1203,17 @@ function App() {
         // Handle regular task
         const { error } = await supabase
           .from('todos')
-          .update({ 
+          .update({
             completed: newCompleted,
             completed_at: completedAt
           })
-          .eq('id', taskId);
-      
+          .eq('id', taskId)
+          .eq('user_id', session.user.id);
+
         if (error) throw error;
       }
     } catch (error) {
-      console.error('Error updating todo:', error);
+      logError('Error updating todo:', error);
       // Clear pending and don't update state on failure
       setPendingCompletions(prev => {
         const next = { ...prev };
@@ -1250,11 +1282,12 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', actualId);
+        .eq('id', actualId)
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error deleting todo:', error);
+      logError('Error deleting todo:', error);
       // Revert optimistic update on failure
       setTasks(prev => ({
         ...prev,
@@ -1275,22 +1308,23 @@ function App() {
       // Update the task to be recurring
       const { error: updateError } = await supabase
         .from('todos')
-        .update({ 
+        .update({
           recurring: true,
           repeat_frequency: frequency,
           actual_date: getISOStringForLocalDate(clickedTaskDate)
         })
-        .eq('id', taskId);
+        .eq('id', taskId)
+        .eq('user_id', session.user.id);
       
       if (updateError) {
-        console.error('Error updating task:', updateError);
+        logError('Error updating task:', updateError);
         throw updateError;
       }
   
       await fetchTodos();
   
     } catch (error) {
-      console.error('RepeatTask failed:', error);
+      logError('RepeatTask failed:', error);
     } finally {
       setIsRepeating(false);
     }
@@ -1298,7 +1332,8 @@ function App() {
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
-    
+    if (typeof newText !== 'string' || newText.trim().length > MAX_TASK_LENGTH) return;
+
     const task = tasks[day].find(t => t.id === taskId);
     if (!task) return;
 
@@ -1336,15 +1371,16 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .update({ text: newText.trim() })
-        .eq('id', actualId);
-    
+        .eq('id', actualId)
+        .eq('user_id', session.user.id);
+
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating todo:', error);
+      logError('Error updating todo:', error);
       // Revert optimistic update on failure
       setTasks(prev => ({
         ...prev,
-        [day]: prev[day].map(t => 
+        [day]: prev[day].map(t =>
           t.id === taskId ? { ...t, text: oldText } : t
         )
       }));
@@ -1352,6 +1388,7 @@ function App() {
   };
 
   const updateTaskUrl = async (taskId, day, url) => {
+    if (url && (typeof url !== 'string' || url.length > MAX_URL_LENGTH || !isValidUrl(url))) return;
     const task = tasks[day].find(t => t.id === taskId);
     if (!task) return;
 
@@ -1388,11 +1425,12 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .update({ url: url })
-        .eq('id', actualId);
-    
+        .eq('id', actualId)
+        .eq('user_id', session.user.id);
+
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating todo URL:', error);
+      logError('Error updating todo URL:', error);
       // Revert optimistic update on failure
       setTasks(prev => ({
         ...prev,
@@ -1405,6 +1443,7 @@ function App() {
 
   // New function for updating notes
   const updateTaskNotes = async (taskId, day, notes) => {
+    if (notes && (typeof notes !== 'string' || notes.length > MAX_NOTES_LENGTH)) return;
     const task = tasks[day].find(t => t.id === taskId);
     if (!task) return;
 
@@ -1442,11 +1481,12 @@ function App() {
       const { error } = await supabase
         .from('todos')
         .update({ notes: notes })
-        .eq('id', actualId);
+        .eq('id', actualId)
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
     } catch (error) {
-      console.error('Error updating todo notes:', error);
+      logError('Error updating todo notes:', error);
       // Revert optimistic update on failure
       setTasks(prev => ({
         ...prev,
@@ -1467,20 +1507,20 @@ function App() {
         redirectTo: window.location.origin
       }
     });
-    if (error) console.error('Error logging in:', error);
+    if (error) logError('Error logging in:', error);
   };
   
   const handleLogout = async () => {
-    console.log('Logout button clicked');
+    log('Logout button clicked');
     try {
       localStorage.clear();
       await supabase.auth.signOut();
-      console.log('Logout completed');
+      log('Logout completed');
       setTimeout(() => {
         window.location.replace('/');
       }, 100);
     } catch (error) {
-      console.error('Error logging out:', error);
+      logError('Error logging out:', error);
       window.location.href = '/';
     }
   };
@@ -1900,10 +1940,10 @@ function App() {
                   onClick={(e) => {
                     e.stopPropagation();
                     if (task.url) {
-                      window.open(task.url, '_blank');
+                      if (isValidUrl(task.url)) window.open(task.url, '_blank');
                     } else {
                       const url = prompt('Enter URL:');
-                      if (url) {
+                      if (url && isValidUrl(url)) {
                         updateTaskUrl(task.id, day, url);
                       }
                     }
@@ -1977,10 +2017,10 @@ function App() {
                   e.stopPropagation();
                   if (isMobile) setPrimedTaskId(null);
                   if (task.url) {
-                    window.open(task.url, '_blank');
+                    if (isValidUrl(task.url)) window.open(task.url, '_blank');
                   } else {
                     const url = prompt('Enter URL:');
-                    if (url) {
+                    if (url && isValidUrl(url)) {
                       updateTaskUrl(task.id, day, url);
                     }
                   }
