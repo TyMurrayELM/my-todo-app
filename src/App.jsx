@@ -1168,7 +1168,8 @@ function App() {
             .from('recurring_subitem_completions')
             .delete()
             .eq('subitem_id', subItemId)
-            .eq('completion_date', parentTask.instanceDate);
+            .eq('completion_date', parentTask.instanceDate)
+            .eq('user_id', session.user.id);
           
           if (error) throw error;
         }
@@ -1390,7 +1391,8 @@ function App() {
             .from('recurring_completions')
             .delete()
             .eq('todo_id', task.originalId)
-            .eq('completion_date', task.instanceDate);
+            .eq('completion_date', task.instanceDate)
+            .eq('user_id', session.user.id);
           
           if (error) throw error;
         }
