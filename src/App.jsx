@@ -646,11 +646,91 @@ function App() {
 
   // Bulk move tasks
   const bulkMoveTasks = async (moveType, day) => {
-    for (const taskId of selectedTasks) {
-      await moveTask(taskId, day, moveType);
-    }
+    // Snapshot tasks before removing from UI
+    const tasksToMove = selectedTasks
+      .map(id => tasks[day].find(t => t.id === id))
+      .filter(Boolean);
+
+    if (tasksToMove.length === 0) return;
+
+    // Optimistic: remove all selected tasks from UI at once
+    const taskIdSet = new Set(selectedTasks);
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].filter(t => !taskIdSet.has(t.id))
+    }));
     setBulkMode(false);
     setSelectedTasks([]);
+
+    // Calculate target date (same for all tasks in the batch)
+    const fromDayIndex = days.indexOf(day);
+    const currentTaskDate = getDateForDay(fromDayIndex);
+    let targetDate = new Date(currentTaskDate);
+
+    if (moveType === 'next-day') {
+      targetDate.setDate(currentTaskDate.getDate() + 1);
+    } else if (moveType === 'next-week') {
+      targetDate.setDate(currentTaskDate.getDate() + 7);
+    } else if (moveType === 'next-weekday') {
+      targetDate.setDate(currentTaskDate.getDate() + 1);
+      while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
+    } else if (moveType === 'next-weekend') {
+      const daysUntilSaturday = (6 - currentTaskDate.getDay() + 7) % 7;
+      const daysToAdd = daysUntilSaturday === 0 ? 7 : daysUntilSaturday;
+      targetDate.setDate(currentTaskDate.getDate() + daysToAdd);
+    }
+
+    const targetDayOfWeek = targetDate.getDay();
+    const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDayOfWeek];
+    const targetActualDate = getISOStringForLocalDate(targetDate);
+
+    // Fire all DB operations in parallel
+    await Promise.all(tasksToMove.map(async (task) => {
+      try {
+        if (task.isRecurringInstance) {
+          const { data: newTask } = await supabase.from('todos').insert([{
+            user_id: session.user.id,
+            text: task.text,
+            day: targetDayName,
+            actual_date: targetActualDate,
+            completed: false,
+            recurring: false,
+            url: task.url,
+            notes: task.notes
+          }]).select('id').single();
+          await supabase.from('recurring_completions').insert([{
+            user_id: session.user.id,
+            todo_id: task.originalId,
+            completion_date: task.instanceDate,
+            completed_at: new Date().toISOString()
+          }]);
+          if (newTask && task.subItems && task.subItems.length > 0) {
+            await supabase.from('todos').insert(
+              task.subItems.map(sub => ({
+                user_id: session.user.id,
+                text: sub.text,
+                day: targetDayName,
+                actual_date: targetActualDate,
+                completed: false,
+                parent_task_id: newTask.id
+              }))
+            );
+          }
+        } else {
+          await supabase.from('todos').update({
+            day: targetDayName,
+            actual_date: targetActualDate
+          }).eq('id', task.id).eq('user_id', session.user.id);
+        }
+      } catch (error) {
+        logError('Error in bulk move:', error);
+      }
+    }));
+
+    // Single refresh to sync everything
+    await fetchTodos();
   };
 
   // Bulk repeat tasks
