@@ -1692,7 +1692,10 @@ function App() {
               ref={editInputRef}
               type="text"
               defaultValue={task.text}
-              onBlur={(e) => updateTaskText(task.id, day, e.target.value)}
+              onBlur={(e) => {
+                const value = e.target.value;
+                requestAnimationFrame(() => updateTaskText(task.id, day, value));
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   updateTaskText(task.id, day, e.target.value);
@@ -1740,17 +1743,22 @@ function App() {
                     return;
                   }
                   e.stopPropagation();
-                  // If already editing and expanded, collapse it
-                  if (isMobile && editingTaskId === task.id && expandedTaskId === task.id) {
-                    setExpandedTaskId(null);
-                    setEditingTaskId(null);
-                  } else {
-                    // Otherwise, start editing and expand on mobile
-                    setEditingTaskId(task.id);
-                    if (isMobile) {
+                  if (isMobile) {
+                    if (editingTaskId === task.id && expandedTaskId === task.id) {
+                      // Already editing and expanded - collapse and exit edit
+                      setExpandedTaskId(null);
+                      setEditingTaskId(null);
+                    } else if (expandedTaskId === task.id) {
+                      // Expanded but not editing - enter edit mode
+                      setEditingTaskId(task.id);
+                    } else {
+                      // Not expanded - just expand to show actions first
                       setExpandedTaskId(task.id);
-                      setPrimedTaskId(null); // Clear primed state when editing
+                      setPrimedTaskId(null);
                     }
+                  } else {
+                    // Desktop: enter edit mode directly
+                    setEditingTaskId(task.id);
                   }
                 }}
                 className={`${
