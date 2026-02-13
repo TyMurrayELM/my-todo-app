@@ -1626,6 +1626,17 @@ function App() {
                 Remove
               </button>
             )}
+            {task.url && isValidUrl(task.url) && (
+              <button
+                onClick={() => {
+                  window.open(task.url, '_blank');
+                  onClose();
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+              >
+                Open
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-4 py-2 text-gray-600 hover:text-gray-800"
@@ -2099,26 +2110,12 @@ function App() {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isMobile) setPrimedTaskId(null);
-                  if (task.url) {
-                    if (isValidUrl(task.url)) window.open(task.url, '_blank');
-                  } else {
-                    setCurrentUrlTask(task);
-                    setCurrentUrlDay(day);
-                    setShowUrlModal(true);
-                  }
-                }}
-                onContextMenu={(e) => {
-                  if (task.url) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (isMobile) setPrimedTaskId(null);
-                    setCurrentUrlTask(task);
-                    setCurrentUrlDay(day);
-                    setShowUrlModal(true);
-                  }
+                  setCurrentUrlTask(task);
+                  setCurrentUrlDay(day);
+                  setShowUrlModal(true);
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.url ? "Open URL (long-press to edit)" : "Add URL"}
+                title={task.url ? "Edit URL" : "Add URL"}
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
