@@ -735,14 +735,47 @@ function App() {
 
   // Bulk repeat tasks
   const bulkRepeatTasks = async (frequency, day) => {
-    for (const taskId of selectedTasks) {
-      const task = tasks[day].find(t => t.id === taskId);
-      if (task && !task.recurring) {
-        await repeatTask(task, day, frequency);
-      }
+    // Snapshot non-recurring tasks to repeat
+    const tasksToRepeat = selectedTasks
+      .map(id => tasks[day].find(t => t.id === id))
+      .filter(t => t && !t.recurring);
+
+    if (tasksToRepeat.length === 0) {
+      setBulkMode(false);
+      setSelectedTasks([]);
+      return;
     }
+
+    const taskIdSet = new Set(tasksToRepeat.map(t => t.id));
+    const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
+    clickedTaskDate.setHours(0, 0, 0, 0);
+    const actualDate = getISOStringForLocalDate(clickedTaskDate);
+
+    // Optimistic: mark all selected tasks as recurring at once
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(t =>
+        taskIdSet.has(t.id) ? { ...t, recurring: true, repeat_frequency: frequency } : t
+      )
+    }));
     setBulkMode(false);
     setSelectedTasks([]);
+
+    // Fire all DB updates in parallel
+    await Promise.all(tasksToRepeat.map(async (task) => {
+      try {
+        const taskId = task.originalId || task.id;
+        await supabase.from('todos').update({
+          recurring: true,
+          repeat_frequency: frequency,
+          actual_date: actualDate
+        }).eq('id', taskId).eq('user_id', session.user.id);
+      } catch (error) {
+        logError('Error in bulk repeat:', error);
+      }
+    }));
+
+    await fetchTodos();
   };
 
   // Bulk delete tasks
