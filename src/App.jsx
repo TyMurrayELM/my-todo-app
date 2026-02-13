@@ -90,6 +90,11 @@ function App() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [currentNoteTask, setCurrentNoteTask] = useState(null);
 
+  // URL modal state
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [currentUrlTask, setCurrentUrlTask] = useState(null);
+  const [currentUrlDay, setCurrentUrlDay] = useState(null);
+
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
@@ -1577,6 +1582,68 @@ function App() {
     );
   };
 
+  const UrlModal = ({ task, day, onClose }) => {
+    const [localUrl, setLocalUrl] = useState(task?.url || '');
+
+    if (!task) return null;
+
+    const handleSave = () => {
+      const trimmed = localUrl.trim();
+      if (trimmed && isValidUrl(trimmed)) {
+        updateTaskUrl(task.id, day, trimmed);
+      }
+      onClose();
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-lg font-semibold mb-4">{task.url ? 'Edit URL' : 'Add URL'}</h3>
+          <input
+            type="url"
+            value={localUrl}
+            onChange={(e) => setLocalUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+              if (e.key === 'Escape') onClose();
+            }}
+            placeholder="https://example.com"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoFocus
+          />
+          {localUrl.trim() && !isValidUrl(localUrl.trim()) && (
+            <p className="text-red-500 text-sm mt-2">Please enter a valid http or https URL</p>
+          )}
+          <div className="flex justify-end gap-3 mt-4">
+            {task.url && (
+              <button
+                onClick={() => {
+                  updateTaskUrl(task.id, day, '');
+                  onClose();
+                }}
+                className="px-4 py-2 text-red-500 hover:text-red-700 mr-auto"
+              >
+                Remove
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Progress Bar Component
   const ProgressBar = ({ day, index }) => {
     const { percentage, completed, total } = calculateProgress(tasks[day]);
@@ -1944,20 +2011,28 @@ function App() {
                     className={task.notes ? "text-gray-600" : ""}
                   />
                 </button>
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     if (task.url) {
                       if (isValidUrl(task.url)) window.open(task.url, '_blank');
                     } else {
-                      const url = prompt('Enter URL:');
-                      if (url && isValidUrl(url)) {
-                        updateTaskUrl(task.id, day, url);
-                      }
+                      setCurrentUrlTask(task);
+                      setCurrentUrlDay(day);
+                      setShowUrlModal(true);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    if (task.url) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCurrentUrlTask(task);
+                      setCurrentUrlDay(day);
+                      setShowUrlModal(true);
                     }
                   }}
                   className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title={task.url ? "Open URL" : "Add URL"}
+                  title={task.url ? "Open URL (right-click to edit)" : "Add URL"}
                 >
                   <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
                 </button>
@@ -2020,21 +2095,30 @@ function App() {
                   className={task.notes ? "text-gray-600" : ""}
                 />
               </button>
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   if (isMobile) setPrimedTaskId(null);
                   if (task.url) {
                     if (isValidUrl(task.url)) window.open(task.url, '_blank');
                   } else {
-                    const url = prompt('Enter URL:');
-                    if (url && isValidUrl(url)) {
-                      updateTaskUrl(task.id, day, url);
-                    }
+                    setCurrentUrlTask(task);
+                    setCurrentUrlDay(day);
+                    setShowUrlModal(true);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  if (task.url) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (isMobile) setPrimedTaskId(null);
+                    setCurrentUrlTask(task);
+                    setCurrentUrlDay(day);
+                    setShowUrlModal(true);
                   }
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.url ? "Open URL" : "Add URL"}
+                title={task.url ? "Open URL (long-press to edit)" : "Add URL"}
               >
                 <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
               </button>
@@ -2573,13 +2657,24 @@ function App() {
       </div>
       
       {showNoteModal && (
-        <NoteModal 
-          task={currentNoteTask} 
-          day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]} 
+        <NoteModal
+          task={currentNoteTask}
+          day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]}
           onClose={() => {
             setShowNoteModal(false);
             setCurrentNoteTask(null);
             setNoteInput('');
+          }}
+        />
+      )}
+      {showUrlModal && (
+        <UrlModal
+          task={currentUrlTask}
+          day={currentUrlDay}
+          onClose={() => {
+            setShowUrlModal(false);
+            setCurrentUrlTask(null);
+            setCurrentUrlDay(null);
           }}
         />
       )}
