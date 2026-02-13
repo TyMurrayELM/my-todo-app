@@ -752,26 +752,97 @@ function App() {
     );
     if (!confirmDelete) return;
 
-    for (const taskId of selectedTasks) {
-      const task = tasks[day].find(t => t.id === taskId);
-      if (task) {
-        await deleteTask(taskId, day, task);
+    // Snapshot tasks before removing from UI
+    const tasksToDelete = selectedTasks
+      .map(id => tasks[day].find(t => t.id === id))
+      .filter(Boolean);
+
+    if (tasksToDelete.length === 0) return;
+
+    // Optimistic: remove all selected tasks from UI at once
+    const taskIdSet = new Set(selectedTasks);
+    const recurringOriginalIds = new Set(
+      tasksToDelete.filter(t => t.recurring).map(t => t.originalId || t.id)
+    );
+
+    setTasks(prev => {
+      const updated = { ...prev };
+      if (recurringOriginalIds.size > 0) {
+        // Recurring tasks appear across all days
+        Object.keys(updated).forEach(dayKey => {
+          updated[dayKey] = updated[dayKey].filter(t =>
+            !taskIdSet.has(t.id) && !recurringOriginalIds.has(t.originalId)
+          );
+        });
+      } else {
+        updated[day] = prev[day].filter(t => !taskIdSet.has(t.id));
       }
-    }
+      return updated;
+    });
     setBulkMode(false);
     setSelectedTasks([]);
+
+    // Fire all DB deletes in parallel
+    await Promise.all(tasksToDelete.map(async (task) => {
+      try {
+        const actualId = task.isRecurringInstance ? task.originalId : task.id;
+        await supabase.from('todos').delete()
+          .eq('id', actualId)
+          .eq('user_id', session.user.id);
+      } catch (error) {
+        logError('Error in bulk delete:', error);
+      }
+    }));
+
+    await fetchTodos();
   };
 
   // Bulk complete tasks
   const bulkCompleteTasks = async (day) => {
-    for (const taskId of selectedTasks) {
-      const task = tasks[day].find(t => t.id === taskId);
-      if (task && !task.completed) {
-        await toggleTask(taskId, day);
-      }
+    // Snapshot incomplete tasks to complete
+    const tasksToComplete = selectedTasks
+      .map(id => tasks[day].find(t => t.id === id))
+      .filter(t => t && !t.completed);
+
+    if (tasksToComplete.length === 0) {
+      setBulkMode(false);
+      setSelectedTasks([]);
+      return;
     }
+
+    const completedAt = new Date().toISOString();
+    const taskIdSet = new Set(tasksToComplete.map(t => t.id));
+
+    // Optimistic: mark all selected tasks as completed at once
+    setTasks(prev => ({
+      ...prev,
+      [day]: prev[day].map(t =>
+        taskIdSet.has(t.id) ? { ...t, completed: true, completedAt } : t
+      )
+    }));
     setBulkMode(false);
     setSelectedTasks([]);
+
+    // Fire all DB updates in parallel
+    await Promise.all(tasksToComplete.map(async (task) => {
+      try {
+        if (task.isRecurringInstance) {
+          await supabase.from('recurring_completions').insert([{
+            user_id: session.user.id,
+            todo_id: task.originalId,
+            completion_date: task.instanceDate,
+            completed_at: completedAt
+          }]);
+        } else {
+          await supabase.from('todos').update({
+            completed: true,
+            completed_at: completedAt
+          }).eq('id', task.id).eq('user_id', session.user.id);
+        }
+      } catch (error) {
+        logError('Error in bulk complete:', error);
+      }
+    }));
   };
 
   const moveTask = async (taskId, fromDay, moveType = 'next-day') => {
