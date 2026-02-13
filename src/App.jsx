@@ -1588,7 +1588,10 @@ function App() {
     if (!task) return null;
 
     const handleSave = () => {
-      const trimmed = localUrl.trim();
+      let trimmed = localUrl.trim();
+      if (trimmed && !trimmed.match(/^https?:\/\//i)) {
+        trimmed = 'https://' + trimmed.replace(/^(www\.)?/, '');
+      }
       if (trimmed && isValidUrl(trimmed)) {
         updateTaskUrl(task.id, day, trimmed);
       }
@@ -1600,19 +1603,23 @@ function App() {
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
           <h3 className="text-lg font-semibold mb-4">{task.url ? 'Edit URL' : 'Add URL'}</h3>
           <input
-            type="url"
+            type="text"
             value={localUrl}
             onChange={(e) => setLocalUrl(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSave();
               if (e.key === 'Escape') onClose();
             }}
-            placeholder="https://example.com"
+            placeholder="example.com"
             className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             autoFocus
           />
-          {localUrl.trim() && !isValidUrl(localUrl.trim()) && (
-            <p className="text-red-500 text-sm mt-2">Please enter a valid http or https URL</p>
+          {localUrl.trim() && (() => {
+            let test = localUrl.trim();
+            if (!test.match(/^https?:\/\//i)) test = 'https://' + test;
+            return !isValidUrl(test);
+          })() && (
+            <p className="text-red-500 text-sm mt-2">Please enter a valid URL</p>
           )}
           <div className="flex justify-end gap-3 mt-4">
             {task.url && (
