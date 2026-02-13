@@ -667,7 +667,10 @@ function App() {
     const currentTaskDate = getDateForDay(fromDayIndex);
     let targetDate = new Date(currentTaskDate);
 
-    if (moveType === 'next-day') {
+    if (moveType === 'today') {
+      targetDate = new Date();
+      targetDate.setHours(0, 0, 0, 0);
+    } else if (moveType === 'next-day') {
       targetDate.setDate(currentTaskDate.getDate() + 1);
     } else if (moveType === 'next-week') {
       targetDate.setDate(currentTaskDate.getDate() + 7);
@@ -2488,9 +2491,10 @@ function App() {
                           {showBulkMoveOptions && (
                             <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
                               {[
+                                { id: 'today', label: 'Today', icon: <CalendarDays size={16} /> },
                                 { id: 'next-day', label: 'Next Day', icon: <SkipForward size={16} /> },
                                 { id: 'next-week', label: 'Next Week', icon: <Calendar size={16} /> },
-                                { id: 'next-weekday', label: 'Next Weekday', icon: <CalendarDays size={16} /> },
+                                { id: 'next-weekday', label: 'Next Weekday', icon: <Calendar size={16} /> },
                                 { id: 'next-weekend', label: 'Next Weekend', icon: <Calendar size={16} /> }
                               ].map(option => (
                                 <button
