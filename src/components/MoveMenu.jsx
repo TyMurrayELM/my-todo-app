@@ -5,11 +5,17 @@ import DropdownMenu from './DropdownMenu'; // Adjust path as needed g
 
 const MoveMenu = ({ onSelect }) => {
   const options = [
-    { 
-      id: 'next-day', 
-      label: 'Next Day', 
-      icon: <SkipForward size={14} />, 
-      subtitle: 'Tomorrow' 
+    {
+      id: 'today',
+      label: 'Today',
+      icon: <CalendarDays size={14} />,
+      subtitle: 'Move to today'
+    },
+    {
+      id: 'next-day',
+      label: 'Next Day',
+      icon: <SkipForward size={14} />,
+      subtitle: 'Tomorrow'
     },
     { 
       id: 'next-week', 

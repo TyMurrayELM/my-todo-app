@@ -890,7 +890,10 @@ function App() {
     const currentTaskDate = getDateForDay(fromDayIndex);
     let targetDate = new Date(currentTaskDate);
     
-    if (moveType === 'next-day') {
+    if (moveType === 'today') {
+      targetDate = new Date();
+      targetDate.setHours(0, 0, 0, 0);
+    } else if (moveType === 'next-day') {
       targetDate.setDate(currentTaskDate.getDate() + 1);
     } else if (moveType === 'next-week') {
       targetDate.setDate(currentTaskDate.getDate() + 7);
