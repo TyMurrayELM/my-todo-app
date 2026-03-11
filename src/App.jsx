@@ -5,7 +5,6 @@ import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
 import MoveMenu from './components/MoveMenu';
 import RecurringIndicator from './components/RecurringIndicator';
-import ToggleSwitch from './components/ToggleSwitch';
 
 // Security: Dev-only logging to prevent information disclosure in production
 const isDev = import.meta.env.DEV;
@@ -55,6 +54,8 @@ function App() {
   const [editingSubItemId, setEditingSubItemId] = useState(null);
   // Track tasks that are visually complete but not yet sorted (for animation delay)
   const [pendingCompletions, setPendingCompletions] = useState({});
+  // Track which days have their completed section expanded (collapsed by default)
+  const [expandedCompletedSections, setExpandedCompletedSections] = useState({});
   
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
@@ -80,9 +81,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
   const [urlInput, setUrlInput] = useState('');
-  const [hideCompleted, setHideCompleted] = useState(() => {
-    return localStorage.getItem('hideCompleted') === 'true';
-  });
   
   // New state for notes feature
   const [editingNoteTaskId, setEditingNoteTaskId] = useState(null);
@@ -172,7 +170,6 @@ function App() {
 
   const calculateProgress = (dayTasks) => {
     if (!dayTasks || dayTasks.length === 0) return { percentage: 0, completed: 0, total: 0 };
-    const visibleTasks = hideCompleted ? dayTasks.filter(task => !task.completed) : dayTasks;
     const completed = dayTasks.filter(task => task.completed).length;
     const total = dayTasks.length;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
@@ -634,7 +631,7 @@ function App() {
   // Select all tasks in current day
   const selectAllTasks = (day) => {
     const dayTasks = tasks[day]
-      .filter(task => !hideCompleted || !task.completed)
+      .filter(task => !task.completed || expandedCompletedSections[day])
       .map(task => task.id);
     setSelectedTasks(dayTasks);
   };
@@ -1722,11 +1719,6 @@ function App() {
     }
   };
 
-  const handleToggleHideCompleted = () => {
-    const newValue = !hideCompleted;
-    setHideCompleted(newValue);
-    localStorage.setItem('hideCompleted', newValue);
-  };
 
   const handleTaskClick = (taskId) => {
     if (isMobile) {
@@ -2407,11 +2399,6 @@ function App() {
           </div>
           
           <div className="flex items-center gap-5">
-            <ToggleSwitch 
-              isOn={hideCompleted} 
-              handleToggle={handleToggleHideCompleted}
-            />
-            
             <ThemeSelector 
               value={colorTheme}
               onChange={(value) => {
@@ -2630,22 +2617,39 @@ function App() {
                         setPrimedTaskId(null);
                       }
                     }}>
-                      {tasks[day]
-                        .filter(task => !hideCompleted || !task.completed)
-                        .sort((a, b) => {
-                          if (a.completed !== b.completed) {
-                            return a.completed - b.completed;
-                          }
-                          return a.text.localeCompare(b.text);
-                        })
-                        .map(task => (
-                          <TaskItem 
-                            key={task.id} 
-                            task={task} 
-                            day={day} 
-                            index={index}
-                          />
-                        ))}
+                      {(() => {
+                        const allTasks = tasks[day];
+                        const incompleteTasks = allTasks.filter(t => !t.completed).sort((a, b) => a.text.localeCompare(b.text));
+                        const completedTasks = allTasks.filter(t => t.completed).sort((a, b) => a.text.localeCompare(b.text));
+                        const isCompletedExpanded = expandedCompletedSections[day] || false;
+
+                        return (
+                          <>
+                            {incompleteTasks.map(task => (
+                              <TaskItem key={task.id} task={task} day={day} index={index} />
+                            ))}
+                            {completedTasks.length > 0 && (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedCompletedSections(prev => ({ ...prev, [day]: !prev[day] }));
+                                  }}
+                                  className={`flex items-center gap-1.5 text-xs font-medium pt-2 ${
+                                    index >= 5 ? 'text-white/70 hover:text-white/90' : 'text-gray-500 hover:text-gray-700'
+                                  } transition-colors`}
+                                >
+                                  {isCompletedExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                  COMPLETED ({completedTasks.length})
+                                </button>
+                                {isCompletedExpanded && completedTasks.map(task => (
+                                  <TaskItem key={task.id} task={task} day={day} index={index} />
+                                ))}
+                              </>
+                            )}
+                          </>
+                        );
+                      })()}
                       {!bulkMode && (
                         <form onSubmit={(e) => addTask(e, day)} className="pt-6" onClick={e => {
                           e.stopPropagation();
@@ -2805,22 +2809,37 @@ function App() {
                       setPrimedTaskId(null);
                     }
                   }}>
-                    {tasks.TASK_BANK
-                      .filter(task => !hideCompleted || !task.completed)
-                      .sort((a, b) => {
-                        if (a.completed !== b.completed) {
-                          return a.completed - b.completed;
-                        }
-                        return a.text.localeCompare(b.text);
-                      })
-                      .map(task => (
-                        <TaskItem 
-                          key={task.id} 
-                          task={task} 
-                          day="TASK_BANK" 
-                          index={7}
-                        />
-                      ))}
+                    {(() => {
+                      const allTasks = tasks.TASK_BANK;
+                      const incompleteTasks = allTasks.filter(t => !t.completed).sort((a, b) => a.text.localeCompare(b.text));
+                      const completedTasks = allTasks.filter(t => t.completed).sort((a, b) => a.text.localeCompare(b.text));
+                      const isCompletedExpanded = expandedCompletedSections['TASK_BANK'] || false;
+
+                      return (
+                        <>
+                          {incompleteTasks.map(task => (
+                            <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
+                          ))}
+                          {completedTasks.length > 0 && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedCompletedSections(prev => ({ ...prev, TASK_BANK: !prev.TASK_BANK }));
+                                }}
+                                className="flex items-center gap-1.5 text-xs font-medium pt-2 text-white/70 hover:text-white/90 transition-colors"
+                              >
+                                {isCompletedExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                COMPLETED ({completedTasks.length})
+                              </button>
+                              {isCompletedExpanded && completedTasks.map(task => (
+                                <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
+                              ))}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
                     {!bulkMode && (
                       <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-6" onClick={e => {
                         e.stopPropagation();
