@@ -611,6 +611,30 @@ function App() {
     }, 50);
   };
 
+  const handleJumpToDate = (dateString) => {
+    const [year, month, day] = dateString.split('-');
+    const newDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    newDate.setHours(0, 0, 0, 0);
+
+    setIsNavigating(true);
+    setBulkMode(false);
+    setSelectedTasks([]);
+
+    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const newIndex = newDate.getDay();
+    const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+
+    setCurrentDate(newDate);
+    setDays(newDays);
+    setSelectedDay(0);
+    setExpandedTaskId(null);
+    setPrimedTaskId(null);
+
+    setTimeout(() => {
+      setIsNavigating(false);
+    }, 50);
+  };
+
   // Toggle bulk mode
   const toggleBulkMode = () => {
     setBulkMode(!bulkMode);
@@ -2575,8 +2599,23 @@ function App() {
                 </div>
                 {index === selectedDay && (
                   <>
-                    <p className={`text-sm mb-4 ${index >= 4 ? 'text-white' : 'text-gray-500'}`}>
+                    <p
+                      className={`text-sm mb-4 cursor-pointer hover:underline ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const input = e.currentTarget.querySelector('input');
+                        if (input) input.showPicker();
+                      }}
+                    >
                       {formatDate(getDateForDay(index))}
+                      <input
+                        type="date"
+                        className="absolute opacity-0 w-0 h-0"
+                        value={getLocalDateString(getDateForDay(index))}
+                        onChange={(e) => {
+                          if (e.target.value) handleJumpToDate(e.target.value);
+                        }}
+                      />
                     </p>
                     <ProgressBar day={day} index={index} />
                     
