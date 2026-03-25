@@ -1915,6 +1915,7 @@ function App() {
     useEffect(() => {
       if (editingTaskId === task.id && editInputRef.current) {
         editInputRef.current.focus();
+        editInputRef.current.setSelectionRange(0, 0);
       }
     }, [editingTaskId, task.id]);
 
