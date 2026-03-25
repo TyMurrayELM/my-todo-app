@@ -1916,6 +1916,8 @@ function App() {
       if (editingTaskId === task.id && editInputRef.current) {
         editInputRef.current.focus();
         editInputRef.current.setSelectionRange(0, 0);
+        editInputRef.current.style.height = 'auto';
+        editInputRef.current.style.height = editInputRef.current.scrollHeight + 'px';
       }
     }, [editingTaskId, task.id]);
 
@@ -1982,23 +1984,32 @@ function App() {
           )}
           
           {editingTaskId === task.id ? (
-            <input
+            <textarea
               ref={editInputRef}
-              type="text"
               defaultValue={task.text}
+              rows={1}
+              onFocus={(e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+              onInput={(e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
               onBlur={(e) => {
                 const value = e.target.value;
                 requestAnimationFrame(() => updateTaskText(task.id, day, value));
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
                   updateTaskText(task.id, day, e.target.value);
                 } else if (e.key === 'Escape') {
                   setEditingTaskId(null);
                   setEditingTaskText('');
                 }
               }}
-              className={`flex-grow bg-transparent border-none focus:outline-none ${
+              className={`flex-grow bg-transparent border-none focus:outline-none resize-none overflow-hidden ${
                 isDarkBackground ? 'text-white' : 'text-gray-700'
               }`}
               onClick={(e) => e.stopPropagation()}
