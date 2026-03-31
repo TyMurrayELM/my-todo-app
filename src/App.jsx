@@ -2612,17 +2612,19 @@ function App() {
                 {index === selectedDay && (
                   <>
                     <p
-                      className={`text-sm mb-4 cursor-pointer hover:underline ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
+                      className={`text-sm mb-4 cursor-pointer hover:underline relative ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         const input = e.currentTarget.querySelector('input');
-                        if (input) input.showPicker();
+                        if (input) {
+                          try { input.showPicker(); } catch(err) { input.focus(); input.click(); }
+                        }
                       }}
                     >
                       {formatDate(getDateForDay(index))}
                       <input
                         type="date"
-                        className="absolute opacity-0 w-0 h-0"
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                         value={getLocalDateString(getDateForDay(index))}
                         onChange={(e) => {
                           if (e.target.value) handleJumpToDate(e.target.value);
