@@ -157,6 +157,7 @@ function App() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
   const [urlInput, setUrlInput] = useState('');
   
@@ -227,18 +228,19 @@ function App() {
 
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
-    
+
     setIsLoading(true);
-    
+    setFetchError(null);
+
     const start = getDateForDay(0);
     const end = getDateForDay(6);
     end.setHours(23, 59, 59, 999);
-  
+
     const startStr = getLocalDateString(start);
     const endStr = getLocalDateString(end);
-  
+
     log('Fetching todos between:', startStr, 'and', endStr);
-  
+
     // First, fetch parent tasks (tasks without parent_task_id)
     // For recurring tasks, we need their start date to be <= endStr (they could have started before our week)
     // For non-recurring tasks, we need them to be within our date range
@@ -249,9 +251,10 @@ function App() {
       .is('parent_task_id', null)
       .or(`day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
       .order('created_at');
-  
+
     if (parentError) {
       logError('Error fetching parent todos:', parentError);
+      setFetchError(parentError.message || 'Could not load your tasks');
       setIsLoading(false);
       return;
     }
@@ -453,11 +456,16 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const fetchTodosRef = useRef(fetchTodos);
   useEffect(() => {
-    if (session) {
-      fetchTodos();
+    fetchTodosRef.current = fetchTodos;
+  });
+
+  useEffect(() => {
+    if (session && !isNavigating) {
+      fetchTodosRef.current();
     }
-  }, [session, currentDate, fetchTodos]);
+  }, [session, currentDate, isNavigating]);
 
   const getDateForDay = (dayIndex) => {
     const date = new Date(currentDate);
@@ -1492,14 +1500,14 @@ function App() {
         throw updateError;
       }
   
-      await fetchTodos();
-  
+      await fetchTodosRef.current();
+
     } catch (error) {
       logError('RepeatTask failed:', error);
     } finally {
       setIsRepeating(false);
     }
-  }, [session, days, fetchTodos, isRepeating]);
+  }, [session, days, isRepeating]);
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
@@ -2251,6 +2259,28 @@ function App() {
         </div>
       </div>
       
+      {fetchError && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 flex items-start gap-3">
+          <div className="flex-grow text-sm text-red-800">
+            <div className="font-medium">Couldn't sync your tasks</div>
+            <div className="text-red-600 text-xs mt-0.5 break-words">{fetchError}</div>
+          </div>
+          <div className="flex flex-col gap-1 flex-shrink-0">
+            <button
+              onClick={() => fetchTodosRef.current()}
+              className="text-xs font-medium text-red-700 hover:text-red-900 px-2 py-1 rounded hover:bg-red-100"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => setFetchError(null)}
+              className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-100"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       {showNoteModal && (
         <NoteModal
           task={currentNoteTask}
