@@ -1,30 +1,108 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Check, X, ArrowLeft, ArrowRight, SkipForward, Repeat, Link, StickyNote, Plus, ChevronRight, ChevronDown, Calendar, CheckSquare, Square, Layers, CalendarDays } from 'lucide-react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Check, ArrowLeft, ArrowRight, SkipForward, Repeat, ChevronRight, ChevronDown, Calendar, Layers, CalendarDays } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { isValidUrl } from './lib/utils';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
 import MoveMenu from './components/MoveMenu';
 import RecurringIndicator from './components/RecurringIndicator';
+import TaskItem, { TaskItemProvider } from './components/TaskItem';
+import NoteModal from './components/NoteModal';
+import UrlModal from './components/UrlModal';
+import ProgressBar from './components/ProgressBar';
 
 // Security: Dev-only logging to prevent information disclosure in production
 const isDev = import.meta.env.DEV;
 const log = (...args) => isDev && console.log(...args);
 const logError = (...args) => isDev && console.error(...args);
 
-// Security: URL validation to prevent javascript: protocol XSS
-const isValidUrl = (url) => {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-};
-
 // Security: Input length limits
 const MAX_TASK_LENGTH = 500;
 const MAX_NOTES_LENGTH = 2000;
 const MAX_URL_LENGTH = 2000;
+
+const BG_THEMES = {
+  amber: ['bg-amber-100', 'bg-amber-200', 'bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700'],
+  blue: ['bg-blue-100', 'bg-blue-200', 'bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700'],
+  green: ['bg-green-100', 'bg-green-200', 'bg-green-300', 'bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-green-700'],
+  purple: ['bg-purple-100', 'bg-purple-200', 'bg-purple-300', 'bg-purple-400', 'bg-purple-500', 'bg-purple-600', 'bg-purple-700'],
+  pink: ['bg-pink-100', 'bg-pink-200', 'bg-pink-300', 'bg-pink-400', 'bg-pink-500', 'bg-pink-600', 'bg-pink-700'],
+};
+
+const PROGRESS_GRADIENTS = {
+  amber: 'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',
+  blue: 'linear-gradient(to right, #93c5fd 0%, #60a5fa 20%, #3b82f6 40%, #2563eb 60%, #1d4ed8 80%, #1e3a8a 100%)',
+  green: 'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
+  purple: 'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
+  pink: 'linear-gradient(to right, #fbcfe8 0%, #f9a8d4 20%, #ec4899 40%, #db2777 60%, #be185d 80%, #500724 100%)',
+};
+
+const getLocalDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseUTCDateAsLocal = (dateString) => {
+  const [year, month, day] = dateString.split('T')[0].split('-');
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
+
+const getISOStringForLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}T12:00:00.000Z`;
+};
+
+const formatDate = (date) =>
+  `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
+
+const shouldShowOnDate = (task, targetDate) => {
+  if (!task.recurring || !task.repeat_frequency) return false;
+
+  const taskStartDate = parseUTCDateAsLocal(task.actual_date);
+  taskStartDate.setHours(0, 0, 0, 0);
+  const checkDate = new Date(targetDate);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (checkDate < taskStartDate) return false;
+
+  const daysDiff = Math.floor((checkDate - taskStartDate) / (1000 * 60 * 60 * 24));
+  const targetDayOfWeek = checkDate.getDay();
+
+  switch (task.repeat_frequency) {
+    case 'daily':
+      return true;
+    case 'every-other-day':
+      return daysDiff % 2 === 0;
+    case 'weekdays':
+      return targetDayOfWeek !== 0 && targetDayOfWeek !== 6;
+    case 'weekly':
+      return daysDiff % 7 === 0;
+    case 'bi-weekly':
+      return daysDiff % 14 === 0;
+    case 'monthly': {
+      const taskDay = taskStartDate.getDate();
+      const targetDay = checkDate.getDate();
+      const monthsDiff =
+        (checkDate.getFullYear() - taskStartDate.getFullYear()) * 12 +
+        (checkDate.getMonth() - taskStartDate.getMonth());
+      const daysInTargetMonth = new Date(
+        checkDate.getFullYear(),
+        checkDate.getMonth() + 1,
+        0
+      ).getDate();
+      const adjustedTaskDay = Math.min(taskDay, daysInTargetMonth);
+      return monthsDiff >= 0 && targetDay === adjustedTaskDay;
+    }
+    case 'first-of-month':
+      return checkDate.getDate() === 1;
+    default:
+      return false;
+  }
+};
 
 function App() {
   const [session, setSession] = useState(null);
@@ -144,88 +222,8 @@ function App() {
     }
   }, [showBulkMoveOptions, showBulkRepeatOptions]);
 
-  const getBackgroundColor = (index) => {
-    const themes = {
-      amber: ['bg-amber-100', 'bg-amber-200', 'bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700'],
-      blue: ['bg-blue-100', 'bg-blue-200', 'bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700'],
-      green: ['bg-green-100', 'bg-green-200', 'bg-green-300', 'bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-green-700'],
-      purple: ['bg-purple-100', 'bg-purple-200', 'bg-purple-300', 'bg-purple-400', 'bg-purple-500', 'bg-purple-600', 'bg-purple-700'],
-      pink: ['bg-pink-100', 'bg-pink-200', 'bg-pink-300', 'bg-pink-400', 'bg-pink-500', 'bg-pink-600', 'bg-pink-700']
-    };
-    return themes[colorTheme][index];
-  };
+  const getBackgroundColor = (index) => BG_THEMES[colorTheme][index];
 
-  const getProgressBarGradient = () => {
-    // Create a full gradient from light to dark
-    const themes = {
-      amber: 'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',
-      blue: 'linear-gradient(to right, #93c5fd 0%, #60a5fa 20%, #3b82f6 40%, #2563eb 60%, #1d4ed8 80%, #1e3a8a 100%)',
-      green: 'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
-      purple: 'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
-      pink: 'linear-gradient(to right, #fbcfe8 0%, #f9a8d4 20%, #ec4899 40%, #db2777 60%, #be185d 80%, #500724 100%)'
-    };
-    
-    return themes[colorTheme];
-  };
-
-  const calculateProgress = (dayTasks) => {
-    if (!dayTasks || dayTasks.length === 0) return { percentage: 0, completed: 0, total: 0 };
-    const completed = dayTasks.filter(task => task.completed).length;
-    const total = dayTasks.length;
-    const percentage = total > 0 ? (completed / total) * 100 : 0;
-    return { percentage, completed, total };
-  };
-
-  // Helper function to check if a date matches a recurring rule
-  const shouldShowOnDate = (task, targetDate) => {
-    if (!task.recurring || !task.repeat_frequency) return false;
-
-    const taskStartDate = parseUTCDateAsLocal(task.actual_date);
-    taskStartDate.setHours(0, 0, 0, 0);
-    const checkDate = new Date(targetDate);
-    checkDate.setHours(0, 0, 0, 0);
-
-    // Don't show before the start date
-    if (checkDate < taskStartDate) return false;
-
-    const daysDiff = Math.floor((checkDate - taskStartDate) / (1000 * 60 * 60 * 24));
-    const targetDayOfWeek = checkDate.getDay();
-
-    switch (task.repeat_frequency) {
-      case 'daily':
-        return true;
-      
-      case 'every-other-day':
-        return daysDiff % 2 === 0;
-      
-      case 'weekdays':
-        return targetDayOfWeek !== 0 && targetDayOfWeek !== 6; // Mon-Fri
-      
-      case 'weekly':
-        return daysDiff % 7 === 0;
-      
-      case 'bi-weekly':
-        return daysDiff % 14 === 0;
-      
-      case 'monthly':
-        const taskDay = taskStartDate.getDate();
-        const targetDay = checkDate.getDate();
-        const monthsDiff = (checkDate.getFullYear() - taskStartDate.getFullYear()) * 12 + 
-                          (checkDate.getMonth() - taskStartDate.getMonth());
-        
-        // Handle end-of-month edge cases
-        const daysInTargetMonth = new Date(checkDate.getFullYear(), checkDate.getMonth() + 1, 0).getDate();
-        const adjustedTaskDay = Math.min(taskDay, daysInTargetMonth);
-        
-        return monthsDiff >= 0 && targetDay === adjustedTaskDay;
-      
-      case 'first-of-month':
-        return checkDate.getDate() === 1;
-      
-      default:
-        return false;
-    }
-  };
 
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
@@ -468,31 +466,6 @@ function App() {
     return date;
   };
 
-  const getLocalDateString = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const parseUTCDateAsLocal = (dateString) => {
-    // Parse a YYYY-MM-DD string as if it's in local time, not UTC
-    const [year, month, day] = dateString.split('T')[0].split('-');
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  };
-
-  const getISOStringForLocalDate = (date) => {
-    // Create an ISO string but for the local date at noon to avoid timezone issues
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}T12:00:00.000Z`;
-  };
-
-  const formatDate = (date) => {
-    return `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
-  };
-
   // Function to create Google Calendar URL
   const createGoogleCalendarUrl = (task, day) => {
     const dayIndex = days.indexOf(day);
@@ -531,7 +504,7 @@ function App() {
       if (description) description += '\n\n';
       description += 'Sub-tasks:\n';
       task.subItems.forEach(sub => {
-        description += `${sub.completed ? '✓' : '○'} ${sub.text}\n`;
+        description += `${sub.completed ? 'âœ“' : 'â—‹'} ${sub.text}\n`;
       });
     }
     
@@ -1441,26 +1414,6 @@ function App() {
     }
   };
 
-  const formatCompletionTime = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleString('en-US', { 
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
-    });
-  };
-
-  const formatCompletionDate = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
   const deleteTask = async (taskId, day, task) => {
     // Get the actual task ID (template ID for recurring instances)
     const actualId = task.isRecurringInstance ? task.originalId : taskId;
@@ -1743,648 +1696,6 @@ function App() {
     }
   };
 
-
-  const handleTaskClick = (taskId) => {
-    if (isMobile) {
-      setExpandedTaskId(expandedTaskId === taskId ? null : taskId);
-    }
-  };
-
-  // Note Modal Component
-  const NoteModal = ({ task, day, onClose }) => {
-    const [localNote, setLocalNote] = useState(task?.notes || '');
-    
-    if (!task) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-          <h3 className="text-lg font-semibold mb-4">Edit Note</h3>
-          <textarea
-            value={localNote}
-            onChange={(e) => setLocalNote(e.target.value)}
-            placeholder="Add your notes here..."
-            className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows="6"
-            autoFocus
-          />
-          <div className="flex justify-end gap-3 mt-4">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                updateTaskNotes(task.id, day, localNote);
-                onClose();
-              }}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const UrlModal = ({ task, day, onClose }) => {
-    const [localUrl, setLocalUrl] = useState(task?.url || '');
-
-    if (!task) return null;
-
-    const handleSave = () => {
-      let trimmed = localUrl.trim();
-      if (trimmed && !trimmed.match(/^https?:\/\//i)) {
-        trimmed = 'https://' + trimmed.replace(/^(www\.)?/, '');
-      }
-      if (trimmed && isValidUrl(trimmed)) {
-        updateTaskUrl(task.id, day, trimmed);
-      }
-      onClose();
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-          <h3 className="text-lg font-semibold mb-4">{task.url ? 'Edit URL' : 'Add URL'}</h3>
-          <input
-            type="text"
-            value={localUrl}
-            onChange={(e) => setLocalUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave();
-              if (e.key === 'Escape') onClose();
-            }}
-            placeholder="example.com"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
-          />
-          {localUrl.trim() && (() => {
-            let test = localUrl.trim();
-            if (!test.match(/^https?:\/\//i)) test = 'https://' + test;
-            return !isValidUrl(test);
-          })() && (
-            <p className="text-red-500 text-sm mt-2">Please enter a valid URL</p>
-          )}
-          <div className="flex justify-end gap-3 mt-4">
-            {task.url && (
-              <button
-                onClick={() => {
-                  updateTaskUrl(task.id, day, '');
-                  onClose();
-                }}
-                className="px-4 py-2 text-red-500 hover:text-red-700 mr-auto"
-              >
-                Remove
-              </button>
-            )}
-            {task.url && isValidUrl(task.url) && (
-              <button
-                onClick={() => {
-                  window.open(task.url, '_blank');
-                  onClose();
-                }}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-              >
-                Open
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Progress Bar Component
-  const ProgressBar = ({ day, index }) => {
-    const { percentage, completed, total } = calculateProgress(tasks[day]);
-    const isDarkBackground = index >= 4;
-    
-    if (total === 0) return null;
-    
-    return (
-      <div className="mb-3">
-        <div className="flex justify-between items-center mb-1">
-          <span className={`text-xs ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}>
-            {completed}/{total} completed
-          </span>
-          <span className={`text-xs font-medium ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}>
-            {Math.round(percentage)}%
-          </span>
-        </div>
-        <div className={`w-full h-2 rounded-full ${isDarkBackground ? 'bg-white/20' : 'bg-gray-200'} overflow-hidden`}>
-          <div 
-            className="h-full transition-all duration-500 ease-out rounded-full"
-            style={{ 
-              width: `${percentage}%`,
-              background: getProgressBarGradient(),
-              backgroundSize: `${10000/percentage}% 100%`,
-              backgroundPosition: 'left'
-            }}
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // Task Component with expandable actions for mobile
-  const TaskItem = ({ task, day, index }) => {
-    const isExpanded = expandedTaskId === task.id;
-    const isDarkBackground = index >= 4;
-    const [isHovered, setIsHovered] = useState(false);
-    const editInputRef = useRef(null);
-    const subItemInputRef = useRef(null);
-    const isSelected = selectedTasks.includes(task.id);
-    
-    // Focus when editing starts
-    useEffect(() => {
-      if (editingTaskId === task.id && editInputRef.current) {
-        editInputRef.current.focus();
-        editInputRef.current.setSelectionRange(0, 0);
-        editInputRef.current.style.height = 'auto';
-        editInputRef.current.style.height = editInputRef.current.scrollHeight + 'px';
-      }
-    }, [editingTaskId, task.id]);
-
-    // Focus when adding sub-item
-    useEffect(() => {
-      if (addingSubItemTo === task.id && subItemInputRef.current) {
-        subItemInputRef.current.focus();
-      }
-    }, [addingSubItemTo, task.id]);
-    
-    const hasSubItems = task.subItems && task.subItems.length > 0;
-    const isSubItemsExpanded = expandedSubItems[task.id];
-    
-    // Check if this task has a pending visual completion state
-    const visuallyCompleted = pendingCompletions.hasOwnProperty(task.id) 
-      ? pendingCompletions[task.id] 
-      : task.completed;
-    
-    return (
-      <div 
-        className="relative group pb-3"
-        onMouseEnter={() => !isMobile && setIsHovered(true)}
-        onMouseLeave={() => !isMobile && setIsHovered(false)}
-      >
-        <div className={`flex items-start gap-3 relative`}>
-          {/* Checkbox or Selection indicator based on bulk mode */}
-          {bulkMode ? (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleTaskSelection(task.id);
-              }}
-              className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-all duration-200
-                ${isSelected ? 'bg-blue-500 border-blue-500' : 
-                  isDarkBackground ? 'bg-white/20 border-white/50 hover:border-blue-400' : 'bg-white border-gray-400 hover:border-blue-400'}`}
-            >
-              {isSelected && <Check size={16} className="text-white" />}
-            </button>
-          ) : (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleTask(task.id, day);
-              }}
-              className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-all duration-200
-                ${visuallyCompleted ? 'bg-green-500 border-green-500 scale-110' : 
-                  primedTaskId === task.id ? 'bg-white border-green-500' :
-                  isDarkBackground ? 'bg-white border-white hover:border-green-500' : 'bg-white border-black hover:border-green-500'}`}
-              style={{
-                transform: visuallyCompleted ? 'scale(1.1)' : 'scale(1)',
-                transition: 'all 0.2s ease-out'
-              }}
-            >
-              {visuallyCompleted && (
-                <Check 
-                  size={16} 
-                  className="text-white animate-check" 
-                  style={{
-                    animation: 'checkPop 0.3s ease-out'
-                  }}
-                />
-              )}
-            </button>
-          )}
-          
-          {editingTaskId === task.id ? (
-            <textarea
-              ref={editInputRef}
-              defaultValue={task.text}
-              rows={1}
-              onFocus={(e) => {
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-              }}
-              onInput={(e) => {
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-              }}
-              onBlur={(e) => {
-                const value = e.target.value;
-                requestAnimationFrame(() => updateTaskText(task.id, day, value));
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  updateTaskText(task.id, day, e.target.value);
-                } else if (e.key === 'Escape') {
-                  setEditingTaskId(null);
-                  setEditingTaskText('');
-                }
-              }}
-              className={`flex-grow bg-transparent border-none focus:outline-none resize-none overflow-hidden ${
-                isDarkBackground ? 'text-white' : 'text-gray-700'
-              }`}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <div 
-              className="flex-grow flex items-center gap-2 min-w-0 cursor-pointer"
-              onClick={() => {
-                if (bulkMode) {
-                  toggleTaskSelection(task.id);
-                } else if (isMobile) {
-                  // Toggle expand/collapse
-                  setExpandedTaskId(expandedTaskId === task.id ? null : task.id);
-                  setPrimedTaskId(null); // Clear primed state
-                }
-              }}
-            >
-              {/* Chevron for expanding/collapsing sub-items */}
-              {hasSubItems && !bulkMode && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSubItems(task.id);
-                  }}
-                  className={`flex-shrink-0 ${isDarkBackground ? 'text-white/60' : 'text-gray-400'} hover:text-gray-600`}
-                >
-                  {isSubItemsExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                </button>
-              )}
-              
-              <span
-                onClick={(e) => {
-                  if (bulkMode) {
-                    e.stopPropagation();
-                    toggleTaskSelection(task.id);
-                    return;
-                  }
-                  e.stopPropagation();
-                  if (isMobile) {
-                    if (editingTaskId === task.id && expandedTaskId === task.id) {
-                      // Already editing and expanded - collapse and exit edit
-                      setExpandedTaskId(null);
-                      setEditingTaskId(null);
-                    } else if (expandedTaskId === task.id) {
-                      // Expanded but not editing - enter edit mode
-                      setEditingTaskId(task.id);
-                    } else {
-                      // Not expanded - just expand to show actions first
-                      setExpandedTaskId(task.id);
-                      setPrimedTaskId(null);
-                    }
-                  } else {
-                    // Desktop: enter edit mode directly
-                    setEditingTaskId(task.id);
-                  }
-                }}
-                className={`${
-                  visuallyCompleted ? 'line-through text-gray-400' : 
-                  isDarkBackground ? 'text-white' : 'text-gray-700'
-                } ${isSelected ? 'font-medium' : ''} transition-all duration-200`}
-                title={task.text}
-              >
-                {task.text}
-              </span>
-              {visuallyCompleted && task.completedAt && !bulkMode && (
-                <span className="ml-1 text-[10px] opacity-75 flex-shrink-0">
-                  ({formatCompletionTime(task.completedAt)})
-                </span>
-              )}
-              {/* Status indicators - always visible */}
-              {!bulkMode && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  {/* Show sub-item count */}
-                  {hasSubItems && (
-                    <span className={`text-xs ${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
-                      ({task.subItems.filter(s => s.completed).length}/{task.subItems.length})
-                    </span>
-                  )}
-                  {task.recurring && (
-                    <RecurringIndicator 
-                      frequency={task.repeatFrequency || 'daily'} 
-                      isDarkBackground={isDarkBackground} 
-                    />
-                  )}
-                  {task.notes && (
-                    <span className={`${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
-                      <StickyNote size={14} fill="#10b981" />
-                    </span>
-                  )}
-                  {task.url && (
-                    <span className={`${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
-                      <Link size={14} color="#10b981" />
-                    </span>
-                  )}
-                </div>
-              )}
-              
-              {/* Plus button to add sub-item - hide in bulk mode */}
-              {!bulkMode && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setAddingSubItemTo(addingSubItemTo === task.id ? null : task.id);
-                  }}
-                  className={`flex-shrink-0 p-1 rounded ${isDarkBackground ? 'text-white/60 hover:text-white' : 'text-gray-400 hover:text-gray-600'}`}
-                  title="Add sub-item"
-                >
-                  <Plus size={14} />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Sub-items display - hide in bulk mode */}
-        {!bulkMode && isSubItemsExpanded && hasSubItems && (
-          <div className="ml-8 mt-2 space-y-2">
-            {task.subItems.map(subItem => (
-              <div key={subItem.id} className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSubItem(subItem.id, day);
-                  }}
-                  className={`w-4 h-4 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
-                    ${subItem.completed ? 'bg-green-500 border-green-500' : 
-                      isDarkBackground ? 'bg-white border-white/50 hover:border-green-500' : 'bg-white border-gray-400 hover:border-green-500'}`}
-                >
-                  {subItem.completed && <Check size={12} className="text-white" />}
-                </button>
-                {editingSubItemId === subItem.id ? (
-                  <input
-                    type="text"
-                    defaultValue={subItem.text}
-                    autoFocus
-                    onBlur={(e) => updateSubItemText(subItem.id, day, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        updateSubItemText(subItem.id, day, e.target.value);
-                      } else if (e.key === 'Escape') {
-                        setEditingSubItemId(null);
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className={`text-sm flex-grow bg-transparent border-none focus:outline-none ${
-                      isDarkBackground ? 'text-white/80' : 'text-gray-600'
-                    }`}
-                  />
-                ) : (
-                  <span 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSubItemId(subItem.id);
-                    }}
-                    className={`text-sm flex-grow cursor-pointer ${
-                      subItem.completed ? 'line-through text-gray-400' : 
-                      isDarkBackground ? 'text-white/80' : 'text-gray-600'
-                    }`}
-                  >
-                    {subItem.text}
-                  </span>
-                )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSubItem(subItem.id, day);
-                  }}
-                  className={`p-1 rounded ${isDarkBackground ? 'text-white/40 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Add sub-item input - always reserve space, hide in bulk mode */}
-        {!bulkMode && (
-          <div className={`ml-8 transition-all duration-200 ${addingSubItemTo === task.id ? 'mt-2 h-7' : 'h-0 overflow-hidden'}`}>
-            {addingSubItemTo === task.id && (
-              <input
-                ref={subItemInputRef}
-                type="text"
-                value={newSubItemText}
-                onChange={(e) => setNewSubItemText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addSubItem(task.id, day);
-                  } else if (e.key === 'Escape') {
-                    setAddingSubItemTo(null);
-                    setNewSubItemText('');
-                  }
-                }}
-                onBlur={() => {
-                  if (newSubItemText.trim()) {
-                    addSubItem(task.id, day);
-                  } else {
-                    setAddingSubItemTo(null);
-                    setNewSubItemText('');
-                  }
-                }}
-                placeholder="Add sub-item..."
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                className={`w-full text-sm bg-transparent border-b h-7 ${
-                  isDarkBackground ? 'border-white/30 text-white placeholder-white/50' : 'border-gray-300 text-gray-700 placeholder-gray-400'
-                } focus:outline-none focus:border-green-500`}
-              />
-            )}
-          </div>
-        )}
-        
-        {/* Desktop hover actions - now shown below, hide in bulk mode */}
-        {!isMobile && !bulkMode && (
-          <div className={`transition-all duration-200 ${(isHovered || addingSubItemTo === task.id) ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}>
-            <div className={`ml-8 p-3 rounded-lg relative z-50`}>
-              <div className="flex items-center justify-around gap-2">
-                <div className="relative">
-                  <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
-                </div>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentNoteTask(task);
-                    setShowNoteModal(true);
-                    setNoteInput(task.notes || '');
-                  }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title={task.notes ? "Edit Note" : "Add Note"}
-                >
-                  <StickyNote 
-                    size={20} 
-                    fill={task.notes ? "#10b981" : "none"} 
-                    className={task.notes ? "text-gray-600" : ""}
-                  />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (task.url) {
-                      if (isValidUrl(task.url)) window.open(task.url, '_blank');
-                    } else {
-                      setCurrentUrlTask(task);
-                      setCurrentUrlDay(day);
-                      setShowUrlModal(true);
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    if (task.url) {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setCurrentUrlTask(task);
-                      setCurrentUrlDay(day);
-                      setShowUrlModal(true);
-                    }
-                  }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title={task.url ? "Open URL (right-click to edit)" : "Add URL"}
-                >
-                  <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
-                </button>
-                {/* Calendar button */}
-                {day !== 'TASK_BANK' && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openGoogleCalendar(task, day);
-                    }}
-                    className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                    title="Add to Google Calendar"
-                  >
-                    <Calendar size={20} />
-                  </button>
-                )}
-                {day !== 'TASK_BANK' && index < 6 && (
-                  <div className="relative">
-                    <MoveMenu onSelect={(moveType) => moveTask(task.id, day, moveType)} />
-                  </div>
-                )}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteTask(task.id, day, task);
-                  }}
-                  className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Mobile expanded actions - hide in bulk mode */}
-        {isMobile && isExpanded && !bulkMode && (
-          <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
-            <div className="flex items-center justify-around gap-2">
-              <div className="relative">
-                <RepeatMenu onSelect={(frequency) => {
-                  if (isMobile) setPrimedTaskId(null);
-                  repeatTask(task, day, frequency);
-                }} />
-              </div>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentNoteTask(task);
-                  setShowNoteModal(true);
-                  setNoteInput(task.notes || '');
-                  if (isMobile) setPrimedTaskId(null);
-                }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.notes ? "Edit Note" : "Add Note"}
-              >
-                <StickyNote 
-                  size={20} 
-                  fill={task.notes ? "#10b981" : "none"} 
-                  className={task.notes ? "text-gray-600" : ""}
-                />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isMobile) setPrimedTaskId(null);
-                  setCurrentUrlTask(task);
-                  setCurrentUrlDay(day);
-                  setShowUrlModal(true);
-                }}
-                className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.url ? "Edit URL" : "Add URL"}
-              >
-                <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
-              </button>
-              {/* Calendar button for mobile */}
-              {day !== 'TASK_BANK' && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isMobile) setPrimedTaskId(null);
-                    openGoogleCalendar(task, day);
-                  }}
-                  className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                  title="Add to Google Calendar"
-                >
-                  <Calendar size={20} />
-                </button>
-              )}
-              {day !== 'TASK_BANK' && index < 6 && (
-                <div className="relative">
-                  <MoveMenu onSelect={(moveType) => {
-                    if (isMobile) setPrimedTaskId(null);
-                    moveTask(task.id, day, moveType);
-                  }} />
-                </div>
-              )}
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isMobile) setPrimedTaskId(null);
-                  deleteTask(task.id, day, task);
-                }}
-                className={`p-2 rounded text-red-500 hover:text-red-600 transition-colors`}
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -2407,13 +1718,28 @@ function App() {
     );
   }
 
-  // Get current day name for bulk action bar
-  const getCurrentDayName = () => {
-    if (selectedDay === 'task_bank') return 'TASK_BANK';
-    return days[selectedDay];
+  const taskItemCtx = {
+    expandedTaskId, setExpandedTaskId,
+    isMobile,
+    selectedTasks,
+    bulkMode,
+    editingTaskId, setEditingTaskId,
+    setEditingTaskText,
+    editingSubItemId, setEditingSubItemId,
+    addingSubItemTo, setAddingSubItemTo,
+    newSubItemText, setNewSubItemText,
+    pendingCompletions,
+    primedTaskId, setPrimedTaskId,
+    expandedSubItems,
+    setCurrentNoteTask, setShowNoteModal, setNoteInput,
+    setCurrentUrlTask, setCurrentUrlDay, setShowUrlModal,
+    toggleTaskSelection, toggleTask, toggleSubItems, toggleSubItem,
+    updateTaskText, updateSubItemText, deleteSubItem, addSubItem,
+    repeatTask, openGoogleCalendar, moveTask, deleteTask,
   };
 
   return (
+    <TaskItemProvider value={taskItemCtx}>
     <div className="min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
         <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
@@ -2631,7 +1957,7 @@ function App() {
                         }}
                       />
                     </p>
-                    <ProgressBar day={day} index={index} />
+                    <ProgressBar dayTasks={tasks[day]} index={index} gradient={PROGRESS_GRADIENTS[colorTheme]} />
                     
                     {/* Select All / Deselect All in bulk mode */}
                     {bulkMode && tasks[day].length > 0 && (
@@ -2827,7 +2153,7 @@ function App() {
               </div>
               {selectedDay === 'task_bank' && (
                 <>
-                  <ProgressBar day="TASK_BANK" index={7} />
+                  <ProgressBar dayTasks={tasks.TASK_BANK} index={7} gradient={PROGRESS_GRADIENTS[colorTheme]} />
                   
                   {/* Select All / Deselect All in bulk mode */}
                   {bulkMode && tasks.TASK_BANK.length > 0 && (
@@ -2929,6 +2255,7 @@ function App() {
         <NoteModal
           task={currentNoteTask}
           day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]}
+          updateTaskNotes={updateTaskNotes}
           onClose={() => {
             setShowNoteModal(false);
             setCurrentNoteTask(null);
@@ -2940,6 +2267,7 @@ function App() {
         <UrlModal
           task={currentUrlTask}
           day={currentUrlDay}
+          updateTaskUrl={updateTaskUrl}
           onClose={() => {
             setShowUrlModal(false);
             setCurrentUrlTask(null);
@@ -2948,6 +2276,7 @@ function App() {
         />
       )}
     </div>
+    </TaskItemProvider>
   );
 }
 
