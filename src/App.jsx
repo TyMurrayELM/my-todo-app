@@ -1339,10 +1339,13 @@ function App() {
 
     if (newCompleted) {
       // COMPLETING: Show visual feedback immediately, delay the reorder
+      // (skip the delay for users who prefer reduced motion)
       setPendingCompletions(prev => ({
         ...prev,
         [taskId]: true
       }));
+
+      const reorderDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
 
       // After delay, actually update the task state (this triggers reorder)
       setTimeout(() => {
@@ -1351,16 +1354,16 @@ function App() {
           delete next[taskId];
           return next;
         });
-        
+
         setTasks(prev => ({
           ...prev,
-          [day]: prev[day].map(t => 
-            t.id === taskId 
+          [day]: prev[day].map(t =>
+            t.id === taskId
               ? { ...t, completed: true, completedAt: completedAt }
               : t
           )
         }));
-      }, 400);
+      }, reorderDelay);
     } else {
       // UNCOMPLETING: Update immediately, no delay needed
       setTasks(prev => ({
@@ -1750,6 +1753,14 @@ function App() {
     <TaskItemProvider value={taskItemCtx}>
     <div className="min-h-screen bg-gray-50">
       <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
+        {isLoading && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden bg-gray-200">
+            <div
+              className="h-full w-1/4 animate-loading-bar"
+              style={{ background: PROGRESS_GRADIENTS[colorTheme] }}
+            />
+          </div>
+        )}
         <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
           <div className="flex items-center">
             <button 
