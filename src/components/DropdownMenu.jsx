@@ -2,14 +2,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-const DropdownMenu = ({ 
-  triggerIcon, 
-  triggerTitle, 
-  options, 
-  onSelect, 
-  hoverColor = 'gray-500', 
-  buttonClass = '', 
-  onButtonClick 
+const DropdownMenu = ({
+  triggerIcon,
+  triggerTitle,
+  options,
+  onSelect,
+  hoverColor = 'gray-500',
+  buttonClass = '',
+  onButtonClick,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
@@ -37,7 +37,7 @@ const DropdownMenu = ({
 
   return (
     <div className="relative" ref={menuRef}>
-      <button 
+      <button
         onClick={handleButtonClick}
         onMouseDown={(e) => {
           if (onButtonClick) onButtonClick(e); // Allow custom onMouseDown if needed
@@ -52,10 +52,10 @@ const DropdownMenu = ({
         {triggerIcon}
         <ChevronDown size={14} className="ml-1" />
       </button>
-      
+
       {isOpen && (
         <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-44 bg-white border rounded shadow-lg z-[100]">
-          {options.map(option => (
+          {options.map((option) => (
             <div
               key={option.id}
               role="menuitem"

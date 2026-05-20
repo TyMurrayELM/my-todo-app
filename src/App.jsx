@@ -1,5 +1,16 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Check, ArrowLeft, ArrowRight, SkipForward, Repeat, ChevronRight, ChevronDown, Calendar, Layers, CalendarDays } from 'lucide-react';
+import {
+  Check,
+  ArrowLeft,
+  ArrowRight,
+  SkipForward,
+  Repeat,
+  ChevronRight,
+  ChevronDown,
+  Calendar,
+  Layers,
+  CalendarDays,
+} from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { isValidUrl } from './lib/utils';
 import {
@@ -29,18 +40,61 @@ const MAX_NOTES_LENGTH = 2000;
 const MAX_URL_LENGTH = 2000;
 
 const BG_THEMES = {
-  amber: ['bg-amber-100', 'bg-amber-200', 'bg-amber-300', 'bg-amber-400', 'bg-amber-500', 'bg-amber-600', 'bg-amber-700'],
-  blue: ['bg-blue-100', 'bg-blue-200', 'bg-blue-300', 'bg-blue-400', 'bg-blue-500', 'bg-blue-600', 'bg-blue-700'],
-  green: ['bg-green-100', 'bg-green-200', 'bg-green-300', 'bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-green-700'],
-  purple: ['bg-purple-100', 'bg-purple-200', 'bg-purple-300', 'bg-purple-400', 'bg-purple-500', 'bg-purple-600', 'bg-purple-700'],
-  pink: ['bg-pink-100', 'bg-pink-200', 'bg-pink-300', 'bg-pink-400', 'bg-pink-500', 'bg-pink-600', 'bg-pink-700'],
+  amber: [
+    'bg-amber-100',
+    'bg-amber-200',
+    'bg-amber-300',
+    'bg-amber-400',
+    'bg-amber-500',
+    'bg-amber-600',
+    'bg-amber-700',
+  ],
+  blue: [
+    'bg-blue-100',
+    'bg-blue-200',
+    'bg-blue-300',
+    'bg-blue-400',
+    'bg-blue-500',
+    'bg-blue-600',
+    'bg-blue-700',
+  ],
+  green: [
+    'bg-green-100',
+    'bg-green-200',
+    'bg-green-300',
+    'bg-green-400',
+    'bg-green-500',
+    'bg-green-600',
+    'bg-green-700',
+  ],
+  purple: [
+    'bg-purple-100',
+    'bg-purple-200',
+    'bg-purple-300',
+    'bg-purple-400',
+    'bg-purple-500',
+    'bg-purple-600',
+    'bg-purple-700',
+  ],
+  pink: [
+    'bg-pink-100',
+    'bg-pink-200',
+    'bg-pink-300',
+    'bg-pink-400',
+    'bg-pink-500',
+    'bg-pink-600',
+    'bg-pink-700',
+  ],
 };
 
 const PROGRESS_GRADIENTS = {
-  amber: 'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',
+  amber:
+    'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',
   blue: 'linear-gradient(to right, #93c5fd 0%, #60a5fa 20%, #3b82f6 40%, #2563eb 60%, #1d4ed8 80%, #1e3a8a 100%)',
-  green: 'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
-  purple: 'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
+  green:
+    'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
+  purple:
+    'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
   pink: 'linear-gradient(to right, #fbcfe8 0%, #f9a8d4 20%, #ec4899 40%, #db2777 60%, #be185d 80%, #500724 100%)',
 };
 
@@ -56,13 +110,13 @@ function App() {
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [primedTaskId, setPrimedTaskId] = useState(null);
-  
+
   // Bulk action state
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [showBulkMoveOptions, setShowBulkMoveOptions] = useState(false);
   const [showBulkRepeatOptions, setShowBulkRepeatOptions] = useState(false);
-  
+
   // State for managing which tasks have their sub-items expanded
   const [expandedSubItems, setExpandedSubItems] = useState({});
   // State for adding new sub-items
@@ -74,25 +128,33 @@ function App() {
   const [pendingCompletions, setPendingCompletions] = useState({});
   // Track which days have their completed section expanded (collapsed by default)
   const [expandedCompletedSections, setExpandedCompletedSections] = useState({});
-  
+
   const getCurrentDayIndex = () => {
     const today = currentDate.getDay();
     return today;
   };
-  
+
   const [days, setDays] = useState(() => {
-    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const baseArray = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ];
     const currentIndex = getCurrentDayIndex();
     return [...baseArray.slice(currentIndex), ...baseArray.slice(0, currentIndex)];
   });
 
   const [tasks, setTasks] = useState(() => {
     return {
-      ...days.reduce((acc, day) => ({...acc, [day]: []}), {}),
-      TASK_BANK: []
+      ...days.reduce((acc, day) => ({ ...acc, [day]: [] }), {}),
+      TASK_BANK: [],
     };
   });
-  
+
   const [newTask, setNewTask] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState('');
@@ -100,7 +162,7 @@ function App() {
   const [fetchError, setFetchError] = useState(null);
   const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
   const [urlInput, setUrlInput] = useState('');
-  
+
   // New state for notes feature
   const [editingNoteTaskId, setEditingNoteTaskId] = useState(null);
   const [noteInput, setNoteInput] = useState('');
@@ -117,10 +179,10 @@ function App() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -130,7 +192,7 @@ function App() {
       const timer = setTimeout(() => {
         setPrimedTaskId(null);
       }, 3000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [primedTaskId]);
@@ -149,13 +211,13 @@ function App() {
       setShowBulkMoveOptions(false);
       setShowBulkRepeatOptions(false);
     };
-    
+
     if (showBulkMoveOptions || showBulkRepeatOptions) {
       // Add a small delay to prevent immediate closing when opening
       const timer = setTimeout(() => {
         document.addEventListener('click', handleClickOutside);
       }, 100);
-      
+
       return () => {
         clearTimeout(timer);
         document.removeEventListener('click', handleClickOutside);
@@ -164,7 +226,6 @@ function App() {
   }, [showBulkMoveOptions, showBulkRepeatOptions]);
 
   const getBackgroundColor = (index) => BG_THEMES[colorTheme][index];
-
 
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
@@ -189,7 +250,9 @@ function App() {
       .select('*')
       .eq('user_id', session.user.id)
       .is('parent_task_id', null)
-      .or(`day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`)
+      .or(
+        `day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`
+      )
       .order('created_at');
 
     if (parentError) {
@@ -200,16 +263,16 @@ function App() {
     }
 
     // Now fetch all sub-items for these parent tasks
-    const parentIds = parentTodos.map(t => t.id);
+    const parentIds = parentTodos.map((t) => t.id);
     let subItemTodos = [];
-    
+
     if (parentIds.length > 0) {
       const { data: subItems, error: subItemsError } = await supabase
         .from('todos')
         .select('*')
         .eq('user_id', session.user.id)
         .in('parent_task_id', parentIds);
-      
+
       if (!subItemsError && subItems) {
         subItemTodos = subItems;
       }
@@ -220,9 +283,9 @@ function App() {
     log('Fetched todos:', allTodos);
 
     // Fetch completion records for recurring tasks
-    const recurringTodoIds = allTodos.filter(t => t.recurring).map(t => t.id);
+    const recurringTodoIds = allTodos.filter((t) => t.recurring).map((t) => t.id);
     let completionRecords = [];
-    
+
     if (recurringTodoIds.length > 0) {
       const { data: completions, error: completionsError } = await supabase
         .from('recurring_completions')
@@ -231,16 +294,20 @@ function App() {
         .in('todo_id', recurringTodoIds)
         .gte('completion_date', startStr)
         .lte('completion_date', endStr);
-      
+
       if (!completionsError && completions) {
         completionRecords = completions;
       }
     }
 
     // Fetch sub-item completion records for recurring tasks
-    const subItemIds = allTodos.filter(t => t.parent_task_id && allTodos.find(p => p.id === t.parent_task_id && p.recurring)).map(t => t.id);
+    const subItemIds = allTodos
+      .filter(
+        (t) => t.parent_task_id && allTodos.find((p) => p.id === t.parent_task_id && p.recurring)
+      )
+      .map((t) => t.id);
     let subItemCompletionRecords = [];
-    
+
     if (subItemIds.length > 0) {
       const { data: subCompletions, error: subCompletionsError } = await supabase
         .from('recurring_subitem_completions')
@@ -249,12 +316,12 @@ function App() {
         .in('subitem_id', subItemIds)
         .gte('completion_date', startStr)
         .lte('completion_date', endStr);
-      
+
       if (!subCompletionsError && subCompletions) {
         subItemCompletionRecords = subCompletions;
       }
     }
-  
+
     const todosByDay = {
       SUNDAY: [],
       MONDAY: [],
@@ -263,35 +330,35 @@ function App() {
       THURSDAY: [],
       FRIDAY: [],
       SATURDAY: [],
-      TASK_BANK: []
+      TASK_BANK: [],
     };
-  
+
     // Separate parent tasks and sub-items
-    const parentTasks = allTodos.filter(todo => !todo.parent_task_id);
-    const subItems = allTodos.filter(todo => todo.parent_task_id);
+    const parentTasks = allTodos.filter((todo) => !todo.parent_task_id);
+    const subItems = allTodos.filter((todo) => todo.parent_task_id);
 
     // Create a map of parent task IDs to their sub-items
     const subItemsMap = {};
-    subItems.forEach(subItem => {
+    subItems.forEach((subItem) => {
       if (!subItemsMap[subItem.parent_task_id]) {
         subItemsMap[subItem.parent_task_id] = [];
       }
-      
+
       // For regular (non-recurring) tasks, use actual completion status
-      const parentTask = parentTasks.find(p => p.id === subItem.parent_task_id);
-      
+      const parentTask = parentTasks.find((p) => p.id === subItem.parent_task_id);
+
       subItemsMap[subItem.parent_task_id].push({
         id: subItem.id,
         text: subItem.text.trim(),
         completed: subItem.completed, // Default for non-recurring
         completedAt: subItem.completed_at,
         parentTaskId: subItem.parent_task_id,
-        isRecurringSubItem: parentTask?.recurring || false
+        isRecurringSubItem: parentTask?.recurring || false,
       });
     });
 
     // Process parent tasks
-    parentTasks.forEach(todo => {
+    parentTasks.forEach((todo) => {
       if (todo.day === 'TASK_BANK') {
         // Task Bank items don't recur
         todosByDay.TASK_BANK.push({
@@ -304,32 +371,32 @@ function App() {
           notes: todo.notes,
           completedAt: todo.completed_at,
           subItems: subItemsMap[todo.id] || [],
-          isRecurringInstance: false
+          isRecurringInstance: false,
         });
       } else if (todo.recurring) {
         // Generate instances for each day in the week
         for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
           const targetDate = getDateForDay(dayIndex);
-          
+
           if (shouldShowOnDate(todo, targetDate)) {
             const dateStr = getLocalDateString(targetDate);
             const completion = completionRecords.find(
-              c => c.todo_id === todo.id && c.completion_date === dateStr
+              (c) => c.todo_id === todo.id && c.completion_date === dateStr
             );
-            
+
             // Get sub-items for this instance with their completion status for this date
-            const instanceSubItems = (subItemsMap[todo.id] || []).map(subItem => {
+            const instanceSubItems = (subItemsMap[todo.id] || []).map((subItem) => {
               const subCompletion = subItemCompletionRecords.find(
-                sc => sc.subitem_id === subItem.id && sc.completion_date === dateStr
+                (sc) => sc.subitem_id === subItem.id && sc.completion_date === dateStr
               );
-              
+
               return {
                 ...subItem,
                 completed: !!subCompletion,
-                completedAt: subCompletion?.completed_at || null
+                completedAt: subCompletion?.completed_at || null,
               };
             });
-            
+
             todosByDay[days[dayIndex]].push({
               id: `${todo.id}_${dateStr}`, // Unique ID for this instance
               originalId: todo.id, // Keep reference to template
@@ -342,7 +409,7 @@ function App() {
               completedAt: completion?.completed_at || null,
               subItems: instanceSubItems,
               isRecurringInstance: true,
-              instanceDate: dateStr
+              instanceDate: dateStr,
             });
           }
         }
@@ -350,17 +417,17 @@ function App() {
         // Regular one-time task - FIX IS HERE
         const todoDate = parseUTCDateAsLocal(todo.actual_date);
         const todoDateStr = getLocalDateString(todoDate);
-        
+
         log('Processing regular task:', todo.text, 'with date:', todoDateStr);
-        
+
         // Find which day index this date belongs to in our current week view
         for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
           const thisDate = getDateForDay(dayIndex);
           const thisDateStr = getLocalDateString(thisDate);
-          
+
           if (thisDateStr === todoDateStr) {
             log('Matched to day:', days[dayIndex], 'at index', dayIndex);
-            
+
             todosByDay[days[dayIndex]].push({
               id: todo.id,
               text: todo.text.trim(),
@@ -371,14 +438,14 @@ function App() {
               notes: todo.notes,
               completedAt: todo.completed_at,
               subItems: subItemsMap[todo.id] || [],
-              isRecurringInstance: false
+              isRecurringInstance: false,
             });
             break;
           }
         }
       }
     });
-  
+
     log('Final tasks by day:', todosByDay);
     setTasks(todosByDay);
     setIsLoading(false);
@@ -389,7 +456,9 @@ function App() {
       setSession(session);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -420,13 +489,13 @@ function App() {
   const createGoogleCalendarUrl = (task, day) => {
     const dayIndex = days.indexOf(day);
     const taskDate = dayIndex >= 0 ? getDateForDay(dayIndex) : new Date();
-    
+
     // For recurring instances, use the instance date
     if (task.instanceDate) {
       const [year, month, dayNum] = task.instanceDate.split('-');
       taskDate.setFullYear(parseInt(year), parseInt(month) - 1, parseInt(dayNum));
     }
-    
+
     // Format date for Google Calendar (YYYYMMDD)
     const formatGoogleDate = (date) => {
       const year = date.getFullYear();
@@ -434,13 +503,13 @@ function App() {
       const day = String(date.getDate()).padStart(2, '0');
       return `${year}${month}${day}`;
     };
-    
+
     const startDate = formatGoogleDate(taskDate);
     // For all-day event, end date is the next day
     const endDate = new Date(taskDate);
     endDate.setDate(endDate.getDate() + 1);
     const endDateStr = formatGoogleDate(endDate);
-    
+
     // Build the description
     let description = '';
     if (task.notes) {
@@ -453,21 +522,21 @@ function App() {
     if (task.subItems && task.subItems.length > 0) {
       if (description) description += '\n\n';
       description += 'Sub-tasks:\n';
-      task.subItems.forEach(sub => {
+      task.subItems.forEach((sub) => {
         description += `${sub.completed ? 'âœ“' : 'â—‹'} ${sub.text}\n`;
       });
     }
-    
+
     // Build recurrence rule (RRULE) for recurring tasks
     // Format: RRULE:FREQ=DAILY;UNTIL=20251231
     const getRecurrenceRule = () => {
       if (!task.recurring || !task.repeatFrequency) return null;
-      
+
       // Set end date to 1 year from now for recurring events
       const untilDate = new Date(taskDate);
       untilDate.setFullYear(untilDate.getFullYear() + 1);
       const untilStr = formatGoogleDate(untilDate);
-      
+
       switch (task.repeatFrequency) {
         case 'daily':
           return `RRULE:FREQ=DAILY;UNTIL=${untilStr}`;
@@ -488,7 +557,7 @@ function App() {
           return null;
       }
     };
-    
+
     // Build Google Calendar URL
     const params = new URLSearchParams({
       action: 'TEMPLATE',
@@ -496,13 +565,13 @@ function App() {
       dates: `${startDate}/${endDateStr}`,
       details: description,
     });
-    
+
     // Add recurrence rule if task is recurring
     const recurrence = getRecurrenceRule();
     if (recurrence) {
       params.append('recur', recurrence);
     }
-    
+
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
   };
 
@@ -519,7 +588,15 @@ function App() {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + direction);
 
-    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const baseArray = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ];
     const newIndex = newDate.getDay();
     const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
 
@@ -528,7 +605,7 @@ function App() {
     setSelectedDay(0);
     setExpandedTaskId(null);
     setPrimedTaskId(null);
-    
+
     setTimeout(() => {
       setIsNavigating(false);
     }, 50);
@@ -543,7 +620,15 @@ function App() {
     setBulkMode(false);
     setSelectedTasks([]);
 
-    const baseArray = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const baseArray = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ];
     const newIndex = newDate.getDay();
     const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
 
@@ -566,9 +651,9 @@ function App() {
 
   // Toggle task selection in bulk mode
   const toggleTaskSelection = (taskId) => {
-    setSelectedTasks(prev => {
+    setSelectedTasks((prev) => {
       if (prev.includes(taskId)) {
-        return prev.filter(id => id !== taskId);
+        return prev.filter((id) => id !== taskId);
       } else {
         return [...prev, taskId];
       }
@@ -578,8 +663,8 @@ function App() {
   // Select all tasks in current day
   const selectAllTasks = (day) => {
     const dayTasks = tasks[day]
-      .filter(task => !task.completed || expandedCompletedSections[day])
-      .map(task => task.id);
+      .filter((task) => !task.completed || expandedCompletedSections[day])
+      .map((task) => task.id);
     setSelectedTasks(dayTasks);
   };
 
@@ -592,16 +677,16 @@ function App() {
   const bulkMoveTasks = async (moveType, day) => {
     // Snapshot tasks before removing from UI
     const tasksToMove = selectedTasks
-      .map(id => tasks[day].find(t => t.id === id))
+      .map((id) => tasks[day].find((t) => t.id === id))
       .filter(Boolean);
 
     if (tasksToMove.length === 0) return;
 
     // Optimistic: remove all selected tasks from UI at once
     const taskIdSet = new Set(selectedTasks);
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].filter(t => !taskIdSet.has(t.id))
+      [day]: prev[day].filter((t) => !taskIdSet.has(t.id)),
     }));
     setBulkMode(false);
     setSelectedTasks([]);
@@ -630,51 +715,73 @@ function App() {
     }
 
     const targetDayOfWeek = targetDate.getDay();
-    const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDayOfWeek];
+    const targetDayName = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ][targetDayOfWeek];
     const targetActualDate = getISOStringForLocalDate(targetDate);
 
     // Fire all DB operations in parallel
-    await Promise.all(tasksToMove.map(async (task) => {
-      try {
-        if (task.isRecurringInstance) {
-          const { data: newTask } = await supabase.from('todos').insert([{
-            user_id: session.user.id,
-            text: task.text,
-            day: targetDayName,
-            actual_date: targetActualDate,
-            completed: false,
-            recurring: false,
-            url: task.url,
-            notes: task.notes
-          }]).select('id').single();
-          await supabase.from('recurring_completions').insert([{
-            user_id: session.user.id,
-            todo_id: task.originalId,
-            completion_date: task.instanceDate,
-            completed_at: new Date().toISOString()
-          }]);
-          if (newTask && task.subItems && task.subItems.length > 0) {
-            await supabase.from('todos').insert(
-              task.subItems.map(sub => ({
+    await Promise.all(
+      tasksToMove.map(async (task) => {
+        try {
+          if (task.isRecurringInstance) {
+            const { data: newTask } = await supabase
+              .from('todos')
+              .insert([
+                {
+                  user_id: session.user.id,
+                  text: task.text,
+                  day: targetDayName,
+                  actual_date: targetActualDate,
+                  completed: false,
+                  recurring: false,
+                  url: task.url,
+                  notes: task.notes,
+                },
+              ])
+              .select('id')
+              .single();
+            await supabase.from('recurring_completions').insert([
+              {
                 user_id: session.user.id,
-                text: sub.text,
+                todo_id: task.originalId,
+                completion_date: task.instanceDate,
+                completed_at: new Date().toISOString(),
+              },
+            ]);
+            if (newTask && task.subItems && task.subItems.length > 0) {
+              await supabase.from('todos').insert(
+                task.subItems.map((sub) => ({
+                  user_id: session.user.id,
+                  text: sub.text,
+                  day: targetDayName,
+                  actual_date: targetActualDate,
+                  completed: false,
+                  parent_task_id: newTask.id,
+                }))
+              );
+            }
+          } else {
+            await supabase
+              .from('todos')
+              .update({
                 day: targetDayName,
                 actual_date: targetActualDate,
-                completed: false,
-                parent_task_id: newTask.id
-              }))
-            );
+              })
+              .eq('id', task.id)
+              .eq('user_id', session.user.id);
           }
-        } else {
-          await supabase.from('todos').update({
-            day: targetDayName,
-            actual_date: targetActualDate
-          }).eq('id', task.id).eq('user_id', session.user.id);
+        } catch (error) {
+          logError('Error in bulk move:', error);
         }
-      } catch (error) {
-        logError('Error in bulk move:', error);
-      }
-    }));
+      })
+    );
 
     // Single refresh to sync everything
     await fetchTodos();
@@ -684,8 +791,8 @@ function App() {
   const bulkRepeatTasks = async (frequency, day) => {
     // Snapshot non-recurring tasks to repeat
     const tasksToRepeat = selectedTasks
-      .map(id => tasks[day].find(t => t.id === id))
-      .filter(t => t && !t.recurring);
+      .map((id) => tasks[day].find((t) => t.id === id))
+      .filter((t) => t && !t.recurring);
 
     if (tasksToRepeat.length === 0) {
       setBulkMode(false);
@@ -693,34 +800,40 @@ function App() {
       return;
     }
 
-    const taskIdSet = new Set(tasksToRepeat.map(t => t.id));
+    const taskIdSet = new Set(tasksToRepeat.map((t) => t.id));
     const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
     clickedTaskDate.setHours(0, 0, 0, 0);
     const actualDate = getISOStringForLocalDate(clickedTaskDate);
 
     // Optimistic: mark all selected tasks as recurring at once
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].map(t =>
+      [day]: prev[day].map((t) =>
         taskIdSet.has(t.id) ? { ...t, recurring: true, repeat_frequency: frequency } : t
-      )
+      ),
     }));
     setBulkMode(false);
     setSelectedTasks([]);
 
     // Fire all DB updates in parallel
-    await Promise.all(tasksToRepeat.map(async (task) => {
-      try {
-        const taskId = task.originalId || task.id;
-        await supabase.from('todos').update({
-          recurring: true,
-          repeat_frequency: frequency,
-          actual_date: actualDate
-        }).eq('id', taskId).eq('user_id', session.user.id);
-      } catch (error) {
-        logError('Error in bulk repeat:', error);
-      }
-    }));
+    await Promise.all(
+      tasksToRepeat.map(async (task) => {
+        try {
+          const taskId = task.originalId || task.id;
+          await supabase
+            .from('todos')
+            .update({
+              recurring: true,
+              repeat_frequency: frequency,
+              actual_date: actualDate,
+            })
+            .eq('id', taskId)
+            .eq('user_id', session.user.id);
+        } catch (error) {
+          logError('Error in bulk repeat:', error);
+        }
+      })
+    );
 
     await fetchTodos();
   };
@@ -734,7 +847,7 @@ function App() {
 
     // Snapshot tasks before removing from UI
     const tasksToDelete = selectedTasks
-      .map(id => tasks[day].find(t => t.id === id))
+      .map((id) => tasks[day].find((t) => t.id === id))
       .filter(Boolean);
 
     if (tasksToDelete.length === 0) return;
@@ -742,20 +855,20 @@ function App() {
     // Optimistic: remove all selected tasks from UI at once
     const taskIdSet = new Set(selectedTasks);
     const recurringOriginalIds = new Set(
-      tasksToDelete.filter(t => t.recurring).map(t => t.originalId || t.id)
+      tasksToDelete.filter((t) => t.recurring).map((t) => t.originalId || t.id)
     );
 
-    setTasks(prev => {
+    setTasks((prev) => {
       const updated = { ...prev };
       if (recurringOriginalIds.size > 0) {
         // Recurring tasks appear across all days
-        Object.keys(updated).forEach(dayKey => {
-          updated[dayKey] = updated[dayKey].filter(t =>
-            !taskIdSet.has(t.id) && !recurringOriginalIds.has(t.originalId)
+        Object.keys(updated).forEach((dayKey) => {
+          updated[dayKey] = updated[dayKey].filter(
+            (t) => !taskIdSet.has(t.id) && !recurringOriginalIds.has(t.originalId)
           );
         });
       } else {
-        updated[day] = prev[day].filter(t => !taskIdSet.has(t.id));
+        updated[day] = prev[day].filter((t) => !taskIdSet.has(t.id));
       }
       return updated;
     });
@@ -763,16 +876,16 @@ function App() {
     setSelectedTasks([]);
 
     // Fire all DB deletes in parallel
-    await Promise.all(tasksToDelete.map(async (task) => {
-      try {
-        const actualId = task.isRecurringInstance ? task.originalId : task.id;
-        await supabase.from('todos').delete()
-          .eq('id', actualId)
-          .eq('user_id', session.user.id);
-      } catch (error) {
-        logError('Error in bulk delete:', error);
-      }
-    }));
+    await Promise.all(
+      tasksToDelete.map(async (task) => {
+        try {
+          const actualId = task.isRecurringInstance ? task.originalId : task.id;
+          await supabase.from('todos').delete().eq('id', actualId).eq('user_id', session.user.id);
+        } catch (error) {
+          logError('Error in bulk delete:', error);
+        }
+      })
+    );
 
     await fetchTodos();
   };
@@ -781,8 +894,8 @@ function App() {
   const bulkCompleteTasks = async (day) => {
     // Snapshot incomplete tasks to complete
     const tasksToComplete = selectedTasks
-      .map(id => tasks[day].find(t => t.id === id))
-      .filter(t => t && !t.completed);
+      .map((id) => tasks[day].find((t) => t.id === id))
+      .filter((t) => t && !t.completed);
 
     if (tasksToComplete.length === 0) {
       setBulkMode(false);
@@ -791,49 +904,57 @@ function App() {
     }
 
     const completedAt = new Date().toISOString();
-    const taskIdSet = new Set(tasksToComplete.map(t => t.id));
+    const taskIdSet = new Set(tasksToComplete.map((t) => t.id));
 
     // Optimistic: mark all selected tasks as completed at once
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].map(t =>
+      [day]: prev[day].map((t) =>
         taskIdSet.has(t.id) ? { ...t, completed: true, completedAt } : t
-      )
+      ),
     }));
     setBulkMode(false);
     setSelectedTasks([]);
 
     // Fire all DB updates in parallel
-    await Promise.all(tasksToComplete.map(async (task) => {
-      try {
-        if (task.isRecurringInstance) {
-          await supabase.from('recurring_completions').insert([{
-            user_id: session.user.id,
-            todo_id: task.originalId,
-            completion_date: task.instanceDate,
-            completed_at: completedAt
-          }]);
-        } else {
-          await supabase.from('todos').update({
-            completed: true,
-            completed_at: completedAt
-          }).eq('id', task.id).eq('user_id', session.user.id);
+    await Promise.all(
+      tasksToComplete.map(async (task) => {
+        try {
+          if (task.isRecurringInstance) {
+            await supabase.from('recurring_completions').insert([
+              {
+                user_id: session.user.id,
+                todo_id: task.originalId,
+                completion_date: task.instanceDate,
+                completed_at: completedAt,
+              },
+            ]);
+          } else {
+            await supabase
+              .from('todos')
+              .update({
+                completed: true,
+                completed_at: completedAt,
+              })
+              .eq('id', task.id)
+              .eq('user_id', session.user.id);
+          }
+        } catch (error) {
+          logError('Error in bulk complete:', error);
         }
-      } catch (error) {
-        logError('Error in bulk complete:', error);
-      }
-    }));
+      })
+    );
   };
 
   const moveTask = async (taskId, fromDay, moveType = 'next-day') => {
-    const task = tasks[fromDay].find(t => t.id === taskId);
+    const task = tasks[fromDay].find((t) => t.id === taskId);
     if (!task) return;
 
     // Calculate the target date based on move type
     const fromDayIndex = days.indexOf(fromDay);
     const currentTaskDate = getDateForDay(fromDayIndex);
     let targetDate = new Date(currentTaskDate);
-    
+
     if (moveType === 'today') {
       targetDate = new Date();
       targetDate.setHours(0, 0, 0, 0);
@@ -853,19 +974,26 @@ function App() {
       const daysToAdd = daysUntilSaturday === 0 ? 7 : daysUntilSaturday;
       targetDate.setDate(currentTaskDate.getDate() + daysToAdd);
     }
-    
+
     // Figure out which day this lands on
     const targetDayOfWeek = targetDate.getDay();
-    const targetDayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDayOfWeek];
-    
+    const targetDayName = [
+      'SUNDAY',
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+    ][targetDayOfWeek];
+
     if (task.isRecurringInstance) {
       // For recurring instances: create a one-time task on target date
       // and mark today as skipped
-      
+
       // 1. Create one-time task on target date
-      const { error: createError } = await supabase
-        .from('todos')
-        .insert([{
+      const { error: createError } = await supabase.from('todos').insert([
+        {
           user_id: session.user.id,
           text: task.text,
           day: targetDayName,
@@ -873,24 +1001,25 @@ function App() {
           completed: false,
           recurring: false,
           url: task.url,
-          notes: task.notes
-        }]);
-      
+          notes: task.notes,
+        },
+      ]);
+
       if (createError) {
         logError('Error creating moved task:', createError);
         return;
       }
 
       // 2. Mark today's instance as completed (to hide it)
-      const { error: skipError } = await supabase
-        .from('recurring_completions')
-        .insert([{
+      const { error: skipError } = await supabase.from('recurring_completions').insert([
+        {
           user_id: session.user.id,
           todo_id: task.originalId,
           completion_date: task.instanceDate,
-          completed_at: new Date().toISOString()
-        }]);
-      
+          completed_at: new Date().toISOString(),
+        },
+      ]);
+
       if (skipError) {
         logError('Error skipping today:', skipError);
         return;
@@ -910,18 +1039,16 @@ function App() {
           .single();
 
         if (newTask) {
-          const subItemsToCreate = task.subItems.map(sub => ({
+          const subItemsToCreate = task.subItems.map((sub) => ({
             user_id: session.user.id,
             text: sub.text,
             day: targetDayName,
             actual_date: getISOStringForLocalDate(targetDate),
             completed: false,
-            parent_task_id: newTask.id
+            parent_task_id: newTask.id,
           }));
 
-          await supabase
-            .from('todos')
-            .insert(subItemsToCreate);
+          await supabase.from('todos').insert(subItemsToCreate);
         }
       }
     } else {
@@ -930,17 +1057,17 @@ function App() {
         .from('todos')
         .update({
           day: targetDayName,
-          actual_date: getISOStringForLocalDate(targetDate)
+          actual_date: getISOStringForLocalDate(targetDate),
         })
         .eq('id', taskId)
         .eq('user_id', session.user.id);
-    
+
       if (error) {
         logError('Error moving todo:', error);
         return;
       }
     }
-  
+
     // Refresh todos to show the change
     await fetchTodos();
   };
@@ -951,7 +1078,7 @@ function App() {
       if (typeof newTask !== 'string' || newTask.trim().length > MAX_TASK_LENGTH) return;
       const taskDate = getDateForDay(days.indexOf(day));
       const actualDate = getISOStringForLocalDate(taskDate);
-      
+
       const { data, error } = await supabase
         .from('todos')
         .insert([
@@ -960,20 +1087,20 @@ function App() {
             text: newTask.trim(),
             day: day,
             actual_date: actualDate,
-            completed: false
-          }
+            completed: false,
+          },
         ])
         .select()
         .single();
-  
+
       if (error) {
         logError('Error adding todo:', error);
         return;
       }
-  
-      setTasks(prev => ({
+
+      setTasks((prev) => ({
         ...prev,
-        [day]: [...prev[day], { id: data.id, text: data.text, completed: false, subItems: [] }]
+        [day]: [...prev[day], { id: data.id, text: data.text, completed: false, subItems: [] }],
       }));
       setNewTask('');
     }
@@ -982,14 +1109,17 @@ function App() {
   // Function to add a sub-item
   const addSubItem = async (parentTaskId, day) => {
     if (!newSubItemText.trim()) return;
-    if (typeof newSubItemText !== 'string' || newSubItemText.trim().length > MAX_TASK_LENGTH) return;
+    if (typeof newSubItemText !== 'string' || newSubItemText.trim().length > MAX_TASK_LENGTH)
+      return;
 
-    const parentTask = tasks[day].find(t => t.id === parentTaskId || t.originalId === parentTaskId);
+    const parentTask = tasks[day].find(
+      (t) => t.id === parentTaskId || t.originalId === parentTaskId
+    );
     if (!parentTask) return;
 
     // Use originalId for recurring tasks, regular id for one-time tasks
     const actualParentId = parentTask.originalId || parentTask.id;
-    
+
     // Create temporary ID for optimistic update
     const tempId = `temp_${Date.now()}`;
     const newSubItem = {
@@ -998,19 +1128,19 @@ function App() {
       completed: false,
       completedAt: null,
       parentTaskId: actualParentId,
-      isRecurringSubItem: parentTask.recurring || false
+      isRecurringSubItem: parentTask.recurring || false,
     };
 
     // Optimistic update - add to UI immediately
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].map(task => 
-        (task.id === parentTaskId || task.originalId === parentTaskId)
+      [day]: prev[day].map((task) =>
+        task.id === parentTaskId || task.originalId === parentTaskId
           ? { ...task, subItems: [...(task.subItems || []), newSubItem] }
           : task
-      )
+      ),
     }));
-    
+
     const savedText = newSubItemText.trim();
     setNewSubItemText('');
     setAddingSubItemTo(null);
@@ -1026,8 +1156,8 @@ function App() {
             day: day,
             actual_date: new Date().toISOString(),
             completed: false,
-            parent_task_id: actualParentId
-          }
+            parent_task_id: actualParentId,
+          },
         ])
         .select()
         .single();
@@ -1035,60 +1165,60 @@ function App() {
       if (error) throw error;
 
       // Replace temp ID with real ID
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(task => 
-          (task.id === parentTaskId || task.originalId === parentTaskId)
+        [day]: prev[day].map((task) =>
+          task.id === parentTaskId || task.originalId === parentTaskId
             ? {
                 ...task,
-                subItems: task.subItems.map(sub =>
+                subItems: task.subItems.map((sub) =>
                   sub.id === tempId ? { ...sub, id: data.id } : sub
-                )
+                ),
               }
             : task
-        )
+        ),
       }));
     } catch (error) {
       logError('Error adding sub-item:', error);
       // Revert optimistic update on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(task => 
-          (task.id === parentTaskId || task.originalId === parentTaskId)
-            ? { ...task, subItems: task.subItems.filter(sub => sub.id !== tempId) }
+        [day]: prev[day].map((task) =>
+          task.id === parentTaskId || task.originalId === parentTaskId
+            ? { ...task, subItems: task.subItems.filter((sub) => sub.id !== tempId) }
             : task
-        )
+        ),
       }));
     }
   };
 
   // Function to toggle sub-item completion
   const toggleSubItem = async (subItemId, day) => {
-    const parentTask = tasks[day].find(task => 
-      task.subItems && task.subItems.some(sub => sub.id === subItemId)
+    const parentTask = tasks[day].find(
+      (task) => task.subItems && task.subItems.some((sub) => sub.id === subItemId)
     );
-    
+
     if (!parentTask) return;
 
-    const subItem = parentTask.subItems.find(sub => sub.id === subItemId);
+    const subItem = parentTask.subItems.find((sub) => sub.id === subItemId);
     const newCompleted = !subItem.completed;
     const completedAt = newCompleted ? new Date().toISOString() : null;
 
     // Optimistic update - update UI immediately
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].map(task => 
+      [day]: prev[day].map((task) =>
         task.id === parentTask.id
           ? {
               ...task,
-              subItems: task.subItems.map(sub =>
+              subItems: task.subItems.map((sub) =>
                 sub.id === subItemId
                   ? { ...sub, completed: newCompleted, completedAt: completedAt }
                   : sub
-              )
+              ),
             }
           : task
-      )
+      ),
     }));
 
     // Then sync to database in background
@@ -1096,16 +1226,16 @@ function App() {
       if (subItem.isRecurringSubItem && parentTask.isRecurringInstance) {
         // Handle recurring sub-item - use completion tracking table
         if (newCompleted) {
-          const { error } = await supabase
-            .from('recurring_subitem_completions')
-            .insert([{
+          const { error } = await supabase.from('recurring_subitem_completions').insert([
+            {
               user_id: session.user.id,
               subitem_id: subItemId,
               parent_todo_id: parentTask.originalId,
               completion_date: parentTask.instanceDate,
-              completed_at: completedAt
-            }]);
-          
+              completed_at: completedAt,
+            },
+          ]);
+
           if (error) throw error;
         } else {
           const { error } = await supabase
@@ -1114,7 +1244,7 @@ function App() {
             .eq('subitem_id', subItemId)
             .eq('completion_date', parentTask.instanceDate)
             .eq('user_id', session.user.id);
-          
+
           if (error) throw error;
         }
       } else {
@@ -1123,7 +1253,7 @@ function App() {
           .from('todos')
           .update({
             completed: newCompleted,
-            completed_at: completedAt
+            completed_at: completedAt,
           })
           .eq('id', subItemId)
           .eq('user_id', session.user.id);
@@ -1133,20 +1263,20 @@ function App() {
     } catch (error) {
       logError('Error updating sub-item:', error);
       // Revert optimistic update on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(task =>
+        [day]: prev[day].map((task) =>
           task.id === parentTask.id
             ? {
                 ...task,
-                subItems: task.subItems.map(sub =>
+                subItems: task.subItems.map((sub) =>
                   sub.id === subItemId
                     ? { ...sub, completed: !newCompleted, completedAt: subItem.completedAt }
                     : sub
-                )
+                ),
               }
             : task
-        )
+        ),
       }));
     }
   };
@@ -1154,19 +1284,19 @@ function App() {
   // Function to delete a sub-item
   const deleteSubItem = async (subItemId, day) => {
     // Find the parent task and sub-item for potential revert
-    const parentTask = tasks[day].find(task => 
-      task.subItems && task.subItems.some(sub => sub.id === subItemId)
+    const parentTask = tasks[day].find(
+      (task) => task.subItems && task.subItems.some((sub) => sub.id === subItemId)
     );
-    const deletedSubItem = parentTask?.subItems.find(sub => sub.id === subItemId);
+    const deletedSubItem = parentTask?.subItems.find((sub) => sub.id === subItemId);
 
     // Optimistic update - remove from UI immediately
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].map(task => 
-        task.subItems && task.subItems.some(sub => sub.id === subItemId)
-          ? { ...task, subItems: task.subItems.filter(sub => sub.id !== subItemId) }
+      [day]: prev[day].map((task) =>
+        task.subItems && task.subItems.some((sub) => sub.id === subItemId)
+          ? { ...task, subItems: task.subItems.filter((sub) => sub.id !== subItemId) }
           : task
-      )
+      ),
     }));
 
     // Sync to database
@@ -1182,13 +1312,13 @@ function App() {
       logError('Error deleting sub-item:', error);
       // Revert optimistic update on failure
       if (parentTask && deletedSubItem) {
-        setTasks(prev => ({
+        setTasks((prev) => ({
           ...prev,
-          [day]: prev[day].map(task => 
+          [day]: prev[day].map((task) =>
             task.id === parentTask.id
               ? { ...task, subItems: [...task.subItems, deletedSubItem] }
               : task
-          )
+          ),
         }));
       }
     }
@@ -1199,27 +1329,27 @@ function App() {
     if (!newText.trim()) return;
     if (typeof newText !== 'string' || newText.trim().length > MAX_TASK_LENGTH) return;
 
-    const parentTask = tasks[day].find(task => 
-      task.subItems && task.subItems.some(sub => sub.id === subItemId)
+    const parentTask = tasks[day].find(
+      (task) => task.subItems && task.subItems.some((sub) => sub.id === subItemId)
     );
     if (!parentTask) return;
 
-    const oldSubItem = parentTask.subItems.find(sub => sub.id === subItemId);
+    const oldSubItem = parentTask.subItems.find((sub) => sub.id === subItemId);
     const oldText = oldSubItem?.text;
 
     // Optimistic update
-    setTasks(prev => ({
+    setTasks((prev) => ({
       ...prev,
-      [day]: prev[day].map(task => 
+      [day]: prev[day].map((task) =>
         task.id === parentTask.id
           ? {
               ...task,
-              subItems: task.subItems.map(sub =>
+              subItems: task.subItems.map((sub) =>
                 sub.id === subItemId ? { ...sub, text: newText.trim() } : sub
-              )
+              ),
             }
           : task
-      )
+      ),
     }));
 
     setEditingSubItemId(null);
@@ -1236,27 +1366,27 @@ function App() {
     } catch (error) {
       logError('Error updating sub-item text:', error);
       // Revert on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(task => 
+        [day]: prev[day].map((task) =>
           task.id === parentTask.id
             ? {
                 ...task,
-                subItems: task.subItems.map(sub =>
+                subItems: task.subItems.map((sub) =>
                   sub.id === subItemId ? { ...sub, text: oldText } : sub
-                )
+                ),
               }
             : task
-        )
+        ),
       }));
     }
   };
 
   // Toggle sub-items expansion
   const toggleSubItems = (taskId) => {
-    setExpandedSubItems(prev => ({
+    setExpandedSubItems((prev) => ({
       ...prev,
-      [taskId]: !prev[taskId]
+      [taskId]: !prev[taskId],
     }));
   };
 
@@ -1272,8 +1402,8 @@ function App() {
         return; // Don't complete yet
       }
     }
-    
-    const task = tasks[day].find(t => t.id === taskId);
+
+    const task = tasks[day].find((t) => t.id === taskId);
     if (!task) return;
 
     // Read the latest intended state — during the 400ms commit window, a fresh
@@ -1299,9 +1429,9 @@ function App() {
     if (newCompleted) {
       // COMPLETING: Show visual feedback immediately, delay the reorder
       // (skip the delay for users who prefer reduced motion)
-      setPendingCompletions(prev => ({
+      setPendingCompletions((prev) => ({
         ...prev,
-        [taskId]: true
+        [taskId]: true,
       }));
 
       const reorderDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
@@ -1311,36 +1441,32 @@ function App() {
         delete completionTimeoutsRef.current[taskId];
         delete intendedCompletionsRef.current[taskId];
 
-        setPendingCompletions(prev => {
+        setPendingCompletions((prev) => {
           const next = { ...prev };
           delete next[taskId];
           return next;
         });
 
-        setTasks(prev => ({
+        setTasks((prev) => ({
           ...prev,
-          [day]: prev[day].map(t =>
-            t.id === taskId
-              ? { ...t, completed: true, completedAt: completedAt }
-              : t
-          )
+          [day]: prev[day].map((t) =>
+            t.id === taskId ? { ...t, completed: true, completedAt: completedAt } : t
+          ),
         }));
       }, reorderDelay);
     } else {
       // UNCOMPLETING: Update immediately, no delay needed
       delete intendedCompletionsRef.current[taskId];
-      setPendingCompletions(prev => {
+      setPendingCompletions((prev) => {
         const next = { ...prev };
         delete next[taskId];
         return next;
       });
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t =>
-          t.id === taskId
-            ? { ...t, completed: false, completedAt: null }
-            : t
-        )
+        [day]: prev[day].map((t) =>
+          t.id === taskId ? { ...t, completed: false, completedAt: null } : t
+        ),
       }));
     }
 
@@ -1349,15 +1475,15 @@ function App() {
       if (task.isRecurringInstance) {
         // Handle recurring instance
         if (newCompleted) {
-          const { error } = await supabase
-            .from('recurring_completions')
-            .insert([{
+          const { error } = await supabase.from('recurring_completions').insert([
+            {
               user_id: session.user.id,
               todo_id: task.originalId,
               completion_date: task.instanceDate,
-              completed_at: completedAt
-            }]);
-          
+              completed_at: completedAt,
+            },
+          ]);
+
           if (error) throw error;
         } else {
           const { error } = await supabase
@@ -1366,7 +1492,7 @@ function App() {
             .eq('todo_id', task.originalId)
             .eq('completion_date', task.instanceDate)
             .eq('user_id', session.user.id);
-          
+
           if (error) throw error;
         }
       } else {
@@ -1375,7 +1501,7 @@ function App() {
           .from('todos')
           .update({
             completed: newCompleted,
-            completed_at: completedAt
+            completed_at: completedAt,
           })
           .eq('id', taskId)
           .eq('user_id', session.user.id);
@@ -1390,7 +1516,7 @@ function App() {
         clearTimeout(completionTimeoutsRef.current[taskId]);
         delete completionTimeoutsRef.current[taskId];
       }
-      setPendingCompletions(prev => {
+      setPendingCompletions((prev) => {
         const next = { ...prev };
         delete next[taskId];
         return next;
@@ -1401,7 +1527,7 @@ function App() {
   const deleteTask = async (taskId, day, task) => {
     // Get the actual task ID (template ID for recurring instances)
     const actualId = task.isRecurringInstance ? task.originalId : taskId;
-    
+
     // Confirm deletion for recurring tasks (but not during bulk operations)
     if (task.recurring && !bulkMode) {
       const confirmDelete = window.confirm(
@@ -1409,26 +1535,26 @@ function App() {
       );
       if (!confirmDelete) return;
     }
-    
+
     // Store task for potential revert
     const deletedTask = task;
-    
+
     // Optimistic update - remove from UI immediately
     // For recurring tasks, remove all instances across all days
     if (task.recurring) {
-      setTasks(prev => {
+      setTasks((prev) => {
         const updated = { ...prev };
-        Object.keys(updated).forEach(dayKey => {
-          updated[dayKey] = updated[dayKey].filter(t => 
-            t.id !== taskId && t.originalId !== actualId
+        Object.keys(updated).forEach((dayKey) => {
+          updated[dayKey] = updated[dayKey].filter(
+            (t) => t.id !== taskId && t.originalId !== actualId
           );
         });
         return updated;
       });
     } else {
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].filter(t => t.id !== taskId)
+        [day]: prev[day].filter((t) => t.id !== taskId),
       }));
     }
 
@@ -1444,80 +1570,78 @@ function App() {
     } catch (error) {
       logError('Error deleting todo:', error);
       // Revert optimistic update on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: [...prev[day], deletedTask]
+        [day]: [...prev[day], deletedTask],
       }));
     }
   };
 
-  const repeatTask = useCallback(async (task, day, frequency = 'daily') => {
-    if (isRepeating) return;
-    setIsRepeating(true);
-  
-    try {
-      const taskId = task.originalId || task.id;
-      const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
-      clickedTaskDate.setHours(0, 0, 0, 0);
-      
-      // Update the task to be recurring
-      const { error: updateError } = await supabase
-        .from('todos')
-        .update({
-          recurring: true,
-          repeat_frequency: frequency,
-          actual_date: getISOStringForLocalDate(clickedTaskDate)
-        })
-        .eq('id', taskId)
-        .eq('user_id', session.user.id);
-      
-      if (updateError) {
-        logError('Error updating task:', updateError);
-        throw updateError;
-      }
-  
-      await fetchTodosRef.current();
+  const repeatTask = useCallback(
+    async (task, day, frequency = 'daily') => {
+      if (isRepeating) return;
+      setIsRepeating(true);
 
-    } catch (error) {
-      logError('RepeatTask failed:', error);
-    } finally {
-      setIsRepeating(false);
-    }
-  }, [session, days, isRepeating]);
+      try {
+        const taskId = task.originalId || task.id;
+        const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
+        clickedTaskDate.setHours(0, 0, 0, 0);
+
+        // Update the task to be recurring
+        const { error: updateError } = await supabase
+          .from('todos')
+          .update({
+            recurring: true,
+            repeat_frequency: frequency,
+            actual_date: getISOStringForLocalDate(clickedTaskDate),
+          })
+          .eq('id', taskId)
+          .eq('user_id', session.user.id);
+
+        if (updateError) {
+          logError('Error updating task:', updateError);
+          throw updateError;
+        }
+
+        await fetchTodosRef.current();
+      } catch (error) {
+        logError('RepeatTask failed:', error);
+      } finally {
+        setIsRepeating(false);
+      }
+    },
+    [session, days, isRepeating]
+  );
 
   const updateTaskText = async (taskId, day, newText) => {
     if (!newText.trim()) return;
     if (typeof newText !== 'string' || newText.trim().length > MAX_TASK_LENGTH) return;
 
-    const task = tasks[day].find(t => t.id === taskId);
+    const task = tasks[day].find((t) => t.id === taskId);
     if (!task) return;
 
     const actualId = task.originalId || task.id;
     const oldText = task.text;
-    
+
     // Optimistic update - update UI immediately
     // For recurring tasks, update all instances
     if (task.recurring || task.isRecurringInstance) {
-      setTasks(prev => {
+      setTasks((prev) => {
         const updated = { ...prev };
-        Object.keys(updated).forEach(dayKey => {
-          updated[dayKey] = updated[dayKey].map(t => 
-            (t.id === taskId || t.originalId === actualId)
-              ? { ...t, text: newText.trim() }
-              : t
+        Object.keys(updated).forEach((dayKey) => {
+          updated[dayKey] = updated[dayKey].map((t) =>
+            t.id === taskId || t.originalId === actualId ? { ...t, text: newText.trim() } : t
           );
         });
         return updated;
       });
     } else {
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t => 
-          t.id === taskId ? { ...t, text: newText.trim() } : t
-        )
+        [day]: prev[day].map((t) => (t.id === taskId ? { ...t, text: newText.trim() } : t)),
       }));
     }
-    
+
     setEditingTaskId(null);
     setEditingTaskText('');
 
@@ -1533,18 +1657,16 @@ function App() {
     } catch (error) {
       logError('Error updating todo:', error);
       // Revert optimistic update on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t =>
-          t.id === taskId ? { ...t, text: oldText } : t
-        )
+        [day]: prev[day].map((t) => (t.id === taskId ? { ...t, text: oldText } : t)),
       }));
     }
   };
 
   const updateTaskUrl = async (taskId, day, url) => {
     if (url && (typeof url !== 'string' || url.length > MAX_URL_LENGTH || !isValidUrl(url))) return;
-    const task = tasks[day].find(t => t.id === taskId);
+    const task = tasks[day].find((t) => t.id === taskId);
     if (!task) return;
 
     const actualId = task.originalId || task.id;
@@ -1552,23 +1674,19 @@ function App() {
 
     // Optimistic update - update UI immediately
     if (task.recurring || task.isRecurringInstance) {
-      setTasks(prev => {
+      setTasks((prev) => {
         const updated = { ...prev };
-        Object.keys(updated).forEach(dayKey => {
-          updated[dayKey] = updated[dayKey].map(t => 
-            (t.id === taskId || t.originalId === actualId)
-              ? { ...t, url: url }
-              : t
+        Object.keys(updated).forEach((dayKey) => {
+          updated[dayKey] = updated[dayKey].map((t) =>
+            t.id === taskId || t.originalId === actualId ? { ...t, url: url } : t
           );
         });
         return updated;
       });
     } else {
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t => 
-          t.id === taskId ? { ...t, url: url } : t
-        )
+        [day]: prev[day].map((t) => (t.id === taskId ? { ...t, url: url } : t)),
       }));
     }
 
@@ -1587,11 +1705,9 @@ function App() {
     } catch (error) {
       logError('Error updating todo URL:', error);
       // Revert optimistic update on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t => 
-          t.id === taskId ? { ...t, url: oldUrl } : t
-        )
+        [day]: prev[day].map((t) => (t.id === taskId ? { ...t, url: oldUrl } : t)),
       }));
     }
   };
@@ -1599,7 +1715,7 @@ function App() {
   // New function for updating notes
   const updateTaskNotes = async (taskId, day, notes) => {
     if (notes && (typeof notes !== 'string' || notes.length > MAX_NOTES_LENGTH)) return;
-    const task = tasks[day].find(t => t.id === taskId);
+    const task = tasks[day].find((t) => t.id === taskId);
     if (!task) return;
 
     const actualId = task.originalId || task.id;
@@ -1607,23 +1723,19 @@ function App() {
 
     // Optimistic update - update UI immediately
     if (task.recurring || task.isRecurringInstance) {
-      setTasks(prev => {
+      setTasks((prev) => {
         const updated = { ...prev };
-        Object.keys(updated).forEach(dayKey => {
-          updated[dayKey] = updated[dayKey].map(t => 
-            (t.id === taskId || t.originalId === actualId)
-              ? { ...t, notes: notes }
-              : t
+        Object.keys(updated).forEach((dayKey) => {
+          updated[dayKey] = updated[dayKey].map((t) =>
+            t.id === taskId || t.originalId === actualId ? { ...t, notes: notes } : t
           );
         });
         return updated;
       });
     } else {
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t => 
-          t.id === taskId ? { ...t, notes: notes } : t
-        )
+        [day]: prev[day].map((t) => (t.id === taskId ? { ...t, notes: notes } : t)),
       }));
     }
 
@@ -1643,11 +1755,9 @@ function App() {
     } catch (error) {
       logError('Error updating todo notes:', error);
       // Revert optimistic update on failure
-      setTasks(prev => ({
+      setTasks((prev) => ({
         ...prev,
-        [day]: prev[day].map(t => 
-          t.id === taskId ? { ...t, notes: oldNotes } : t
-        )
+        [day]: prev[day].map((t) => (t.id === taskId ? { ...t, notes: oldNotes } : t)),
       }));
     }
   };
@@ -1659,12 +1769,12 @@ function App() {
         queryParams: {
           prompt: 'select_account',
         },
-        redirectTo: window.location.origin
-      }
+        redirectTo: window.location.origin,
+      },
     });
     if (error) logError('Error logging in:', error);
   };
-  
+
   const handleLogout = async () => {
     log('Logout button clicked');
     try {
@@ -1683,18 +1793,16 @@ function App() {
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className={`w-80 p-8 mb-8 rounded-2xl ${getBackgroundColor(2)} bg-opacity-10 border-2 border-gray-200 shadow-lg`}>
+        <div
+          className={`w-80 p-8 mb-8 rounded-2xl ${getBackgroundColor(2)} bg-opacity-10 border-2 border-gray-200 shadow-lg`}
+        >
           <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">Welcome to tabs.day</h1>
           <p className="text-center text-gray-600 mb-8">Your to-do organizer</p>
           <button
             onClick={handleLogin}
             className="w-full flex items-center justify-center px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
           >
-            <img 
-              src="https://www.google.com/favicon.ico" 
-              alt="Google" 
-              className="w-5 h-5 mr-3"
-            />
+            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5 mr-3" />
             <span className="text-gray-600 font-medium">Continue with Google</span>
           </button>
         </div>
@@ -1703,163 +1811,454 @@ function App() {
   }
 
   const taskItemCtx = {
-    expandedTaskId, setExpandedTaskId,
+    expandedTaskId,
+    setExpandedTaskId,
     isMobile,
     selectedTasks,
     bulkMode,
-    editingTaskId, setEditingTaskId,
+    editingTaskId,
+    setEditingTaskId,
     setEditingTaskText,
-    editingSubItemId, setEditingSubItemId,
-    addingSubItemTo, setAddingSubItemTo,
-    newSubItemText, setNewSubItemText,
+    editingSubItemId,
+    setEditingSubItemId,
+    addingSubItemTo,
+    setAddingSubItemTo,
+    newSubItemText,
+    setNewSubItemText,
     pendingCompletions,
-    primedTaskId, setPrimedTaskId,
+    primedTaskId,
+    setPrimedTaskId,
     expandedSubItems,
-    setCurrentNoteTask, setShowNoteModal, setNoteInput,
-    setCurrentUrlTask, setCurrentUrlDay, setShowUrlModal,
-    toggleTaskSelection, toggleTask, toggleSubItems, toggleSubItem,
-    updateTaskText, updateSubItemText, deleteSubItem, addSubItem,
-    repeatTask, openGoogleCalendar, moveTask, deleteTask,
+    setCurrentNoteTask,
+    setShowNoteModal,
+    setNoteInput,
+    setCurrentUrlTask,
+    setCurrentUrlDay,
+    setShowUrlModal,
+    toggleTaskSelection,
+    toggleTask,
+    toggleSubItems,
+    toggleSubItem,
+    updateTaskText,
+    updateSubItemText,
+    deleteSubItem,
+    addSubItem,
+    repeatTask,
+    openGoogleCalendar,
+    moveTask,
+    deleteTask,
   };
 
   return (
     <TaskItemProvider value={taskItemCtx}>
-    <div className="min-h-screen bg-gray-50">
-      <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
-        {isLoading && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden bg-gray-200">
-            <div
-              className="h-full w-1/4 animate-loading-bar"
-              style={{ background: PROGRESS_GRADIENTS[colorTheme] }}
-            />
-          </div>
-        )}
-        <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
-          <div className="flex items-center">
-            <button 
-              onClick={() => handleNavigation(-1)}
-              disabled={isNavigating}
-              className="text-gray-500 hover:text-gray-700 mr-2"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <button 
-              onClick={() => handleNavigation(1)}
-              disabled={isNavigating}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <ArrowRight size={20} />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-5">
-            <ThemeSelector 
-              value={colorTheme}
-              onChange={(value) => {
-                setColorTheme(value);
-                localStorage.setItem('todoTheme', value);
-              }}
-            />
-          </div>
-          
-          <div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleLogout();
-              }}
-              className="text-gray-500 hover:text-gray-700 px-2 py-1 z-50 relative"
-              style={{
-                touchAction: 'manipulation',
-                WebkitTapHighlightColor: 'rgba(0,0,0,0)',
-                WebkitTouchCallout: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              Sign Out
-            </button>
+      <div className="min-h-screen bg-gray-50">
+        <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
+          {isLoading && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 overflow-hidden bg-gray-200">
+              <div
+                className="h-full w-1/4 animate-loading-bar"
+                style={{ background: PROGRESS_GRADIENTS[colorTheme] }}
+              />
+            </div>
+          )}
+          <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
+            <div className="flex items-center">
+              <button
+                onClick={() => handleNavigation(-1)}
+                disabled={isNavigating}
+                className="text-gray-500 hover:text-gray-700 mr-2"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <button
+                onClick={() => handleNavigation(1)}
+                disabled={isNavigating}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <ArrowRight size={20} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-5">
+              <ThemeSelector
+                value={colorTheme}
+                onChange={(value) => {
+                  setColorTheme(value);
+                  localStorage.setItem('todoTheme', value);
+                }}
+              />
+            </div>
+
+            <div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleLogout();
+                }}
+                className="text-gray-500 hover:text-gray-700 px-2 py-1 z-50 relative"
+                style={{
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0)',
+                  WebkitTouchCallout: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="pt-16 px-4">
-        <div className="max-w-md mx-auto rounded-3xl shadow-lg">
-          <div className="divide-y divide-gray-200 overflow-visible">
-            {days.map((day, index) => (
-              <div 
-                key={day}
+        <div className="pt-16 px-4">
+          <div className="max-w-md mx-auto rounded-3xl shadow-lg">
+            <div className="divide-y divide-gray-200 overflow-visible">
+              {days.map((day, index) => (
+                <div
+                  key={day}
+                  onClick={() => {
+                    setSelectedDay(index);
+                    if (isMobile) setPrimedTaskId(null);
+                  }}
+                  className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer overflow-visible
+                  ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <h2
+                      className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'} flex items-center gap-2`}
+                    >
+                      {day}
+                      {tasks[day].length > 0 && tasks[day].every((task) => task.completed) && (
+                        <Check size={24} className="text-green-500 stroke-2" />
+                      )}
+                    </h2>
+
+                    {/* Bulk action buttons and Layers icon */}
+                    <div className="flex items-center gap-1">
+                      {/* Inline bulk action buttons - shown when bulk mode active and tasks selected */}
+                      {bulkMode && selectedTasks.length > 0 && index === selectedDay && (
+                        <>
+                          {/* Complete button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              bulkCompleteTasks(day);
+                            }}
+                            className="p-2 text-green-500 hover:text-green-600 transition-colors"
+                            title="Complete selected"
+                          >
+                            <Check size={20} />
+                          </button>
+
+                          {/* Move button with dropdown */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowBulkMoveOptions(!showBulkMoveOptions);
+                                setShowBulkRepeatOptions(false);
+                              }}
+                              className={`p-2 text-blue-500 hover:text-blue-600 transition-colors ${showBulkMoveOptions ? 'text-blue-600' : ''}`}
+                              title="Move selected"
+                            >
+                              <SkipForward size={20} />
+                            </button>
+                            {showBulkMoveOptions && (
+                              <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
+                                {[
+                                  { id: 'today', label: 'Today', icon: <CalendarDays size={16} /> },
+                                  {
+                                    id: 'next-day',
+                                    label: 'Next Day',
+                                    icon: <SkipForward size={16} />,
+                                  },
+                                  {
+                                    id: 'next-week',
+                                    label: 'Next Week',
+                                    icon: <Calendar size={16} />,
+                                  },
+                                  {
+                                    id: 'next-weekday',
+                                    label: 'Next Weekday',
+                                    icon: <Calendar size={16} />,
+                                  },
+                                  {
+                                    id: 'next-weekend',
+                                    label: 'Next Weekend',
+                                    icon: <Calendar size={16} />,
+                                  },
+                                ].map((option) => (
+                                  <button
+                                    key={option.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      bulkMoveTasks(option.id, day);
+                                      setShowBulkMoveOptions(false);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                                  >
+                                    {option.icon}
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Repeat button with dropdown */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowBulkRepeatOptions(!showBulkRepeatOptions);
+                                setShowBulkMoveOptions(false);
+                              }}
+                              className={`p-2 text-purple-500 hover:text-purple-600 transition-colors ${showBulkRepeatOptions ? 'text-purple-600' : ''}`}
+                              title="Repeat selected"
+                            >
+                              <Repeat size={20} />
+                            </button>
+                            {showBulkRepeatOptions && (
+                              <div className="absolute top-full right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                                {[
+                                  { id: 'daily', label: 'Daily' },
+                                  { id: 'every-other-day', label: 'Every Other Day' },
+                                  { id: 'weekdays', label: 'Weekdays' },
+                                  { id: 'weekly', label: 'Weekly' },
+                                  { id: 'bi-weekly', label: 'Bi-weekly' },
+                                  { id: 'monthly', label: 'Monthly' },
+                                  { id: 'first-of-month', label: '1st of Month' },
+                                ].map((option) => (
+                                  <button
+                                    key={option.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      bulkRepeatTasks(option.id, day);
+                                      setShowBulkRepeatOptions(false);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                                  >
+                                    <Repeat size={14} />
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Divider */}
+                          <div
+                            className={`w-px h-5 ${index >= 5 ? 'bg-white/30' : 'bg-gray-300'} mx-1`}
+                          ></div>
+                        </>
+                      )}
+
+                      {/* Layers (bulk mode toggle) button */}
+                      {index === selectedDay && tasks[day].length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleBulkMode();
+                          }}
+                          className={`p-2 rounded-lg transition-colors ${
+                            bulkMode
+                              ? 'bg-blue-500 text-white'
+                              : index >= 5
+                                ? 'text-white/70 hover:text-white hover:bg-white/10'
+                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                          }`}
+                          title={bulkMode ? 'Exit bulk mode' : 'Bulk actions'}
+                        >
+                          <Layers size={20} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {index === selectedDay && (
+                    <>
+                      <p
+                        className={`text-sm mb-4 cursor-pointer hover:underline relative ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const input = e.currentTarget.querySelector('input');
+                          if (input) {
+                            try {
+                              input.showPicker();
+                            } catch (err) {
+                              input.focus();
+                              input.click();
+                            }
+                          }
+                        }}
+                      >
+                        {formatDate(getDateForDay(index))}
+                        <input
+                          type="date"
+                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                          value={getLocalDateString(getDateForDay(index))}
+                          onChange={(e) => {
+                            if (e.target.value) handleJumpToDate(e.target.value);
+                          }}
+                        />
+                      </p>
+                      <ProgressBar
+                        dayTasks={tasks[day]}
+                        index={index}
+                        gradient={PROGRESS_GRADIENTS[colorTheme]}
+                      />
+
+                      {/* Select All / Deselect All in bulk mode */}
+                      {bulkMode && tasks[day].length > 0 && (
+                        <div className="flex items-center gap-2 pb-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectAllTasks(day);
+                            }}
+                            className={`text-xs px-2 py-1 rounded ${
+                              index >= 5
+                                ? 'bg-white/20 text-white hover:bg-white/30'
+                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            }`}
+                          >
+                            Select All
+                          </button>
+                          {selectedTasks.length > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deselectAllTasks();
+                              }}
+                              className={`text-xs px-2 py-1 rounded ${
+                                index >= 5
+                                  ? 'bg-white/20 text-white hover:bg-white/30'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              Deselect All ({selectedTasks.length})
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <div
+                        className="space-y-3 overflow-visible"
+                        onClick={(e) => {
+                          // Close expanded task when clicking empty space on mobile
+                          if (isMobile && e.target === e.currentTarget) {
+                            setExpandedTaskId(null);
+                            setPrimedTaskId(null);
+                          }
+                        }}
+                      >
+                        {(() => {
+                          const allTasks = tasks[day];
+                          const incompleteTasks = allTasks
+                            .filter((t) => !t.completed)
+                            .sort((a, b) => a.text.localeCompare(b.text));
+                          const completedTasks = allTasks
+                            .filter((t) => t.completed)
+                            .sort((a, b) => a.text.localeCompare(b.text));
+                          const isCompletedExpanded = expandedCompletedSections[day] || false;
+
+                          return (
+                            <>
+                              {incompleteTasks.map((task) => (
+                                <TaskItem key={task.id} task={task} day={day} index={index} />
+                              ))}
+                              {completedTasks.length > 0 && (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedCompletedSections((prev) => ({
+                                        ...prev,
+                                        [day]: !prev[day],
+                                      }));
+                                    }}
+                                    className={`flex items-center gap-1.5 text-xs font-medium pt-2 ${
+                                      index >= 5
+                                        ? 'text-white/70 hover:text-white/90'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                    } transition-colors`}
+                                  >
+                                    {isCompletedExpanded ? (
+                                      <ChevronDown size={14} />
+                                    ) : (
+                                      <ChevronRight size={14} />
+                                    )}
+                                    COMPLETED ({completedTasks.length})
+                                  </button>
+                                  {isCompletedExpanded &&
+                                    completedTasks.map((task) => (
+                                      <TaskItem key={task.id} task={task} day={day} index={index} />
+                                    ))}
+                                </>
+                              )}
+                            </>
+                          );
+                        })()}
+                        {!bulkMode && (
+                          <form
+                            onSubmit={(e) => addTask(e, day)}
+                            className="pt-6"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Close expanded task when clicking the add task input on mobile
+                              if (isMobile) {
+                                setExpandedTaskId(null);
+                                setPrimedTaskId(null);
+                              }
+                            }}
+                          >
+                            <input
+                              type="text"
+                              value={newTask}
+                              onChange={(e) => setNewTask(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addTask(e, day);
+                                }
+                              }}
+                              placeholder="Add a new task..."
+                              className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
+                              ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`}
+                            />
+                          </form>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              <div
                 onClick={() => {
-                  setSelectedDay(index);
+                  setSelectedDay('task_bank');
                   if (isMobile) setPrimedTaskId(null);
                 }}
-                className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer overflow-visible
-                  ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
+                className="bg-black p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'} flex items-center gap-2`}>
-                    {day}
-                    {tasks[day].length > 0 && tasks[day].every(task => task.completed) && (
-                      <Check size={24} className="text-green-500 stroke-2" />
-                    )}
-                  </h2>
-                  
+                  <h2 className="text-2xl font-bold text-white">Task Bank</h2>
+
                   {/* Bulk action buttons and Layers icon */}
                   <div className="flex items-center gap-1">
                     {/* Inline bulk action buttons - shown when bulk mode active and tasks selected */}
-                    {bulkMode && selectedTasks.length > 0 && index === selectedDay && (
+                    {bulkMode && selectedTasks.length > 0 && selectedDay === 'task_bank' && (
                       <>
                         {/* Complete button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            bulkCompleteTasks(day);
+                            bulkCompleteTasks('TASK_BANK');
                           }}
                           className="p-2 text-green-500 hover:text-green-600 transition-colors"
                           title="Complete selected"
                         >
                           <Check size={20} />
                         </button>
-                        
-                        {/* Move button with dropdown */}
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowBulkMoveOptions(!showBulkMoveOptions);
-                              setShowBulkRepeatOptions(false);
-                            }}
-                            className={`p-2 text-blue-500 hover:text-blue-600 transition-colors ${showBulkMoveOptions ? 'text-blue-600' : ''}`}
-                            title="Move selected"
-                          >
-                            <SkipForward size={20} />
-                          </button>
-                          {showBulkMoveOptions && (
-                            <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
-                              {[
-                                { id: 'today', label: 'Today', icon: <CalendarDays size={16} /> },
-                                { id: 'next-day', label: 'Next Day', icon: <SkipForward size={16} /> },
-                                { id: 'next-week', label: 'Next Week', icon: <Calendar size={16} /> },
-                                { id: 'next-weekday', label: 'Next Weekday', icon: <Calendar size={16} /> },
-                                { id: 'next-weekend', label: 'Next Weekend', icon: <Calendar size={16} /> }
-                              ].map(option => (
-                                <button
-                                  key={option.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    bulkMoveTasks(option.id, day);
-                                    setShowBulkMoveOptions(false);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                                >
-                                  {option.icon}
-                                  {option.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        
+
                         {/* Repeat button with dropdown */}
                         <div className="relative">
                           <button
@@ -1882,13 +2281,13 @@ function App() {
                                 { id: 'weekly', label: 'Weekly' },
                                 { id: 'bi-weekly', label: 'Bi-weekly' },
                                 { id: 'monthly', label: 'Monthly' },
-                                { id: 'first-of-month', label: '1st of Month' }
-                              ].map(option => (
+                                { id: 'first-of-month', label: '1st of Month' },
+                              ].map((option) => (
                                 <button
                                   key={option.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    bulkRepeatTasks(option.id, day);
+                                    bulkRepeatTasks(option.id, 'TASK_BANK');
                                     setShowBulkRepeatOptions(false);
                                   }}
                                   className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
@@ -1900,68 +2299,48 @@ function App() {
                             </div>
                           )}
                         </div>
-                        
+
                         {/* Divider */}
-                        <div className={`w-px h-5 ${index >= 5 ? 'bg-white/30' : 'bg-gray-300'} mx-1`}></div>
+                        <div className="w-px h-5 bg-white/30 mx-1"></div>
                       </>
                     )}
-                    
+
                     {/* Layers (bulk mode toggle) button */}
-                    {index === selectedDay && tasks[day].length > 0 && (
+                    {selectedDay === 'task_bank' && tasks.TASK_BANK.length > 0 && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleBulkMode();
                         }}
                         className={`p-2 rounded-lg transition-colors ${
-                          bulkMode 
-                            ? 'bg-blue-500 text-white' 
-                            : index >= 5 
-                              ? 'text-white/70 hover:text-white hover:bg-white/10' 
-                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                          bulkMode
+                            ? 'bg-blue-500 text-white'
+                            : 'text-white/70 hover:text-white hover:bg-white/10'
                         }`}
-                        title={bulkMode ? "Exit bulk mode" : "Bulk actions"}
+                        title={bulkMode ? 'Exit bulk mode' : 'Bulk actions'}
                       >
                         <Layers size={20} />
                       </button>
                     )}
                   </div>
                 </div>
-                {index === selectedDay && (
+                {selectedDay === 'task_bank' && (
                   <>
-                    <p
-                      className={`text-sm mb-4 cursor-pointer hover:underline relative ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const input = e.currentTarget.querySelector('input');
-                        if (input) {
-                          try { input.showPicker(); } catch(err) { input.focus(); input.click(); }
-                        }
-                      }}
-                    >
-                      {formatDate(getDateForDay(index))}
-                      <input
-                        type="date"
-                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                        value={getLocalDateString(getDateForDay(index))}
-                        onChange={(e) => {
-                          if (e.target.value) handleJumpToDate(e.target.value);
-                        }}
-                      />
-                    </p>
-                    <ProgressBar dayTasks={tasks[day]} index={index} gradient={PROGRESS_GRADIENTS[colorTheme]} />
-                    
+                    <ProgressBar
+                      dayTasks={tasks.TASK_BANK}
+                      index={7}
+                      gradient={PROGRESS_GRADIENTS[colorTheme]}
+                    />
+
                     {/* Select All / Deselect All in bulk mode */}
-                    {bulkMode && tasks[day].length > 0 && (
+                    {bulkMode && tasks.TASK_BANK.length > 0 && (
                       <div className="flex items-center gap-2 pb-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            selectAllTasks(day);
+                            selectAllTasks('TASK_BANK');
                           }}
-                          className={`text-xs px-2 py-1 rounded ${
-                            index >= 5 ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          }`}
+                          className="text-xs px-2 py-1 rounded bg-white/20 text-white hover:bg-white/30"
                         >
                           Select All
                         </button>
@@ -1971,65 +2350,80 @@ function App() {
                               e.stopPropagation();
                               deselectAllTasks();
                             }}
-                            className={`text-xs px-2 py-1 rounded ${
-                              index >= 5 ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
+                            className="text-xs px-2 py-1 rounded bg-white/20 text-white hover:bg-white/30"
                           >
                             Deselect All ({selectedTasks.length})
                           </button>
                         )}
                       </div>
                     )}
-                    
-                    <div className="space-y-3 overflow-visible" onClick={(e) => {
-                      // Close expanded task when clicking empty space on mobile
-                      if (isMobile && e.target === e.currentTarget) {
-                        setExpandedTaskId(null);
-                        setPrimedTaskId(null);
-                      }
-                    }}>
+
+                    <div
+                      className="space-y-3"
+                      onClick={(e) => {
+                        // Close expanded task when clicking empty space on mobile
+                        if (isMobile && e.target === e.currentTarget) {
+                          setExpandedTaskId(null);
+                          setPrimedTaskId(null);
+                        }
+                      }}
+                    >
                       {(() => {
-                        const allTasks = tasks[day];
-                        const incompleteTasks = allTasks.filter(t => !t.completed).sort((a, b) => a.text.localeCompare(b.text));
-                        const completedTasks = allTasks.filter(t => t.completed).sort((a, b) => a.text.localeCompare(b.text));
-                        const isCompletedExpanded = expandedCompletedSections[day] || false;
+                        const allTasks = tasks.TASK_BANK;
+                        const incompleteTasks = allTasks
+                          .filter((t) => !t.completed)
+                          .sort((a, b) => a.text.localeCompare(b.text));
+                        const completedTasks = allTasks
+                          .filter((t) => t.completed)
+                          .sort((a, b) => a.text.localeCompare(b.text));
+                        const isCompletedExpanded = expandedCompletedSections['TASK_BANK'] || false;
 
                         return (
                           <>
-                            {incompleteTasks.map(task => (
-                              <TaskItem key={task.id} task={task} day={day} index={index} />
+                            {incompleteTasks.map((task) => (
+                              <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
                             ))}
                             {completedTasks.length > 0 && (
                               <>
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setExpandedCompletedSections(prev => ({ ...prev, [day]: !prev[day] }));
+                                    setExpandedCompletedSections((prev) => ({
+                                      ...prev,
+                                      TASK_BANK: !prev.TASK_BANK,
+                                    }));
                                   }}
-                                  className={`flex items-center gap-1.5 text-xs font-medium pt-2 ${
-                                    index >= 5 ? 'text-white/70 hover:text-white/90' : 'text-gray-500 hover:text-gray-700'
-                                  } transition-colors`}
+                                  className="flex items-center gap-1.5 text-xs font-medium pt-2 text-white/70 hover:text-white/90 transition-colors"
                                 >
-                                  {isCompletedExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                  {isCompletedExpanded ? (
+                                    <ChevronDown size={14} />
+                                  ) : (
+                                    <ChevronRight size={14} />
+                                  )}
                                   COMPLETED ({completedTasks.length})
                                 </button>
-                                {isCompletedExpanded && completedTasks.map(task => (
-                                  <TaskItem key={task.id} task={task} day={day} index={index} />
-                                ))}
+                                {isCompletedExpanded &&
+                                  completedTasks.map((task) => (
+                                    <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
+                                  ))}
                               </>
                             )}
                           </>
                         );
                       })()}
                       {!bulkMode && (
-                        <form onSubmit={(e) => addTask(e, day)} className="pt-6" onClick={e => {
-                          e.stopPropagation();
-                          // Close expanded task when clicking the add task input on mobile
-                          if (isMobile) {
-                            setExpandedTaskId(null);
-                            setPrimedTaskId(null);
-                          }
-                        }}>
+                        <form
+                          onSubmit={(e) => addTask(e, 'TASK_BANK')}
+                          className="pt-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Close expanded task when clicking the add task input on mobile
+                            if (isMobile) {
+                              setExpandedTaskId(null);
+                              setPrimedTaskId(null);
+                            }
+                          }}
+                        >
                           <input
                             type="text"
                             value={newTask}
@@ -2037,12 +2431,11 @@ function App() {
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                addTask(e, day);
+                                addTask(e, 'TASK_BANK');
                               }
                             }}
                             placeholder="Add a new task..."
-                            className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
-                              ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`}
+                            className="w-full bg-transparent text-sm placeholder-white focus:outline-none text-white"
                           />
                         </form>
                       )}
@@ -2050,246 +2443,57 @@ function App() {
                   </>
                 )}
               </div>
-            ))}
-            <div 
-              onClick={() => {
-                setSelectedDay('task_bank');
-                if (isMobile) setPrimedTaskId(null);
-              }}
-              className="bg-black p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Task Bank</h2>
-                
-                {/* Bulk action buttons and Layers icon */}
-                <div className="flex items-center gap-1">
-                  {/* Inline bulk action buttons - shown when bulk mode active and tasks selected */}
-                  {bulkMode && selectedTasks.length > 0 && selectedDay === 'task_bank' && (
-                    <>
-                      {/* Complete button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          bulkCompleteTasks('TASK_BANK');
-                        }}
-                        className="p-2 text-green-500 hover:text-green-600 transition-colors"
-                        title="Complete selected"
-                      >
-                        <Check size={20} />
-                      </button>
-                      
-                      {/* Repeat button with dropdown */}
-                      <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowBulkRepeatOptions(!showBulkRepeatOptions);
-                            setShowBulkMoveOptions(false);
-                          }}
-                          className={`p-2 text-purple-500 hover:text-purple-600 transition-colors ${showBulkRepeatOptions ? 'text-purple-600' : ''}`}
-                          title="Repeat selected"
-                        >
-                          <Repeat size={20} />
-                        </button>
-                        {showBulkRepeatOptions && (
-                          <div className="absolute top-full right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                            {[
-                              { id: 'daily', label: 'Daily' },
-                              { id: 'every-other-day', label: 'Every Other Day' },
-                              { id: 'weekdays', label: 'Weekdays' },
-                              { id: 'weekly', label: 'Weekly' },
-                              { id: 'bi-weekly', label: 'Bi-weekly' },
-                              { id: 'monthly', label: 'Monthly' },
-                              { id: 'first-of-month', label: '1st of Month' }
-                            ].map(option => (
-                              <button
-                                key={option.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  bulkRepeatTasks(option.id, 'TASK_BANK');
-                                  setShowBulkRepeatOptions(false);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                              >
-                                <Repeat size={14} />
-                                {option.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Divider */}
-                      <div className="w-px h-5 bg-white/30 mx-1"></div>
-                    </>
-                  )}
-                  
-                  {/* Layers (bulk mode toggle) button */}
-                  {selectedDay === 'task_bank' && tasks.TASK_BANK.length > 0 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBulkMode();
-                      }}
-                      className={`p-2 rounded-lg transition-colors ${
-                        bulkMode 
-                          ? 'bg-blue-500 text-white' 
-                          : 'text-white/70 hover:text-white hover:bg-white/10'
-                      }`}
-                      title={bulkMode ? "Exit bulk mode" : "Bulk actions"}
-                    >
-                      <Layers size={20} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              {selectedDay === 'task_bank' && (
-                <>
-                  <ProgressBar dayTasks={tasks.TASK_BANK} index={7} gradient={PROGRESS_GRADIENTS[colorTheme]} />
-                  
-                  {/* Select All / Deselect All in bulk mode */}
-                  {bulkMode && tasks.TASK_BANK.length > 0 && (
-                    <div className="flex items-center gap-2 pb-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          selectAllTasks('TASK_BANK');
-                        }}
-                        className="text-xs px-2 py-1 rounded bg-white/20 text-white hover:bg-white/30"
-                      >
-                        Select All
-                      </button>
-                      {selectedTasks.length > 0 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deselectAllTasks();
-                          }}
-                          className="text-xs px-2 py-1 rounded bg-white/20 text-white hover:bg-white/30"
-                        >
-                          Deselect All ({selectedTasks.length})
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="space-y-3" onClick={(e) => {
-                    // Close expanded task when clicking empty space on mobile
-                    if (isMobile && e.target === e.currentTarget) {
-                      setExpandedTaskId(null);
-                      setPrimedTaskId(null);
-                    }
-                  }}>
-                    {(() => {
-                      const allTasks = tasks.TASK_BANK;
-                      const incompleteTasks = allTasks.filter(t => !t.completed).sort((a, b) => a.text.localeCompare(b.text));
-                      const completedTasks = allTasks.filter(t => t.completed).sort((a, b) => a.text.localeCompare(b.text));
-                      const isCompletedExpanded = expandedCompletedSections['TASK_BANK'] || false;
-
-                      return (
-                        <>
-                          {incompleteTasks.map(task => (
-                            <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
-                          ))}
-                          {completedTasks.length > 0 && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedCompletedSections(prev => ({ ...prev, TASK_BANK: !prev.TASK_BANK }));
-                                }}
-                                className="flex items-center gap-1.5 text-xs font-medium pt-2 text-white/70 hover:text-white/90 transition-colors"
-                              >
-                                {isCompletedExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                COMPLETED ({completedTasks.length})
-                              </button>
-                              {isCompletedExpanded && completedTasks.map(task => (
-                                <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
-                              ))}
-                            </>
-                          )}
-                        </>
-                      );
-                    })()}
-                    {!bulkMode && (
-                      <form onSubmit={(e) => addTask(e, 'TASK_BANK')} className="pt-6" onClick={e => {
-                        e.stopPropagation();
-                        // Close expanded task when clicking the add task input on mobile
-                        if (isMobile) {
-                          setExpandedTaskId(null);
-                          setPrimedTaskId(null);
-                        }
-                      }}>
-                        <input
-                          type="text"
-                          value={newTask}
-                          onChange={(e) => setNewTask(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              addTask(e, 'TASK_BANK');
-                            }
-                          }}
-                          placeholder="Add a new task..."
-                          className="w-full bg-transparent text-sm placeholder-white focus:outline-none text-white"
-                        />
-                      </form>
-                    )}
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </div>
+
+        {fetchError && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 flex items-start gap-3">
+            <div className="flex-grow text-sm text-red-800">
+              <div className="font-medium">Couldn't sync your tasks</div>
+              <div className="text-red-600 text-xs mt-0.5 break-words">{fetchError}</div>
+            </div>
+            <div className="flex flex-col gap-1 flex-shrink-0">
+              <button
+                onClick={() => fetchTodosRef.current()}
+                className="text-xs font-medium text-red-700 hover:text-red-900 px-2 py-1 rounded hover:bg-red-100"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => setFetchError(null)}
+                className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-100"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+        {showNoteModal && (
+          <NoteModal
+            task={currentNoteTask}
+            day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]}
+            updateTaskNotes={updateTaskNotes}
+            onClose={() => {
+              setShowNoteModal(false);
+              setCurrentNoteTask(null);
+              setNoteInput('');
+            }}
+          />
+        )}
+        {showUrlModal && (
+          <UrlModal
+            task={currentUrlTask}
+            day={currentUrlDay}
+            updateTaskUrl={updateTaskUrl}
+            onClose={() => {
+              setShowUrlModal(false);
+              setCurrentUrlTask(null);
+              setCurrentUrlDay(null);
+            }}
+          />
+        )}
       </div>
-      
-      {fetchError && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 flex items-start gap-3">
-          <div className="flex-grow text-sm text-red-800">
-            <div className="font-medium">Couldn't sync your tasks</div>
-            <div className="text-red-600 text-xs mt-0.5 break-words">{fetchError}</div>
-          </div>
-          <div className="flex flex-col gap-1 flex-shrink-0">
-            <button
-              onClick={() => fetchTodosRef.current()}
-              className="text-xs font-medium text-red-700 hover:text-red-900 px-2 py-1 rounded hover:bg-red-100"
-            >
-              Retry
-            </button>
-            <button
-              onClick={() => setFetchError(null)}
-              className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-100"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-      {showNoteModal && (
-        <NoteModal
-          task={currentNoteTask}
-          day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]}
-          updateTaskNotes={updateTaskNotes}
-          onClose={() => {
-            setShowNoteModal(false);
-            setCurrentNoteTask(null);
-            setNoteInput('');
-          }}
-        />
-      )}
-      {showUrlModal && (
-        <UrlModal
-          task={currentUrlTask}
-          day={currentUrlDay}
-          updateTaskUrl={updateTaskUrl}
-          onClose={() => {
-            setShowUrlModal(false);
-            setCurrentUrlTask(null);
-            setCurrentUrlDay(null);
-          }}
-        />
-      )}
-    </div>
     </TaskItemProvider>
   );
 }

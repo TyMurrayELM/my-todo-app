@@ -9,32 +9,32 @@ const MoveMenu = ({ onSelect }) => {
       id: 'today',
       label: 'Today',
       icon: <CalendarDays size={14} />,
-      subtitle: 'Move to today'
+      subtitle: 'Move to today',
     },
     {
       id: 'next-day',
       label: 'Next Day',
       icon: <SkipForward size={14} />,
-      subtitle: 'Tomorrow'
+      subtitle: 'Tomorrow',
     },
-    { 
-      id: 'next-week', 
-      label: 'Next Week', 
-      icon: <Calendar size={14} />, 
-      subtitle: '+7 days' 
+    {
+      id: 'next-week',
+      label: 'Next Week',
+      icon: <Calendar size={14} />,
+      subtitle: '+7 days',
     },
-    { 
-      id: 'next-weekday', 
-      label: 'Next Weekday', 
-      icon: <CalendarDays size={14} />, 
-      subtitle: 'Skip weekend' 
+    {
+      id: 'next-weekday',
+      label: 'Next Weekday',
+      icon: <CalendarDays size={14} />,
+      subtitle: 'Skip weekend',
     },
-    { 
-      id: 'next-weekend', 
-      label: 'Next Weekend', 
-      icon: <Calendar size={14} />, 
-      subtitle: 'Saturday' 
-    }
+    {
+      id: 'next-weekend',
+      label: 'Next Weekend',
+      icon: <Calendar size={14} />,
+      subtitle: 'Saturday',
+    },
   ];
 
   const handleButtonClick = (e) => {

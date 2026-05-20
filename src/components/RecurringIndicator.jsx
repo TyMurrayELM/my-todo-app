@@ -5,7 +5,7 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
   let label = '';
   let title = '';
   let icon = <Repeat size={14} />;
-  
+
   switch (frequency) {
     case 'daily':
       label = 'd';
@@ -39,9 +39,9 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
       label = 'd'; // Default to daily
       title = 'Repeats daily';
   }
-  
+
   return (
-    <span 
+    <span
       className={`flex items-center gap-1 ${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}
       title={title}
     >

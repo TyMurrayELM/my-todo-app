@@ -13,11 +13,15 @@ export default function ProgressBar({ dayTasks, index, gradient }) {
         <span className={`text-xs ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}>
           {completed}/{total} completed
         </span>
-        <span className={`text-xs font-medium ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}>
+        <span
+          className={`text-xs font-medium ${isDarkBackground ? 'text-white/70' : 'text-gray-600'}`}
+        >
           {Math.round(percentage)}%
         </span>
       </div>
-      <div className={`w-full h-2 rounded-full ${isDarkBackground ? 'bg-white/20' : 'bg-gray-200'} overflow-hidden`}>
+      <div
+        className={`w-full h-2 rounded-full ${isDarkBackground ? 'bg-white/20' : 'bg-gray-200'} overflow-hidden`}
+      >
         <div
           className="h-full transition-all duration-500 ease-out rounded-full"
           style={{

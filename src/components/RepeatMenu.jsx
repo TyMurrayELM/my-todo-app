@@ -5,48 +5,48 @@ import DropdownMenu from './DropdownMenu'; // Adjust path as needed
 
 const RepeatMenu = ({ onSelect }) => {
   const options = [
-    { 
-      id: 'daily', 
-      label: 'Daily', 
-      icon: <Repeat size={14} />, 
-      subtitle: 'Every day' 
+    {
+      id: 'daily',
+      label: 'Daily',
+      icon: <Repeat size={14} />,
+      subtitle: 'Every day',
     },
-    { 
-      id: 'every-other-day', 
-      label: 'Every Other Day', 
-      icon: <Repeat size={14} />, 
-      subtitle: 'Every 2 days' 
+    {
+      id: 'every-other-day',
+      label: 'Every Other Day',
+      icon: <Repeat size={14} />,
+      subtitle: 'Every 2 days',
     },
-    { 
-      id: 'weekdays', 
-      label: 'Weekdays', 
-      icon: <Calendar size={14} />, 
-      subtitle: 'Mon-Fri' 
+    {
+      id: 'weekdays',
+      label: 'Weekdays',
+      icon: <Calendar size={14} />,
+      subtitle: 'Mon-Fri',
     },
-    { 
-      id: 'weekly', 
-      label: 'Weekly', 
-      icon: <Calendar size={14} />, 
-      subtitle: 'Same day weekly' 
+    {
+      id: 'weekly',
+      label: 'Weekly',
+      icon: <Calendar size={14} />,
+      subtitle: 'Same day weekly',
     },
-    { 
-      id: 'bi-weekly', 
-      label: 'Bi-weekly', 
-      icon: <Calendar size={14} />, 
-      subtitle: 'Every 2 weeks' 
+    {
+      id: 'bi-weekly',
+      label: 'Bi-weekly',
+      icon: <Calendar size={14} />,
+      subtitle: 'Every 2 weeks',
     },
-    { 
-      id: 'monthly', 
-      label: 'Monthly', 
-      icon: <Calendar size={14} />, 
-      subtitle: 'Same day monthly' 
+    {
+      id: 'monthly',
+      label: 'Monthly',
+      icon: <Calendar size={14} />,
+      subtitle: 'Same day monthly',
     },
-    { 
-      id: 'first-of-month', 
-      label: '1st of Month', 
-      icon: <Calendar size={14} />, 
-      subtitle: 'Every 1st' 
-    }
+    {
+      id: 'first-of-month',
+      label: '1st of Month',
+      icon: <Calendar size={14} />,
+      subtitle: 'Every 1st',
+    },
   ];
 
   return (

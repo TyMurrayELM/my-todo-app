@@ -2,14 +2,14 @@
 import React, { useState } from 'react';
 import { X, Check, Trash2, SkipForward, Repeat, Calendar, CalendarDays } from 'lucide-react';
 
-const BulkActionBar = ({ 
-  selectedCount, 
-  onMove, 
-  onRepeat, 
-  onDelete, 
-  onComplete, 
+const BulkActionBar = ({
+  selectedCount,
+  onMove,
+  onRepeat,
+  onDelete,
+  onComplete,
   onCancel,
-  isTaskBank = false 
+  isTaskBank = false,
 }) => {
   const [showMoveOptions, setShowMoveOptions] = useState(false);
   const [showRepeatOptions, setShowRepeatOptions] = useState(false);
@@ -18,7 +18,7 @@ const BulkActionBar = ({
     { id: 'next-day', label: 'Next Day', icon: <SkipForward size={16} /> },
     { id: 'next-week', label: 'Next Week', icon: <Calendar size={16} /> },
     { id: 'next-weekday', label: 'Next Weekday', icon: <CalendarDays size={16} /> },
-    { id: 'next-weekend', label: 'Next Weekend', icon: <Calendar size={16} /> }
+    { id: 'next-weekend', label: 'Next Weekend', icon: <Calendar size={16} /> },
   ];
 
   const repeatOptions = [
@@ -28,7 +28,7 @@ const BulkActionBar = ({
     { id: 'weekly', label: 'Weekly' },
     { id: 'bi-weekly', label: 'Bi-weekly' },
     { id: 'monthly', label: 'Monthly' },
-    { id: 'first-of-month', label: '1st of Month' }
+    { id: 'first-of-month', label: '1st of Month' },
   ];
 
   return (
@@ -38,14 +38,11 @@ const BulkActionBar = ({
           <span className="text-sm font-medium text-gray-700">
             {selectedCount} task{selectedCount !== 1 ? 's' : ''} selected
           </span>
-          <button
-            onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700 p-1"
-          >
+          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700 p-1">
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="flex items-center justify-around gap-2">
           {/* Complete Button */}
           <button
@@ -69,10 +66,10 @@ const BulkActionBar = ({
                 <SkipForward size={24} />
                 <span className="text-xs">Move</span>
               </button>
-              
+
               {showMoveOptions && (
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-40 bg-white border rounded-lg shadow-lg">
-                  {moveOptions.map(option => (
+                  {moveOptions.map((option) => (
                     <button
                       key={option.id}
                       onClick={() => {
@@ -102,10 +99,10 @@ const BulkActionBar = ({
               <Repeat size={24} />
               <span className="text-xs">Repeat</span>
             </button>
-            
+
             {showRepeatOptions && (
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-44 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {repeatOptions.map(option => (
+                {repeatOptions.map((option) => (
                   <button
                     key={option.id}
                     onClick={() => {

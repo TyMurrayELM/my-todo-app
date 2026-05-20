@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
-import { Check, X, Plus, ChevronRight, ChevronDown, Link, StickyNote, Calendar } from 'lucide-react';
+import {
+  Check,
+  X,
+  Plus,
+  ChevronRight,
+  ChevronDown,
+  Link,
+  StickyNote,
+  Calendar,
+} from 'lucide-react';
 import { isValidUrl, formatCompletionTime } from '../lib/utils';
 import RecurringIndicator from './RecurringIndicator';
 import RepeatMenu from './RepeatMenu';
@@ -92,8 +101,13 @@ export default function TaskItem({ task, day, index }) {
               toggleTaskSelection(task.id);
             }}
             className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-all duration-200
-              ${isSelected ? 'bg-blue-500 border-blue-500' :
-                isDarkBackground ? 'bg-white/20 border-white/50 hover:border-blue-400' : 'bg-white border-gray-400 hover:border-blue-400'}`}
+              ${
+                isSelected
+                  ? 'bg-blue-500 border-blue-500'
+                  : isDarkBackground
+                    ? 'bg-white/20 border-white/50 hover:border-blue-400'
+                    : 'bg-white border-gray-400 hover:border-blue-400'
+              }`}
           >
             {isSelected && <Check size={16} className="text-white" />}
           </button>
@@ -104,12 +118,18 @@ export default function TaskItem({ task, day, index }) {
               toggleTask(task.id, day);
             }}
             className={`w-5 h-5 mt-0.5 border rounded flex-shrink-0 flex items-center justify-center transition-all duration-200
-              ${visuallyCompleted ? 'bg-green-500 border-green-500 scale-110' :
-                primedTaskId === task.id ? 'bg-white border-green-500' :
-                isDarkBackground ? 'bg-white border-white hover:border-green-500' : 'bg-white border-black hover:border-green-500'}`}
+              ${
+                visuallyCompleted
+                  ? 'bg-green-500 border-green-500 scale-110'
+                  : primedTaskId === task.id
+                    ? 'bg-white border-green-500'
+                    : isDarkBackground
+                      ? 'bg-white border-white hover:border-green-500'
+                      : 'bg-white border-black hover:border-green-500'
+              }`}
             style={{
               transform: visuallyCompleted ? 'scale(1.1)' : 'scale(1)',
-              transition: 'all 0.2s ease-out'
+              transition: 'all 0.2s ease-out',
             }}
           >
             {visuallyCompleted && (
@@ -200,8 +220,11 @@ export default function TaskItem({ task, day, index }) {
                 }
               }}
               className={`${
-                visuallyCompleted ? 'line-through text-gray-400' :
-                isDarkBackground ? 'text-white' : 'text-gray-700'
+                visuallyCompleted
+                  ? 'line-through text-gray-400'
+                  : isDarkBackground
+                    ? 'text-white'
+                    : 'text-gray-700'
               } ${isSelected ? 'font-medium' : ''} transition-all duration-200`}
               title={task.text}
             >
@@ -215,8 +238,10 @@ export default function TaskItem({ task, day, index }) {
             {!bulkMode && (
               <div className="flex items-center gap-1 flex-shrink-0">
                 {hasSubItems && (
-                  <span className={`text-xs ${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}>
-                    ({task.subItems.filter(s => s.completed).length}/{task.subItems.length})
+                  <span
+                    className={`text-xs ${isDarkBackground ? 'text-white/60' : 'text-gray-400'}`}
+                  >
+                    ({task.subItems.filter((s) => s.completed).length}/{task.subItems.length})
                   </span>
                 )}
                 {task.recurring && (
@@ -256,7 +281,7 @@ export default function TaskItem({ task, day, index }) {
 
       {!bulkMode && isSubItemsExpanded && hasSubItems && (
         <div className="ml-8 mt-2 space-y-2">
-          {task.subItems.map(subItem => (
+          {task.subItems.map((subItem) => (
             <div key={subItem.id} className="flex items-center gap-2">
               <button
                 onClick={(e) => {
@@ -264,8 +289,13 @@ export default function TaskItem({ task, day, index }) {
                   toggleSubItem(subItem.id, day);
                 }}
                 className={`w-4 h-4 border rounded flex-shrink-0 flex items-center justify-center transition-colors duration-200
-                  ${subItem.completed ? 'bg-green-500 border-green-500' :
-                    isDarkBackground ? 'bg-white border-white/50 hover:border-green-500' : 'bg-white border-gray-400 hover:border-green-500'}`}
+                  ${
+                    subItem.completed
+                      ? 'bg-green-500 border-green-500'
+                      : isDarkBackground
+                        ? 'bg-white border-white/50 hover:border-green-500'
+                        : 'bg-white border-gray-400 hover:border-green-500'
+                  }`}
               >
                 {subItem.completed && <Check size={12} className="text-white" />}
               </button>
@@ -294,8 +324,11 @@ export default function TaskItem({ task, day, index }) {
                     setEditingSubItemId(subItem.id);
                   }}
                   className={`text-sm flex-grow cursor-pointer ${
-                    subItem.completed ? 'line-through text-gray-400' :
-                    isDarkBackground ? 'text-white/80' : 'text-gray-600'
+                    subItem.completed
+                      ? 'line-through text-gray-400'
+                      : isDarkBackground
+                        ? 'text-white/80'
+                        : 'text-gray-600'
                   }`}
                 >
                   {subItem.text}
@@ -316,7 +349,9 @@ export default function TaskItem({ task, day, index }) {
       )}
 
       {!bulkMode && (
-        <div className={`ml-8 transition-all duration-200 ${addingSubItemTo === task.id ? 'mt-2 h-7' : 'h-0 overflow-hidden'}`}>
+        <div
+          className={`ml-8 transition-all duration-200 ${addingSubItemTo === task.id ? 'mt-2 h-7' : 'h-0 overflow-hidden'}`}
+        >
           {addingSubItemTo === task.id && (
             <input
               ref={subItemInputRef}
@@ -346,7 +381,9 @@ export default function TaskItem({ task, day, index }) {
               autoCapitalize="off"
               spellCheck="false"
               className={`w-full text-sm bg-transparent border-b h-7 ${
-                isDarkBackground ? 'border-white/30 text-white placeholder-white/50' : 'border-gray-300 text-gray-700 placeholder-gray-400'
+                isDarkBackground
+                  ? 'border-white/30 text-white placeholder-white/50'
+                  : 'border-gray-300 text-gray-700 placeholder-gray-400'
               } focus:outline-none focus:border-green-500`}
             />
           )}
@@ -354,7 +391,9 @@ export default function TaskItem({ task, day, index }) {
       )}
 
       {!isMobile && !bulkMode && (
-        <div className={`transition-all duration-200 ${(isHovered || addingSubItemTo === task.id) ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}>
+        <div
+          className={`transition-all duration-200 ${isHovered || addingSubItemTo === task.id ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}
+        >
           <div className={`ml-8 p-3 rounded-lg relative z-50`}>
             <div className="flex items-center justify-around gap-2">
               <div className="relative">
@@ -368,12 +407,12 @@ export default function TaskItem({ task, day, index }) {
                   setNoteInput(task.notes || '');
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.notes ? "Edit Note" : "Add Note"}
+                title={task.notes ? 'Edit Note' : 'Add Note'}
               >
                 <StickyNote
                   size={20}
-                  fill={task.notes ? "#10b981" : "none"}
-                  className={task.notes ? "text-gray-600" : ""}
+                  fill={task.notes ? '#10b981' : 'none'}
+                  className={task.notes ? 'text-gray-600' : ''}
                 />
               </button>
               <button
@@ -397,9 +436,9 @@ export default function TaskItem({ task, day, index }) {
                   }
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-                title={task.url ? "Open URL (right-click to edit)" : "Add URL"}
+                title={task.url ? 'Open URL (right-click to edit)' : 'Add URL'}
               >
-                <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
+                <Link size={20} color={task.url ? '#10b981' : 'currentColor'} />
               </button>
               {day !== 'TASK_BANK' && (
                 <button
@@ -436,10 +475,12 @@ export default function TaskItem({ task, day, index }) {
         <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
           <div className="flex items-center justify-around gap-2">
             <div className="relative">
-              <RepeatMenu onSelect={(frequency) => {
-                if (isMobile) setPrimedTaskId(null);
-                repeatTask(task, day, frequency);
-              }} />
+              <RepeatMenu
+                onSelect={(frequency) => {
+                  if (isMobile) setPrimedTaskId(null);
+                  repeatTask(task, day, frequency);
+                }}
+              />
             </div>
             <button
               onClick={(e) => {
@@ -450,12 +491,12 @@ export default function TaskItem({ task, day, index }) {
                 if (isMobile) setPrimedTaskId(null);
               }}
               className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-              title={task.notes ? "Edit Note" : "Add Note"}
+              title={task.notes ? 'Edit Note' : 'Add Note'}
             >
               <StickyNote
                 size={20}
-                fill={task.notes ? "#10b981" : "none"}
-                className={task.notes ? "text-gray-600" : ""}
+                fill={task.notes ? '#10b981' : 'none'}
+                className={task.notes ? 'text-gray-600' : ''}
               />
             </button>
             <button
@@ -467,9 +508,9 @@ export default function TaskItem({ task, day, index }) {
                 setShowUrlModal(true);
               }}
               className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
-              title={task.url ? "Edit URL" : "Add URL"}
+              title={task.url ? 'Edit URL' : 'Add URL'}
             >
-              <Link size={20} color={task.url ? "#10b981" : "currentColor"} />
+              <Link size={20} color={task.url ? '#10b981' : 'currentColor'} />
             </button>
             {day !== 'TASK_BANK' && (
               <button
@@ -486,10 +527,12 @@ export default function TaskItem({ task, day, index }) {
             )}
             {day !== 'TASK_BANK' && index < 6 && (
               <div className="relative">
-                <MoveMenu onSelect={(moveType) => {
-                  if (isMobile) setPrimedTaskId(null);
-                  moveTask(task.id, day, moveType);
-                }} />
+                <MoveMenu
+                  onSelect={(moveType) => {
+                    if (isMobile) setPrimedTaskId(null);
+                    moveTask(task.id, day, moveType);
+                  }}
+                />
               </div>
             )}
             <button

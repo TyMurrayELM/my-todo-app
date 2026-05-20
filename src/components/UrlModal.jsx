@@ -33,13 +33,12 @@ export default function UrlModal({ task, day, onClose, updateTaskUrl }) {
           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           autoFocus
         />
-        {localUrl.trim() && (() => {
-          let test = localUrl.trim();
-          if (!test.match(/^https?:\/\//i)) test = 'https://' + test;
-          return !isValidUrl(test);
-        })() && (
-          <p className="text-red-500 text-sm mt-2">Please enter a valid URL</p>
-        )}
+        {localUrl.trim() &&
+          (() => {
+            let test = localUrl.trim();
+            if (!test.match(/^https?:\/\//i)) test = 'https://' + test;
+            return !isValidUrl(test);
+          })() && <p className="text-red-500 text-sm mt-2">Please enter a valid URL</p>}
         <div className="flex justify-end gap-3 mt-4">
           {task.url && (
             <button
@@ -63,10 +62,7 @@ export default function UrlModal({ task, day, onClose, updateTaskUrl }) {
               Open
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
+          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:text-gray-800">
             Cancel
           </button>
           <button
