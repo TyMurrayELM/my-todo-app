@@ -2,6 +2,13 @@
 import { Check, ArrowLeft, ArrowRight, SkipForward, Repeat, ChevronRight, ChevronDown, Calendar, Layers, CalendarDays } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { isValidUrl } from './lib/utils';
+import {
+  getLocalDateString,
+  parseUTCDateAsLocal,
+  getISOStringForLocalDate,
+  formatDate,
+  shouldShowOnDate,
+} from './lib/dates';
 import ThemeSelector from './components/ThemeSelector';
 import RepeatMenu from './components/RepeatMenu';
 import MoveMenu from './components/MoveMenu';
@@ -35,73 +42,6 @@ const PROGRESS_GRADIENTS = {
   green: 'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
   purple: 'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
   pink: 'linear-gradient(to right, #fbcfe8 0%, #f9a8d4 20%, #ec4899 40%, #db2777 60%, #be185d 80%, #500724 100%)',
-};
-
-const getLocalDateString = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const parseUTCDateAsLocal = (dateString) => {
-  const [year, month, day] = dateString.split('T')[0].split('-');
-  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-};
-
-const getISOStringForLocalDate = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}T12:00:00.000Z`;
-};
-
-const formatDate = (date) =>
-  `${date.toLocaleString('default', { month: 'long' })}, ${date.getDate()} ${date.getFullYear()}`;
-
-const shouldShowOnDate = (task, targetDate) => {
-  if (!task.recurring || !task.repeat_frequency) return false;
-
-  const taskStartDate = parseUTCDateAsLocal(task.actual_date);
-  taskStartDate.setHours(0, 0, 0, 0);
-  const checkDate = new Date(targetDate);
-  checkDate.setHours(0, 0, 0, 0);
-
-  if (checkDate < taskStartDate) return false;
-
-  const daysDiff = Math.floor((checkDate - taskStartDate) / (1000 * 60 * 60 * 24));
-  const targetDayOfWeek = checkDate.getDay();
-
-  switch (task.repeat_frequency) {
-    case 'daily':
-      return true;
-    case 'every-other-day':
-      return daysDiff % 2 === 0;
-    case 'weekdays':
-      return targetDayOfWeek !== 0 && targetDayOfWeek !== 6;
-    case 'weekly':
-      return daysDiff % 7 === 0;
-    case 'bi-weekly':
-      return daysDiff % 14 === 0;
-    case 'monthly': {
-      const taskDay = taskStartDate.getDate();
-      const targetDay = checkDate.getDate();
-      const monthsDiff =
-        (checkDate.getFullYear() - taskStartDate.getFullYear()) * 12 +
-        (checkDate.getMonth() - taskStartDate.getMonth());
-      const daysInTargetMonth = new Date(
-        checkDate.getFullYear(),
-        checkDate.getMonth() + 1,
-        0
-      ).getDate();
-      const adjustedTaskDay = Math.min(taskDay, daysInTargetMonth);
-      return monthsDiff >= 0 && targetDay === adjustedTaskDay;
-    }
-    case 'first-of-month':
-      return checkDate.getDate() === 1;
-    default:
-      return false;
-  }
 };
 
 function App() {
@@ -457,6 +397,8 @@ function App() {
   }, []);
 
   const fetchTodosRef = useRef(fetchTodos);
+  const intendedCompletionsRef = useRef({});
+  const completionTimeoutsRef = useRef({});
   useEffect(() => {
     fetchTodosRef.current = fetchTodos;
   });
@@ -1334,8 +1276,25 @@ function App() {
     const task = tasks[day].find(t => t.id === taskId);
     if (!task) return;
 
-    const newCompleted = !task.completed;
+    // Read the latest intended state — during the 400ms commit window, a fresh
+    // click should toggle from the in-flight value, not the not-yet-committed
+    // task.completed value.
+    const currentlyCompleted = Object.prototype.hasOwnProperty.call(
+      intendedCompletionsRef.current,
+      taskId
+    )
+      ? intendedCompletionsRef.current[taskId]
+      : task.completed;
+
+    const newCompleted = !currentlyCompleted;
     const completedAt = newCompleted ? new Date().toISOString() : null;
+    intendedCompletionsRef.current[taskId] = newCompleted;
+
+    // Cancel any pending commit for this task — we're updating the intent
+    if (completionTimeoutsRef.current[taskId]) {
+      clearTimeout(completionTimeoutsRef.current[taskId]);
+      delete completionTimeoutsRef.current[taskId];
+    }
 
     if (newCompleted) {
       // COMPLETING: Show visual feedback immediately, delay the reorder
@@ -1348,7 +1307,10 @@ function App() {
       const reorderDelay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 400;
 
       // After delay, actually update the task state (this triggers reorder)
-      setTimeout(() => {
+      completionTimeoutsRef.current[taskId] = setTimeout(() => {
+        delete completionTimeoutsRef.current[taskId];
+        delete intendedCompletionsRef.current[taskId];
+
         setPendingCompletions(prev => {
           const next = { ...prev };
           delete next[taskId];
@@ -1366,10 +1328,16 @@ function App() {
       }, reorderDelay);
     } else {
       // UNCOMPLETING: Update immediately, no delay needed
+      delete intendedCompletionsRef.current[taskId];
+      setPendingCompletions(prev => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
       setTasks(prev => ({
         ...prev,
-        [day]: prev[day].map(t => 
-          t.id === taskId 
+        [day]: prev[day].map(t =>
+          t.id === taskId
             ? { ...t, completed: false, completedAt: null }
             : t
         )
@@ -1416,7 +1384,12 @@ function App() {
       }
     } catch (error) {
       logError('Error updating todo:', error);
-      // Clear pending and don't update state on failure
+      // Clear in-flight state and don't update committed state on failure
+      delete intendedCompletionsRef.current[taskId];
+      if (completionTimeoutsRef.current[taskId]) {
+        clearTimeout(completionTimeoutsRef.current[taskId]);
+        delete completionTimeoutsRef.current[taskId];
+      }
       setPendingCompletions(prev => {
         const next = { ...prev };
         delete next[taskId];
