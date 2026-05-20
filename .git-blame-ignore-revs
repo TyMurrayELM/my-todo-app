@@ -1,0 +1,5 @@
+# Revisions in this file are skipped by `git blame --ignore-revs-file=.git-blame-ignore-revs`
+# and by GitHub's blame view. Add any large mechanical formatting commits here.
+
+# Apply Prettier formatting to entire codebase
+5259a3d4be74113c4ad83f9804a1bb04b044f62e
