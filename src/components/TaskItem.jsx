@@ -61,6 +61,7 @@ export default function TaskItem({ task, day, index }) {
   const isExpanded = expandedTaskId === task.id;
   const isDarkBackground = index >= 4;
   const [isHovered, setIsHovered] = useState(false);
+  const [completedSubExpanded, setCompletedSubExpanded] = useState(false);
   const editInputRef = useRef(null);
   const subItemInputRef = useRef(null);
   const isSelected = selectedTasks.includes(task.id);
@@ -279,9 +280,11 @@ export default function TaskItem({ task, day, index }) {
         )}
       </div>
 
-      {!bulkMode && isSubItemsExpanded && hasSubItems && (
-        <div className="ml-8 mt-2 space-y-2">
-          {task.subItems.map((subItem) => (
+      {!bulkMode &&
+        isSubItemsExpanded &&
+        hasSubItems &&
+        (() => {
+          const renderSubItem = (subItem) => (
             <div key={subItem.id} className="flex items-center gap-2">
               <button
                 onClick={(e) => {
@@ -344,9 +347,40 @@ export default function TaskItem({ task, day, index }) {
                 <X size={14} />
               </button>
             </div>
-          ))}
-        </div>
-      )}
+          );
+
+          const activeSubItems = task.subItems.filter((s) => !s.completed);
+          const completedSubItems = task.subItems.filter((s) => s.completed);
+
+          return (
+            <div className="ml-8 mt-2 space-y-2">
+              {activeSubItems.map(renderSubItem)}
+              {completedSubItems.length > 0 && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCompletedSubExpanded((prev) => !prev);
+                    }}
+                    className={`flex items-center gap-1.5 text-xs font-medium pt-1 ${
+                      isDarkBackground
+                        ? 'text-white/60 hover:text-white/90'
+                        : 'text-gray-400 hover:text-gray-600'
+                    } transition-colors`}
+                  >
+                    {completedSubExpanded ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
+                    Completed ({completedSubItems.length})
+                  </button>
+                  {completedSubExpanded && completedSubItems.map(renderSubItem)}
+                </>
+              )}
+            </div>
+          );
+        })()}
 
       {!bulkMode && (
         <div
