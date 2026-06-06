@@ -349,8 +349,12 @@ export default function TaskItem({ task, day, index }) {
             </div>
           );
 
-          const activeSubItems = task.subItems.filter((s) => !s.completed);
-          const completedSubItems = task.subItems.filter((s) => s.completed);
+          const activeSubItems = task.subItems
+            .filter((s) => !s.completed)
+            .sort((a, b) => a.text.localeCompare(b.text));
+          const completedSubItems = task.subItems
+            .filter((s) => s.completed)
+            .sort((a, b) => a.text.localeCompare(b.text));
 
           return (
             <div className="ml-8 mt-2 space-y-2">
