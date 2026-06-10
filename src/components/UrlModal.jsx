@@ -1,8 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { isValidUrl } from '../lib/utils';
 
 export default function UrlModal({ task, day, onClose, updateTaskUrl }) {
   const [localUrl, setLocalUrl] = useState(task?.url || '');
+
+  // Close on Escape (the input handles its own Escape while focused)
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   if (!task) return null;
 
@@ -18,7 +27,13 @@ export default function UrlModal({ task, day, onClose, updateTaskUrl }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={(e) => {
+        // Close when clicking the backdrop, not the dialog
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <h3 className="text-lg font-semibold mb-4">{task.url ? 'Edit URL' : 'Add URL'}</h3>
         <input

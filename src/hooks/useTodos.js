@@ -35,6 +35,27 @@ export function useTodos({
   const [isRepeating, setIsRepeating] = useState(false);
   // Track tasks that are visually complete but not yet sorted (for animation delay)
   const [pendingCompletions, setPendingCompletions] = useState({});
+  // Toast message shown when a background save fails and the optimistic
+  // update is rolled back; auto-dismisses.
+  const [saveError, setSaveError] = useState(null);
+  const saveErrorTimeoutRef = useRef(null);
+
+  const reportSaveError = (message) => {
+    setSaveError(message);
+    if (saveErrorTimeoutRef.current) clearTimeout(saveErrorTimeoutRef.current);
+    saveErrorTimeoutRef.current = setTimeout(() => {
+      saveErrorTimeoutRef.current = null;
+      setSaveError(null);
+    }, 5000);
+  };
+
+  const dismissSaveError = () => {
+    if (saveErrorTimeoutRef.current) {
+      clearTimeout(saveErrorTimeoutRef.current);
+      saveErrorTimeoutRef.current = null;
+    }
+    setSaveError(null);
+  };
 
   // Monotonic id so a slow response from an older fetch can't
   // overwrite the result of a newer one (e.g. rapid week navigation).
@@ -376,6 +397,7 @@ export function useTodos({
           }
         } catch (error) {
           logError('Error in bulk move:', error);
+          reportSaveError("Couldn't move some tasks");
         }
       })
     );
@@ -426,6 +448,7 @@ export function useTodos({
             .eq('user_id', session.user.id);
         } catch (error) {
           logError('Error in bulk repeat:', error);
+          reportSaveError("Couldn't set repeat on some tasks");
         }
       })
     );
@@ -475,6 +498,7 @@ export function useTodos({
           await supabase.from('todos').delete().eq('id', actualId).eq('user_id', session.user.id);
         } catch (error) {
           logError('Error in bulk delete:', error);
+          reportSaveError("Couldn't delete some tasks");
         }
       })
     );
@@ -535,6 +559,7 @@ export function useTodos({
           }
         } catch (error) {
           logError('Error in bulk complete:', error);
+          reportSaveError("Couldn't complete some tasks");
         }
       })
     );
@@ -573,6 +598,7 @@ export function useTodos({
 
       if (createError) {
         logError('Error creating moved task:', createError);
+        reportSaveError("Couldn't move task");
         return;
       }
 
@@ -592,6 +618,7 @@ export function useTodos({
 
       if (skipError) {
         logError('Error skipping today:', skipError);
+        reportSaveError("Couldn't move task");
         return;
       }
 
@@ -623,6 +650,7 @@ export function useTodos({
 
       if (error) {
         logError('Error moving todo:', error);
+        reportSaveError("Couldn't move task");
         return;
       }
     }
@@ -654,6 +682,7 @@ export function useTodos({
 
     if (error) {
       logError('Error adding todo:', error);
+      reportSaveError("Couldn't add task");
       return false;
     }
 
@@ -734,6 +763,7 @@ export function useTodos({
       }));
     } catch (error) {
       logError('Error adding sub-item:', error);
+      reportSaveError("Couldn't add sub-item");
       // Revert optimistic update on failure
       setTasks((prev) => ({
         ...prev,
@@ -819,6 +849,7 @@ export function useTodos({
       }
     } catch (error) {
       logError('Error updating sub-item:', error);
+      reportSaveError("Couldn't update sub-item");
       // Revert optimistic update on failure
       setTasks((prev) => ({
         ...prev,
@@ -867,6 +898,7 @@ export function useTodos({
       if (error) throw error;
     } catch (error) {
       logError('Error deleting sub-item:', error);
+      reportSaveError("Couldn't delete sub-item");
       // Revert optimistic update on failure
       if (parentTask && deletedSubItem) {
         setTasks((prev) => ({
@@ -920,6 +952,7 @@ export function useTodos({
       if (error) throw error;
     } catch (error) {
       logError('Error updating sub-item text:', error);
+      reportSaveError("Couldn't save sub-item");
       // Revert on failure
       setTasks((prev) => ({
         ...prev,
@@ -1050,6 +1083,7 @@ export function useTodos({
       }
     } catch (error) {
       logError('Error updating todo:', error);
+      reportSaveError("Couldn't update task");
       // Clear in-flight state and don't update committed state on failure
       delete intendedCompletionsRef.current[taskId];
       if (completionTimeoutsRef.current[taskId]) {
@@ -1106,6 +1140,7 @@ export function useTodos({
       if (error) throw error;
     } catch (error) {
       logError('Error deleting todo:', error);
+      reportSaveError("Couldn't delete task");
       // Recurring deletes touch every day, so a local revert can't
       // reconstruct the optimistic removal — refetch instead.
       await fetchTodos();
@@ -1141,6 +1176,7 @@ export function useTodos({
         await fetchTodosRef.current();
       } catch (error) {
         logError('RepeatTask failed:', error);
+        reportSaveError("Couldn't set repeat");
       } finally {
         setIsRepeating(false);
       }
@@ -1189,6 +1225,7 @@ export function useTodos({
       if (error) throw error;
     } catch (error) {
       logError('Error updating todo:', error);
+      reportSaveError("Couldn't save task");
       // Revert optimistic update on failure
       setTasks((prev) => ({
         ...prev,
@@ -1234,6 +1271,7 @@ export function useTodos({
       if (error) throw error;
     } catch (error) {
       logError('Error updating todo URL:', error);
+      reportSaveError("Couldn't save URL");
       // Revert optimistic update on failure
       setTasks((prev) => ({
         ...prev,
@@ -1279,6 +1317,7 @@ export function useTodos({
       if (error) throw error;
     } catch (error) {
       logError('Error updating todo notes:', error);
+      reportSaveError("Couldn't save note");
       // Revert optimistic update on failure
       setTasks((prev) => ({
         ...prev,
@@ -1294,6 +1333,8 @@ export function useTodos({
     setFetchError,
     fetchTodos,
     pendingCompletions,
+    saveError,
+    dismissSaveError,
     addTask,
     toggleTask,
     deleteTask,

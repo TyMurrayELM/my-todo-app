@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { DAY_NAMES } from './lib/dates';
+import { DAY_NAMES, getLocalDateString } from './lib/dates';
 import ThemeSelector from './components/ThemeSelector';
 import DaySection from './components/DaySection';
 import { useTodos } from './hooks/useTodos';
@@ -142,6 +142,8 @@ function App() {
     setFetchError,
     fetchTodos,
     pendingCompletions,
+    saveError,
+    dismissSaveError,
     addTask: saveTask,
     toggleTask: toggleTaskCompletion,
     deleteTask,
@@ -234,6 +236,29 @@ function App() {
       setIsNavigating(false);
     }, 50);
   };
+
+  // If the tab sits open past midnight, jump to the new "today" when the
+  // user comes back — but only if they were viewing the old today, so we
+  // never yank them away from a week they navigated to deliberately.
+  const lastKnownDateRef = useRef(getLocalDateString(new Date()));
+  useEffect(() => {
+    const checkDateRollover = () => {
+      if (document.hidden) return;
+      const realToday = getLocalDateString(new Date());
+      if (realToday !== lastKnownDateRef.current) {
+        const wasViewingToday = getLocalDateString(currentDate) === lastKnownDateRef.current;
+        lastKnownDateRef.current = realToday;
+        if (wasViewingToday) handleJumpToDate(realToday);
+      }
+    };
+
+    document.addEventListener('visibilitychange', checkDateRollover);
+    window.addEventListener('focus', checkDateRollover);
+    return () => {
+      document.removeEventListener('visibilitychange', checkDateRollover);
+      window.removeEventListener('focus', checkDateRollover);
+    };
+  });
 
   // Toggle bulk mode
   const toggleBulkMode = () => {
@@ -511,6 +536,17 @@ function App() {
             </div>
           </div>
         </div>
+        {saveError && !fetchError && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-red-50 border border-red-200 rounded-lg shadow-lg px-4 py-2 flex items-center gap-3">
+            <span className="text-sm text-red-800">{saveError}</span>
+            <button
+              onClick={dismissSaveError}
+              className="text-xs text-red-500 hover:text-red-700 px-1 rounded hover:bg-red-100"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {fetchError && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 flex items-start gap-3">
             <div className="flex-grow text-sm text-red-800">
