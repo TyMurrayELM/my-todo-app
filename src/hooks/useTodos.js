@@ -62,6 +62,15 @@ export function useTodos({
   const fetchSeqRef = useRef(0);
   const intendedCompletionsRef = useRef({});
   const completionTimeoutsRef = useRef({});
+  // Maps a just-added sub-item's temp id to a promise of its real DB id.
+  // Actions on the sub-item await this instead of sending the temp id to
+  // the database; resolves to null if the insert failed.
+  const pendingSubItemIdsRef = useRef(new Map());
+
+  const resolveSubItemId = async (subItemId) => {
+    const pending = pendingSubItemIdsRef.current.get(subItemId);
+    return pending ? await pending : subItemId;
+  };
 
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
@@ -708,6 +717,13 @@ export function useTodos({
 
     // Create temporary ID for optimistic update
     const tempId = `temp_${Date.now()}`;
+    let resolveRealId;
+    pendingSubItemIdsRef.current.set(
+      tempId,
+      new Promise((resolve) => {
+        resolveRealId = resolve;
+      })
+    );
     const savedText = text.trim();
     const newSubItem = {
       id: tempId,
@@ -761,6 +777,7 @@ export function useTodos({
             : task
         ),
       }));
+      resolveRealId(data.id);
     } catch (error) {
       logError('Error adding sub-item:', error);
       reportSaveError("Couldn't add sub-item");
@@ -773,6 +790,7 @@ export function useTodos({
             : task
         ),
       }));
+      resolveRealId(null);
     }
   };
 
@@ -806,7 +824,12 @@ export function useTodos({
     }));
 
     // Then sync to database in background
+    let realId = subItemId;
     try {
+      // A just-added sub-item may still be saving; wait for its real id
+      realId = await resolveSubItemId(subItemId);
+      if (realId === null) return; // insert failed; addSubItem already reverted the UI
+
       if (subItem.isRecurringSubItem && parentTask.isRecurringInstance) {
         // Handle recurring sub-item - use completion tracking table
         if (newCompleted) {
@@ -814,7 +837,7 @@ export function useTodos({
             [
               {
                 user_id: session.user.id,
-                subitem_id: subItemId,
+                subitem_id: realId,
                 parent_todo_id: parentTask.originalId,
                 completion_date: parentTask.instanceDate,
                 completed_at: completedAt,
@@ -828,7 +851,7 @@ export function useTodos({
           const { error } = await supabase
             .from('recurring_subitem_completions')
             .delete()
-            .eq('subitem_id', subItemId)
+            .eq('subitem_id', realId)
             .eq('completion_date', parentTask.instanceDate)
             .eq('user_id', session.user.id);
 
@@ -842,7 +865,7 @@ export function useTodos({
             completed: newCompleted,
             completed_at: completedAt,
           })
-          .eq('id', subItemId)
+          .eq('id', realId)
           .eq('user_id', session.user.id);
 
         if (error) throw error;
@@ -850,7 +873,8 @@ export function useTodos({
     } catch (error) {
       logError('Error updating sub-item:', error);
       reportSaveError("Couldn't update sub-item");
-      // Revert optimistic update on failure
+      // Revert optimistic update on failure (the temp id may have been
+      // swapped for the real id since the optimistic update)
       setTasks((prev) => ({
         ...prev,
         [day]: prev[day].map((task) =>
@@ -858,7 +882,7 @@ export function useTodos({
             ? {
                 ...task,
                 subItems: task.subItems.map((sub) =>
-                  sub.id === subItemId
+                  sub.id === subItemId || sub.id === realId
                     ? { ...sub, completed: !newCompleted, completedAt: subItem.completedAt }
                     : sub
                 ),
@@ -889,10 +913,14 @@ export function useTodos({
 
     // Sync to database
     try {
+      // A just-added sub-item may still be saving; wait for its real id
+      const realId = await resolveSubItemId(subItemId);
+      if (realId === null) return; // insert failed; nothing in the DB to delete
+
       const { error } = await supabase
         .from('todos')
         .delete()
-        .eq('id', subItemId)
+        .eq('id', realId)
         .eq('user_id', session.user.id);
 
       if (error) throw error;
@@ -942,18 +970,23 @@ export function useTodos({
     }));
 
     // Sync to database
+    let realId = subItemId;
     try {
+      // A just-added sub-item may still be saving; wait for its real id
+      realId = await resolveSubItemId(subItemId);
+      if (realId === null) return; // insert failed; addSubItem already reverted the UI
+
       const { error } = await supabase
         .from('todos')
         .update({ text: newText.trim() })
-        .eq('id', subItemId)
+        .eq('id', realId)
         .eq('user_id', session.user.id);
 
       if (error) throw error;
     } catch (error) {
       logError('Error updating sub-item text:', error);
       reportSaveError("Couldn't save sub-item");
-      // Revert on failure
+      // Revert on failure (the temp id may have been swapped for the real id)
       setTasks((prev) => ({
         ...prev,
         [day]: prev[day].map((task) =>
@@ -961,7 +994,7 @@ export function useTodos({
             ? {
                 ...task,
                 subItems: task.subItems.map((sub) =>
-                  sub.id === subItemId ? { ...sub, text: oldText } : sub
+                  sub.id === subItemId || sub.id === realId ? { ...sub, text: oldText } : sub
                 ),
               }
             : task
