@@ -289,9 +289,11 @@ export default function TaskItem({ task, day, index }) {
                   ${
                     subItem.completed
                       ? 'bg-green-500 border-green-500'
-                      : isDarkBackground
-                        ? 'bg-white border-white/50 hover:border-green-500'
-                        : 'bg-white border-gray-400 hover:border-green-500'
+                      : primedTaskId === subItem.id
+                        ? 'bg-white border-green-500'
+                        : isDarkBackground
+                          ? 'bg-white border-white/50 hover:border-green-500'
+                          : 'bg-white border-gray-400 hover:border-green-500'
                   }`}
               >
                 {subItem.completed && <Check size={12} className="text-white" />}

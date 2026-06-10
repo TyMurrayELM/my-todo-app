@@ -22,6 +22,8 @@ function App() {
   });
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  // First tap of the mobile two-tap confirm; holds a task OR sub-item id
+  // (ids never collide), so only one checkbox is ever primed at a time.
   const [primedTaskId, setPrimedTaskId] = useState(null);
 
   // Bulk action state
@@ -153,7 +155,7 @@ function App() {
     updateTaskUrl,
     updateTaskNotes,
     addSubItem: saveSubItem,
-    toggleSubItem,
+    toggleSubItem: toggleSubItemCompletion,
     deleteSubItem,
     updateSubItemText: saveSubItemText,
     bulkCompleteTasks: bulkComplete,
@@ -338,6 +340,19 @@ function App() {
       }
     }
     toggleTaskCompletion(taskId, day);
+  };
+
+  // Sub-items get the same two-tap confirm on mobile as tasks
+  const toggleSubItem = (subItemId, day) => {
+    if (isMobile) {
+      if (primedTaskId === subItemId) {
+        setPrimedTaskId(null);
+      } else {
+        setPrimedTaskId(subItemId);
+        return;
+      }
+    }
+    toggleSubItemCompletion(subItemId, day);
   };
 
   const updateTaskText = (taskId, day, newText) => {
