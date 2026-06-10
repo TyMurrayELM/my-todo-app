@@ -234,8 +234,22 @@ function App() {
     [currentDate]
   );
 
+  // Monotonic id so a slow response from an older fetch can't
+  // overwrite the result of a newer one (e.g. rapid week navigation).
+  const fetchSeqRef = useRef(0);
+
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
+
+    const fetchSeq = ++fetchSeqRef.current;
+    const isCurrent = () => fetchSeq === fetchSeqRef.current;
+    const failFetch = (label, error) => {
+      logError(label, error);
+      if (isCurrent()) {
+        setFetchError(error.message || 'Could not load your tasks');
+        setIsLoading(false);
+      }
+    };
 
     setIsLoading(true);
     setFetchError(null);
@@ -263,9 +277,7 @@ function App() {
       .order('created_at');
 
     if (parentError) {
-      logError('Error fetching parent todos:', parentError);
-      setFetchError(parentError.message || 'Could not load your tasks');
-      setIsLoading(false);
+      failFetch('Error fetching parent todos:', parentError);
       return;
     }
 
@@ -280,9 +292,11 @@ function App() {
         .eq('user_id', session.user.id)
         .in('parent_task_id', parentIds);
 
-      if (!subItemsError && subItems) {
-        subItemTodos = subItems;
+      if (subItemsError) {
+        failFetch('Error fetching sub-items:', subItemsError);
+        return;
       }
+      subItemTodos = subItems || [];
     }
 
     // Combine parent tasks and sub-items
@@ -302,9 +316,13 @@ function App() {
         .gte('completion_date', startStr)
         .lte('completion_date', endStr);
 
-      if (!completionsError && completions) {
-        completionRecords = completions;
+      // A failed completions fetch must NOT fall through to rendering —
+      // every recurring task would show incomplete and invite re-completes.
+      if (completionsError) {
+        failFetch('Error fetching completions:', completionsError);
+        return;
       }
+      completionRecords = completions || [];
     }
 
     // Fetch sub-item completion records for recurring tasks
@@ -324,9 +342,11 @@ function App() {
         .gte('completion_date', startStr)
         .lte('completion_date', endStr);
 
-      if (!subCompletionsError && subCompletions) {
-        subItemCompletionRecords = subCompletions;
+      if (subCompletionsError) {
+        failFetch('Error fetching sub-item completions:', subCompletionsError);
+        return;
       }
+      subItemCompletionRecords = subCompletions || [];
     }
 
     const todosByDay = {
@@ -458,6 +478,7 @@ function App() {
     });
 
     log('Final tasks by day:', todosByDay);
+    if (!isCurrent()) return; // superseded by a newer fetch
     setTasks(todosByDay);
     setIsLoading(false);
   }, [session, isNavigating, days, getDateForDay]);
@@ -755,15 +776,18 @@ function App() {
               ])
               .select('id')
               .single();
-            await supabase.from('recurring_completions').insert([
-              {
-                user_id: session.user.id,
-                todo_id: task.originalId,
-                completion_date: task.instanceDate,
-                completed_at: new Date().toISOString(),
-                skipped: true,
-              },
-            ]);
+            await supabase.from('recurring_completions').upsert(
+              [
+                {
+                  user_id: session.user.id,
+                  todo_id: task.originalId,
+                  completion_date: task.instanceDate,
+                  completed_at: new Date().toISOString(),
+                  skipped: true,
+                },
+              ],
+              { onConflict: 'todo_id,completion_date' }
+            );
             if (newTask && task.subItems && task.subItems.length > 0) {
               await supabase.from('todos').insert(
                 task.subItems.map((sub) => ({
@@ -930,14 +954,18 @@ function App() {
       tasksToComplete.map(async (task) => {
         try {
           if (task.isRecurringInstance) {
-            await supabase.from('recurring_completions').insert([
-              {
-                user_id: session.user.id,
-                todo_id: task.originalId,
-                completion_date: task.instanceDate,
-                completed_at: completedAt,
-              },
-            ]);
+            await supabase.from('recurring_completions').upsert(
+              [
+                {
+                  user_id: session.user.id,
+                  todo_id: task.originalId,
+                  completion_date: task.instanceDate,
+                  completed_at: completedAt,
+                  skipped: false,
+                },
+              ],
+              { onConflict: 'todo_id,completion_date' }
+            );
           } else {
             await supabase
               .from('todos')
@@ -1024,15 +1052,18 @@ function App() {
       }
 
       // 2. Mark today's instance as skipped (hidden, not completed)
-      const { error: skipError } = await supabase.from('recurring_completions').insert([
-        {
-          user_id: session.user.id,
-          todo_id: task.originalId,
-          completion_date: task.instanceDate,
-          completed_at: new Date().toISOString(),
-          skipped: true,
-        },
-      ]);
+      const { error: skipError } = await supabase.from('recurring_completions').upsert(
+        [
+          {
+            user_id: session.user.id,
+            todo_id: task.originalId,
+            completion_date: task.instanceDate,
+            completed_at: new Date().toISOString(),
+            skipped: true,
+          },
+        ],
+        { onConflict: 'todo_id,completion_date' }
+      );
 
       if (skipError) {
         logError('Error skipping today:', skipError);
@@ -1229,15 +1260,18 @@ function App() {
       if (subItem.isRecurringSubItem && parentTask.isRecurringInstance) {
         // Handle recurring sub-item - use completion tracking table
         if (newCompleted) {
-          const { error } = await supabase.from('recurring_subitem_completions').insert([
-            {
-              user_id: session.user.id,
-              subitem_id: subItemId,
-              parent_todo_id: parentTask.originalId,
-              completion_date: parentTask.instanceDate,
-              completed_at: completedAt,
-            },
-          ]);
+          const { error } = await supabase.from('recurring_subitem_completions').upsert(
+            [
+              {
+                user_id: session.user.id,
+                subitem_id: subItemId,
+                parent_todo_id: parentTask.originalId,
+                completion_date: parentTask.instanceDate,
+                completed_at: completedAt,
+              },
+            ],
+            { onConflict: 'subitem_id,completion_date' }
+          );
 
           if (error) throw error;
         } else {
@@ -1478,14 +1512,18 @@ function App() {
       if (task.isRecurringInstance) {
         // Handle recurring instance
         if (newCompleted) {
-          const { error } = await supabase.from('recurring_completions').insert([
-            {
-              user_id: session.user.id,
-              todo_id: task.originalId,
-              completion_date: task.instanceDate,
-              completed_at: completedAt,
-            },
-          ]);
+          const { error } = await supabase.from('recurring_completions').upsert(
+            [
+              {
+                user_id: session.user.id,
+                todo_id: task.originalId,
+                completion_date: task.instanceDate,
+                completed_at: completedAt,
+                skipped: false,
+              },
+            ],
+            { onConflict: 'todo_id,completion_date' }
+          );
 
           if (error) throw error;
         } else {
