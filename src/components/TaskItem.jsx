@@ -13,7 +13,7 @@ import { isValidUrl, formatCompletionTime } from '../lib/utils';
 import RecurringIndicator from './RecurringIndicator';
 import RepeatMenu from './RepeatMenu';
 import MoveMenu from './MoveMenu';
-import { TaskItemContext } from './TaskItemContext';
+import { AppContext } from './AppContext';
 
 export default function TaskItem({ task, day, index }) {
   const {
@@ -51,7 +51,7 @@ export default function TaskItem({ task, day, index }) {
     openGoogleCalendar,
     moveTask,
     deleteTask,
-  } = useContext(TaskItemContext);
+  } = useContext(AppContext);
 
   const isExpanded = expandedTaskId === task.id;
   const isDarkBackground = index >= 4;

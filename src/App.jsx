@@ -1,17 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Check,
-  ArrowLeft,
-  ArrowRight,
-  SkipForward,
-  Repeat,
-  ChevronRight,
-  ChevronDown,
-  Calendar,
-  Layers,
-  CalendarDays,
-  Trash2,
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { isValidUrl } from './lib/utils';
 import {
@@ -20,15 +8,13 @@ import {
   getLocalDateString,
   parseUTCDateAsLocal,
   getISOStringForLocalDate,
-  formatDate,
   shouldShowOnDate,
 } from './lib/dates';
 import ThemeSelector from './components/ThemeSelector';
-import TaskItem from './components/TaskItem';
-import { TaskItemProvider } from './components/TaskItemContext';
+import DaySection from './components/DaySection';
+import { AppProvider } from './components/AppContext';
 import NoteModal from './components/NoteModal';
 import UrlModal from './components/UrlModal';
-import ProgressBar from './components/ProgressBar';
 import { log, logError } from './lib/log';
 import { createGoogleCalendarUrl } from './lib/calendar';
 import {
@@ -1612,12 +1598,21 @@ function App() {
     );
   }
 
-  const taskItemCtx = {
+  const appCtx = {
+    // task data
+    tasks,
+    // day selection / navigation
+    selectedDay,
+    selectDay,
+    getDateForDay,
+    handleJumpToDate,
+    // theming
+    getBackgroundColor,
+    progressGradient: PROGRESS_GRADIENTS[colorTheme],
+    // task item UI state
     expandedTaskId,
     setExpandedTaskId,
     isMobile,
-    selectedTasks,
-    bulkMode,
     editingTaskId,
     setEditingTaskId,
     editingSubItemId,
@@ -1630,12 +1625,33 @@ function App() {
     primedTaskId,
     setPrimedTaskId,
     expandedSubItems,
+    expandedCompletedSections,
+    setExpandedCompletedSections,
+    // modals
     setCurrentNoteTask,
     setShowNoteModal,
     setCurrentUrlTask,
     setCurrentUrlDay,
     setShowUrlModal,
+    // bulk mode
+    bulkMode,
+    toggleBulkMode,
+    selectedTasks,
     toggleTaskSelection,
+    selectAllTasks,
+    deselectAllTasks,
+    showBulkMoveOptions,
+    setShowBulkMoveOptions,
+    showBulkRepeatOptions,
+    setShowBulkRepeatOptions,
+    bulkCompleteTasks,
+    bulkMoveTasks,
+    bulkRepeatTasks,
+    bulkDeleteTasks,
+    // task mutations
+    newTask,
+    setNewTask,
+    addTask,
     toggleTask,
     toggleSubItems,
     toggleSubItem,
@@ -1650,7 +1666,7 @@ function App() {
   };
 
   return (
-    <TaskItemProvider value={taskItemCtx}>
+    <AppProvider value={appCtx}>
       <div className="min-h-screen bg-gray-50">
         <div className="fixed top-0 left-0 right-0 h-16 bg-gray-50 shadow-sm z-50">
           {isLoading && (
@@ -1714,563 +1730,12 @@ function App() {
           <div className="max-w-md mx-auto rounded-3xl shadow-lg">
             <div className="divide-y divide-gray-200 overflow-visible">
               {days.map((day, index) => (
-                <div
-                  key={day}
-                  onClick={() => {
-                    selectDay(index);
-                    if (isMobile) setPrimedTaskId(null);
-                  }}
-                  className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer overflow-visible
-                  ${index === selectedDay ? 'bg-opacity-100' : 'bg-opacity-90'}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <h2
-                      className={`text-2xl font-bold ${index >= 5 ? 'text-gray-100' : 'text-gray-800'} flex items-center gap-2`}
-                    >
-                      {day}
-                      {tasks[day].length > 0 && tasks[day].every((task) => task.completed) && (
-                        <Check size={24} className="text-green-500 stroke-2" />
-                      )}
-                    </h2>
-
-                    {/* Bulk action buttons and Layers icon */}
-                    <div className="flex items-center gap-1">
-                      {/* Inline bulk action buttons - shown when bulk mode active and tasks selected */}
-                      {bulkMode && selectedTasks.length > 0 && index === selectedDay && (
-                        <>
-                          {/* Complete button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              bulkCompleteTasks(day);
-                            }}
-                            className="p-2 text-green-500 hover:text-green-600 transition-colors"
-                            title="Complete selected"
-                          >
-                            <Check size={20} />
-                          </button>
-
-                          {/* Move button with dropdown */}
-                          <div className="relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowBulkMoveOptions(!showBulkMoveOptions);
-                                setShowBulkRepeatOptions(false);
-                              }}
-                              className={`p-2 text-blue-500 hover:text-blue-600 transition-colors ${showBulkMoveOptions ? 'text-blue-600' : ''}`}
-                              title="Move selected"
-                            >
-                              <SkipForward size={20} />
-                            </button>
-                            {showBulkMoveOptions && (
-                              <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
-                                {[
-                                  { id: 'today', label: 'Today', icon: <CalendarDays size={16} /> },
-                                  {
-                                    id: 'next-day',
-                                    label: 'Next Day',
-                                    icon: <SkipForward size={16} />,
-                                  },
-                                  {
-                                    id: 'next-week',
-                                    label: 'Next Week',
-                                    icon: <Calendar size={16} />,
-                                  },
-                                  {
-                                    id: 'next-weekday',
-                                    label: 'Next Weekday',
-                                    icon: <Calendar size={16} />,
-                                  },
-                                  {
-                                    id: 'next-weekend',
-                                    label: 'Next Weekend',
-                                    icon: <Calendar size={16} />,
-                                  },
-                                ].map((option) => (
-                                  <button
-                                    key={option.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      bulkMoveTasks(option.id, day);
-                                      setShowBulkMoveOptions(false);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                                  >
-                                    {option.icon}
-                                    {option.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Repeat button with dropdown */}
-                          <div className="relative">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowBulkRepeatOptions(!showBulkRepeatOptions);
-                                setShowBulkMoveOptions(false);
-                              }}
-                              className={`p-2 text-purple-500 hover:text-purple-600 transition-colors ${showBulkRepeatOptions ? 'text-purple-600' : ''}`}
-                              title="Repeat selected"
-                            >
-                              <Repeat size={20} />
-                            </button>
-                            {showBulkRepeatOptions && (
-                              <div className="absolute top-full right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                                {[
-                                  { id: 'daily', label: 'Daily' },
-                                  { id: 'every-other-day', label: 'Every Other Day' },
-                                  { id: 'weekdays', label: 'Weekdays' },
-                                  { id: 'weekly', label: 'Weekly' },
-                                  { id: 'bi-weekly', label: 'Bi-weekly' },
-                                  { id: 'monthly', label: 'Monthly' },
-                                  { id: 'first-of-month', label: '1st of Month' },
-                                ].map((option) => (
-                                  <button
-                                    key={option.id}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      bulkRepeatTasks(option.id, day);
-                                      setShowBulkRepeatOptions(false);
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                                  >
-                                    <Repeat size={14} />
-                                    {option.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Delete button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              bulkDeleteTasks(day);
-                            }}
-                            className="p-2 text-red-500 hover:text-red-600 transition-colors"
-                            title="Delete selected"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-
-                          {/* Divider */}
-                          <div
-                            className={`w-px h-5 ${index >= 5 ? 'bg-white/30' : 'bg-gray-300'} mx-1`}
-                          ></div>
-                        </>
-                      )}
-
-                      {/* Layers (bulk mode toggle) button */}
-                      {index === selectedDay && tasks[day].length > 0 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleBulkMode();
-                          }}
-                          className={`p-2 rounded-lg transition-colors ${
-                            bulkMode
-                              ? 'bg-blue-500 text-white'
-                              : index >= 5
-                                ? 'text-white/70 hover:text-white hover:bg-white/10'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
-                          }`}
-                          title={bulkMode ? 'Exit bulk mode' : 'Bulk actions'}
-                        >
-                          <Layers size={20} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {index === selectedDay && (
-                    <>
-                      <p
-                        className={`text-sm mb-4 cursor-pointer hover:underline relative ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const input = e.currentTarget.querySelector('input');
-                          if (input) {
-                            try {
-                              input.showPicker();
-                            } catch {
-                              input.focus();
-                              input.click();
-                            }
-                          }
-                        }}
-                      >
-                        {formatDate(getDateForDay(index))}
-                        <input
-                          type="date"
-                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                          value={getLocalDateString(getDateForDay(index))}
-                          onChange={(e) => {
-                            if (e.target.value) handleJumpToDate(e.target.value);
-                          }}
-                        />
-                      </p>
-                      <ProgressBar
-                        dayTasks={tasks[day]}
-                        index={index}
-                        gradient={PROGRESS_GRADIENTS[colorTheme]}
-                      />
-
-                      {/* Select All / Deselect All in bulk mode */}
-                      {bulkMode && tasks[day].length > 0 && (
-                        <div className="flex items-center gap-2 pb-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              selectAllTasks(day);
-                            }}
-                            className={`text-xs px-2 py-1 rounded ${
-                              index >= 5
-                                ? 'bg-white/20 text-white hover:bg-white/30'
-                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                            }`}
-                          >
-                            Select All
-                          </button>
-                          {selectedTasks.length > 0 && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deselectAllTasks();
-                              }}
-                              className={`text-xs px-2 py-1 rounded ${
-                                index >= 5
-                                  ? 'bg-white/20 text-white hover:bg-white/30'
-                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              }`}
-                            >
-                              Deselect All ({selectedTasks.length})
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      <div
-                        className="space-y-3 overflow-visible"
-                        onClick={(e) => {
-                          // Close expanded task when clicking empty space on mobile
-                          if (isMobile && e.target === e.currentTarget) {
-                            setExpandedTaskId(null);
-                            setPrimedTaskId(null);
-                          }
-                        }}
-                      >
-                        {(() => {
-                          const allTasks = tasks[day];
-                          const incompleteTasks = allTasks
-                            .filter((t) => !t.completed)
-                            .sort((a, b) => a.text.localeCompare(b.text));
-                          const completedTasks = allTasks
-                            .filter((t) => t.completed)
-                            .sort((a, b) => a.text.localeCompare(b.text));
-                          const isCompletedExpanded = expandedCompletedSections[day] || false;
-
-                          return (
-                            <>
-                              {incompleteTasks.map((task) => (
-                                <TaskItem key={task.id} task={task} day={day} index={index} />
-                              ))}
-                              {completedTasks.length > 0 && (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setExpandedCompletedSections((prev) => ({
-                                        ...prev,
-                                        [day]: !prev[day],
-                                      }));
-                                    }}
-                                    className={`flex items-center gap-1.5 text-xs font-medium pt-2 ${
-                                      index >= 5
-                                        ? 'text-white/70 hover:text-white/90'
-                                        : 'text-gray-500 hover:text-gray-700'
-                                    } transition-colors`}
-                                  >
-                                    {isCompletedExpanded ? (
-                                      <ChevronDown size={14} />
-                                    ) : (
-                                      <ChevronRight size={14} />
-                                    )}
-                                    COMPLETED ({completedTasks.length})
-                                  </button>
-                                  {isCompletedExpanded &&
-                                    completedTasks.map((task) => (
-                                      <TaskItem key={task.id} task={task} day={day} index={index} />
-                                    ))}
-                                </>
-                              )}
-                            </>
-                          );
-                        })()}
-                        {!bulkMode && (
-                          <form
-                            onSubmit={(e) => addTask(e, day)}
-                            className="pt-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // Close expanded task when clicking the add task input on mobile
-                              if (isMobile) {
-                                setExpandedTaskId(null);
-                                setPrimedTaskId(null);
-                              }
-                            }}
-                          >
-                            <input
-                              type="text"
-                              value={newTask}
-                              onChange={(e) => setNewTask(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  addTask(e, day);
-                                }
-                              }}
-                              placeholder="Add a new task..."
-                              className={`w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
-                              ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`}
-                            />
-                          </form>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <DaySection key={day} day={day} index={index} />
               ))}
-              <div
-                onClick={() => {
-                  selectDay('task_bank');
-                  if (isMobile) setPrimedTaskId(null);
-                }}
-                className="bg-black p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Task Bank</h2>
-
-                  {/* Bulk action buttons and Layers icon */}
-                  <div className="flex items-center gap-1">
-                    {/* Inline bulk action buttons - shown when bulk mode active and tasks selected */}
-                    {bulkMode && selectedTasks.length > 0 && selectedDay === 'task_bank' && (
-                      <>
-                        {/* Complete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            bulkCompleteTasks('TASK_BANK');
-                          }}
-                          className="p-2 text-green-500 hover:text-green-600 transition-colors"
-                          title="Complete selected"
-                        >
-                          <Check size={20} />
-                        </button>
-
-                        {/* Repeat button with dropdown */}
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowBulkRepeatOptions(!showBulkRepeatOptions);
-                              setShowBulkMoveOptions(false);
-                            }}
-                            className={`p-2 text-purple-500 hover:text-purple-600 transition-colors ${showBulkRepeatOptions ? 'text-purple-600' : ''}`}
-                            title="Repeat selected"
-                          >
-                            <Repeat size={20} />
-                          </button>
-                          {showBulkRepeatOptions && (
-                            <div className="absolute top-full right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                              {[
-                                { id: 'daily', label: 'Daily' },
-                                { id: 'every-other-day', label: 'Every Other Day' },
-                                { id: 'weekdays', label: 'Weekdays' },
-                                { id: 'weekly', label: 'Weekly' },
-                                { id: 'bi-weekly', label: 'Bi-weekly' },
-                                { id: 'monthly', label: 'Monthly' },
-                                { id: 'first-of-month', label: '1st of Month' },
-                              ].map((option) => (
-                                <button
-                                  key={option.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    bulkRepeatTasks(option.id, 'TASK_BANK');
-                                    setShowBulkRepeatOptions(false);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                                >
-                                  <Repeat size={14} />
-                                  {option.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Delete button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            bulkDeleteTasks('TASK_BANK');
-                          }}
-                          className="p-2 text-red-500 hover:text-red-600 transition-colors"
-                          title="Delete selected"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-
-                        {/* Divider */}
-                        <div className="w-px h-5 bg-white/30 mx-1"></div>
-                      </>
-                    )}
-
-                    {/* Layers (bulk mode toggle) button */}
-                    {selectedDay === 'task_bank' && tasks.TASK_BANK.length > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleBulkMode();
-                        }}
-                        className={`p-2 rounded-lg transition-colors ${
-                          bulkMode
-                            ? 'bg-blue-500 text-white'
-                            : 'text-white/70 hover:text-white hover:bg-white/10'
-                        }`}
-                        title={bulkMode ? 'Exit bulk mode' : 'Bulk actions'}
-                      >
-                        <Layers size={20} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {selectedDay === 'task_bank' && (
-                  <>
-                    <ProgressBar
-                      dayTasks={tasks.TASK_BANK}
-                      index={7}
-                      gradient={PROGRESS_GRADIENTS[colorTheme]}
-                    />
-
-                    {/* Select All / Deselect All in bulk mode */}
-                    {bulkMode && tasks.TASK_BANK.length > 0 && (
-                      <div className="flex items-center gap-2 pb-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selectAllTasks('TASK_BANK');
-                          }}
-                          className="text-xs px-2 py-1 rounded bg-white/20 text-white hover:bg-white/30"
-                        >
-                          Select All
-                        </button>
-                        {selectedTasks.length > 0 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deselectAllTasks();
-                            }}
-                            className="text-xs px-2 py-1 rounded bg-white/20 text-white hover:bg-white/30"
-                          >
-                            Deselect All ({selectedTasks.length})
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    <div
-                      className="space-y-3"
-                      onClick={(e) => {
-                        // Close expanded task when clicking empty space on mobile
-                        if (isMobile && e.target === e.currentTarget) {
-                          setExpandedTaskId(null);
-                          setPrimedTaskId(null);
-                        }
-                      }}
-                    >
-                      {(() => {
-                        const allTasks = tasks.TASK_BANK;
-                        const incompleteTasks = allTasks
-                          .filter((t) => !t.completed)
-                          .sort((a, b) => a.text.localeCompare(b.text));
-                        const completedTasks = allTasks
-                          .filter((t) => t.completed)
-                          .sort((a, b) => a.text.localeCompare(b.text));
-                        const isCompletedExpanded = expandedCompletedSections['TASK_BANK'] || false;
-
-                        return (
-                          <>
-                            {incompleteTasks.map((task) => (
-                              <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
-                            ))}
-                            {completedTasks.length > 0 && (
-                              <>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setExpandedCompletedSections((prev) => ({
-                                      ...prev,
-                                      TASK_BANK: !prev.TASK_BANK,
-                                    }));
-                                  }}
-                                  className="flex items-center gap-1.5 text-xs font-medium pt-2 text-white/70 hover:text-white/90 transition-colors"
-                                >
-                                  {isCompletedExpanded ? (
-                                    <ChevronDown size={14} />
-                                  ) : (
-                                    <ChevronRight size={14} />
-                                  )}
-                                  COMPLETED ({completedTasks.length})
-                                </button>
-                                {isCompletedExpanded &&
-                                  completedTasks.map((task) => (
-                                    <TaskItem key={task.id} task={task} day="TASK_BANK" index={7} />
-                                  ))}
-                              </>
-                            )}
-                          </>
-                        );
-                      })()}
-                      {!bulkMode && (
-                        <form
-                          onSubmit={(e) => addTask(e, 'TASK_BANK')}
-                          className="pt-6"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Close expanded task when clicking the add task input on mobile
-                            if (isMobile) {
-                              setExpandedTaskId(null);
-                              setPrimedTaskId(null);
-                            }
-                          }}
-                        >
-                          <input
-                            type="text"
-                            value={newTask}
-                            onChange={(e) => setNewTask(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addTask(e, 'TASK_BANK');
-                              }
-                            }}
-                            placeholder="Add a new task..."
-                            className="w-full bg-transparent text-sm placeholder-white focus:outline-none text-white"
-                          />
-                        </form>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              <DaySection day="TASK_BANK" index={7} isTaskBank />
             </div>
           </div>
         </div>
-
         {fetchError && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 flex items-start gap-3">
             <div className="flex-grow text-sm text-red-800">
@@ -2317,7 +1782,7 @@ function App() {
           />
         )}
       </div>
-    </TaskItemProvider>
+    </AppProvider>
   );
 }
 
