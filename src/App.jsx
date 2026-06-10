@@ -15,6 +15,8 @@ import {
 import { supabase } from './lib/supabase';
 import { isValidUrl } from './lib/utils';
 import {
+  DAY_NAMES,
+  computeMoveTargetDate,
   getLocalDateString,
   parseUTCDateAsLocal,
   getISOStringForLocalDate,
@@ -134,17 +136,8 @@ function App() {
   };
 
   const [days, setDays] = useState(() => {
-    const baseArray = [
-      'SUNDAY',
-      'MONDAY',
-      'TUESDAY',
-      'WEDNESDAY',
-      'THURSDAY',
-      'FRIDAY',
-      'SATURDAY',
-    ];
     const currentIndex = getCurrentDayIndex();
-    return [...baseArray.slice(currentIndex), ...baseArray.slice(0, currentIndex)];
+    return [...DAY_NAMES.slice(currentIndex), ...DAY_NAMES.slice(0, currentIndex)];
   });
 
   const [tasks, setTasks] = useState(() => {
@@ -615,17 +608,8 @@ function App() {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + direction);
 
-    const baseArray = [
-      'SUNDAY',
-      'MONDAY',
-      'TUESDAY',
-      'WEDNESDAY',
-      'THURSDAY',
-      'FRIDAY',
-      'SATURDAY',
-    ];
     const newIndex = newDate.getDay();
-    const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+    const newDays = [...DAY_NAMES.slice(newIndex), ...DAY_NAMES.slice(0, newIndex)];
 
     setCurrentDate(newDate);
     setDays(newDays);
@@ -649,17 +633,8 @@ function App() {
     setShowBulkMoveOptions(false);
     setShowBulkRepeatOptions(false);
 
-    const baseArray = [
-      'SUNDAY',
-      'MONDAY',
-      'TUESDAY',
-      'WEDNESDAY',
-      'THURSDAY',
-      'FRIDAY',
-      'SATURDAY',
-    ];
     const newIndex = newDate.getDay();
-    const newDays = [...baseArray.slice(newIndex), ...baseArray.slice(0, newIndex)];
+    const newDays = [...DAY_NAMES.slice(newIndex), ...DAY_NAMES.slice(0, newIndex)];
 
     setCurrentDate(newDate);
     setDays(newDays);
@@ -722,37 +697,8 @@ function App() {
 
     // Calculate target date (same for all tasks in the batch)
     const fromDayIndex = days.indexOf(day);
-    const currentTaskDate = getDateForDay(fromDayIndex);
-    let targetDate = new Date(currentTaskDate);
-
-    if (moveType === 'today') {
-      targetDate = new Date();
-      targetDate.setHours(0, 0, 0, 0);
-    } else if (moveType === 'next-day') {
-      targetDate.setDate(currentTaskDate.getDate() + 1);
-    } else if (moveType === 'next-week') {
-      targetDate.setDate(currentTaskDate.getDate() + 7);
-    } else if (moveType === 'next-weekday') {
-      targetDate.setDate(currentTaskDate.getDate() + 1);
-      while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
-        targetDate.setDate(targetDate.getDate() + 1);
-      }
-    } else if (moveType === 'next-weekend') {
-      const daysUntilSaturday = (6 - currentTaskDate.getDay() + 7) % 7;
-      const daysToAdd = daysUntilSaturday === 0 ? 7 : daysUntilSaturday;
-      targetDate.setDate(currentTaskDate.getDate() + daysToAdd);
-    }
-
-    const targetDayOfWeek = targetDate.getDay();
-    const targetDayName = [
-      'SUNDAY',
-      'MONDAY',
-      'TUESDAY',
-      'WEDNESDAY',
-      'THURSDAY',
-      'FRIDAY',
-      'SATURDAY',
-    ][targetDayOfWeek];
+    const targetDate = computeMoveTargetDate(moveType, getDateForDay(fromDayIndex));
+    const targetDayName = DAY_NAMES[targetDate.getDay()];
     const targetActualDate = getISOStringForLocalDate(targetDate);
 
     // Fire all DB operations in parallel
@@ -989,40 +935,8 @@ function App() {
 
     // Calculate the target date based on move type
     const fromDayIndex = days.indexOf(fromDay);
-    const currentTaskDate = getDateForDay(fromDayIndex);
-    let targetDate = new Date(currentTaskDate);
-
-    if (moveType === 'today') {
-      targetDate = new Date();
-      targetDate.setHours(0, 0, 0, 0);
-    } else if (moveType === 'next-day') {
-      targetDate.setDate(currentTaskDate.getDate() + 1);
-    } else if (moveType === 'next-week') {
-      targetDate.setDate(currentTaskDate.getDate() + 7);
-    } else if (moveType === 'next-weekday') {
-      // Move to next weekday
-      targetDate.setDate(currentTaskDate.getDate() + 1);
-      while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
-        targetDate.setDate(targetDate.getDate() + 1);
-      }
-    } else if (moveType === 'next-weekend') {
-      // Move to next Saturday
-      const daysUntilSaturday = (6 - currentTaskDate.getDay() + 7) % 7;
-      const daysToAdd = daysUntilSaturday === 0 ? 7 : daysUntilSaturday;
-      targetDate.setDate(currentTaskDate.getDate() + daysToAdd);
-    }
-
-    // Figure out which day this lands on
-    const targetDayOfWeek = targetDate.getDay();
-    const targetDayName = [
-      'SUNDAY',
-      'MONDAY',
-      'TUESDAY',
-      'WEDNESDAY',
-      'THURSDAY',
-      'FRIDAY',
-      'SATURDAY',
-    ][targetDayOfWeek];
+    const targetDate = computeMoveTargetDate(moveType, getDateForDay(fromDayIndex));
+    const targetDayName = DAY_NAMES[targetDate.getDay()];
 
     if (task.isRecurringInstance) {
       // For recurring instances: create a one-time task on target date

@@ -1,3 +1,40 @@
+export const DAY_NAMES = [
+  'SUNDAY',
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+];
+
+// Compute the date a task lands on for a given move action.
+// `today` is injectable for testing.
+export const computeMoveTargetDate = (moveType, fromDate, today = new Date()) => {
+  if (moveType === 'today') {
+    const targetDate = new Date(today);
+    targetDate.setHours(0, 0, 0, 0);
+    return targetDate;
+  }
+
+  const targetDate = new Date(fromDate);
+  if (moveType === 'next-day') {
+    targetDate.setDate(fromDate.getDate() + 1);
+  } else if (moveType === 'next-week') {
+    targetDate.setDate(fromDate.getDate() + 7);
+  } else if (moveType === 'next-weekday') {
+    targetDate.setDate(fromDate.getDate() + 1);
+    while (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+      targetDate.setDate(targetDate.getDate() + 1);
+    }
+  } else if (moveType === 'next-weekend') {
+    // Next Saturday; a full week out if fromDate is already Saturday
+    const daysUntilSaturday = (6 - fromDate.getDay() + 7) % 7;
+    targetDate.setDate(fromDate.getDate() + (daysUntilSaturday === 0 ? 7 : daysUntilSaturday));
+  }
+  return targetDate;
+};
+
 export const getLocalDateString = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');

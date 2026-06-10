@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldShowOnDate } from './dates';
+import { shouldShowOnDate, computeMoveTargetDate, DAY_NAMES, getLocalDateString } from './dates';
 
 const task = (frequency, actualDate) => ({
   recurring: true,
@@ -133,5 +133,77 @@ describe('shouldShowOnDate', () => {
     it('does not show on the 2nd', () => {
       expect(shouldShowOnDate(t, new Date(2024, 6, 2))).toBe(false);
     });
+  });
+});
+
+describe('computeMoveTargetDate', () => {
+  // 2024-06-17 is a Monday, 2024-06-21 Friday, 2024-06-22 Saturday, 2024-06-23 Sunday
+  const monday = new Date(2024, 5, 17);
+  const friday = new Date(2024, 5, 21);
+  const saturday = new Date(2024, 5, 22);
+  const sunday = new Date(2024, 5, 23);
+
+  const result = (moveType, fromDate) =>
+    getLocalDateString(computeMoveTargetDate(moveType, fromDate));
+
+  describe('today', () => {
+    it('returns the injected today at local midnight, ignoring fromDate', () => {
+      const target = computeMoveTargetDate('today', monday, new Date(2024, 5, 19, 15, 30));
+      expect(getLocalDateString(target)).toBe('2024-06-19');
+      expect(target.getHours()).toBe(0);
+    });
+  });
+
+  describe('next-day', () => {
+    it('moves forward one day', () => {
+      expect(result('next-day', monday)).toBe('2024-06-18');
+    });
+    it('rolls over a month boundary', () => {
+      expect(result('next-day', new Date(2024, 5, 30))).toBe('2024-07-01');
+    });
+  });
+
+  describe('next-week', () => {
+    it('moves forward seven days', () => {
+      expect(result('next-week', monday)).toBe('2024-06-24');
+    });
+    it('rolls over a year boundary', () => {
+      expect(result('next-week', new Date(2024, 11, 30))).toBe('2025-01-06');
+    });
+  });
+
+  describe('next-weekday', () => {
+    it('Monday moves to Tuesday', () => {
+      expect(result('next-weekday', monday)).toBe('2024-06-18');
+    });
+    it('Friday skips the weekend to Monday', () => {
+      expect(result('next-weekday', friday)).toBe('2024-06-24');
+    });
+    it('Saturday moves to Monday', () => {
+      expect(result('next-weekday', saturday)).toBe('2024-06-24');
+    });
+  });
+
+  describe('next-weekend', () => {
+    it('Monday moves to the coming Saturday', () => {
+      expect(result('next-weekend', monday)).toBe('2024-06-22');
+    });
+    it('Sunday moves to the next Saturday, not backward', () => {
+      expect(result('next-weekend', sunday)).toBe('2024-06-29');
+    });
+    it('Saturday moves a full week out', () => {
+      expect(result('next-weekend', saturday)).toBe('2024-06-29');
+    });
+  });
+
+  it('does not mutate the input date', () => {
+    const original = new Date(2024, 5, 17);
+    computeMoveTargetDate('next-week', original);
+    expect(getLocalDateString(original)).toBe('2024-06-17');
+  });
+
+  it('maps every target onto the correct day name', () => {
+    expect(DAY_NAMES[computeMoveTargetDate('next-weekend', monday).getDay()]).toBe('SATURDAY');
+    expect(DAY_NAMES[computeMoveTargetDate('next-weekday', friday).getDay()]).toBe('MONDAY');
   });
 });
