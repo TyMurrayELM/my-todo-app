@@ -1,5 +1,4 @@
 // RepeatMenu.jsx
-import React from 'react';
 import { Repeat, Calendar } from 'lucide-react';
 import DropdownMenu from './DropdownMenu'; // Adjust path as needed
 

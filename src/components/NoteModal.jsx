@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function NoteModal({ task, day, onClose, updateTaskNotes }) {
   const [localNote, setLocalNote] = useState(task?.notes || '');

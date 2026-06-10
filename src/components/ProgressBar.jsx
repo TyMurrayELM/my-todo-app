@@ -1,4 +1,3 @@
-import React from 'react';
 import { calculateProgress } from '../lib/utils';
 
 export default function ProgressBar({ dayTasks, index, gradient }) {

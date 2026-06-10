@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Check,
   ArrowLeft,
@@ -10,6 +10,7 @@ import {
   Calendar,
   Layers,
   CalendarDays,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { isValidUrl } from './lib/utils';
@@ -21,10 +22,8 @@ import {
   shouldShowOnDate,
 } from './lib/dates';
 import ThemeSelector from './components/ThemeSelector';
-import RepeatMenu from './components/RepeatMenu';
-import MoveMenu from './components/MoveMenu';
-import RecurringIndicator from './components/RecurringIndicator';
-import TaskItem, { TaskItemProvider } from './components/TaskItem';
+import TaskItem from './components/TaskItem';
+import { TaskItemProvider } from './components/TaskItemContext';
 import NoteModal from './components/NoteModal';
 import UrlModal from './components/UrlModal';
 import ProgressBar from './components/ProgressBar';
@@ -157,15 +156,10 @@ function App() {
 
   const [newTask, setNewTask] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
-  const [editingTaskText, setEditingTaskText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-  const [editingUrlTaskId, setEditingUrlTaskId] = useState(null);
-  const [urlInput, setUrlInput] = useState('');
 
-  // New state for notes feature
-  const [editingNoteTaskId, setEditingNoteTaskId] = useState(null);
-  const [noteInput, setNoteInput] = useState('');
+  // Notes modal state
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [currentNoteTask, setCurrentNoteTask] = useState(null);
 
@@ -197,13 +191,16 @@ function App() {
     }
   }, [primedTaskId]);
 
-  // Clear bulk mode when changing days
-  useEffect(() => {
-    setBulkMode(false);
-    setSelectedTasks([]);
-    setShowBulkMoveOptions(false);
-    setShowBulkRepeatOptions(false);
-  }, [selectedDay]);
+  // Select a day and clear any bulk-mode state from the previous day
+  const selectDay = (value) => {
+    if (value !== selectedDay) {
+      setBulkMode(false);
+      setSelectedTasks([]);
+      setShowBulkMoveOptions(false);
+      setShowBulkRepeatOptions(false);
+    }
+    setSelectedDay(value);
+  };
 
   // Close bulk action dropdowns when clicking outside
   useEffect(() => {
@@ -226,6 +223,16 @@ function App() {
   }, [showBulkMoveOptions, showBulkRepeatOptions]);
 
   const getBackgroundColor = (index) => BG_THEMES[colorTheme][index];
+
+  const getDateForDay = useCallback(
+    (dayIndex) => {
+      const date = new Date(currentDate);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() + dayIndex);
+      return date;
+    },
+    [currentDate]
+  );
 
   const fetchTodos = useCallback(async () => {
     if (!session || isNavigating) return;
@@ -384,6 +391,10 @@ function App() {
               (c) => c.todo_id === todo.id && c.completion_date === dateStr
             );
 
+            // Instance was moved to another date — hide it here entirely
+            // rather than showing it as completed.
+            if (completion?.skipped) continue;
+
             // Get sub-items for this instance with their completion status for this date
             const instanceSubItems = (subItemsMap[todo.id] || []).map((subItem) => {
               const subCompletion = subItemCompletionRecords.find(
@@ -449,7 +460,7 @@ function App() {
     log('Final tasks by day:', todosByDay);
     setTasks(todosByDay);
     setIsLoading(false);
-  }, [session, currentDate, isNavigating, days]);
+  }, [session, isNavigating, days, getDateForDay]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -477,13 +488,6 @@ function App() {
       fetchTodosRef.current();
     }
   }, [session, currentDate, isNavigating]);
-
-  const getDateForDay = (dayIndex) => {
-    const date = new Date(currentDate);
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + dayIndex);
-    return date;
-  };
 
   // Function to create Google Calendar URL
   const createGoogleCalendarUrl = (task, day) => {
@@ -585,6 +589,8 @@ function App() {
     setIsNavigating(true);
     setBulkMode(false);
     setSelectedTasks([]);
+    setShowBulkMoveOptions(false);
+    setShowBulkRepeatOptions(false);
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + direction);
 
@@ -619,6 +625,8 @@ function App() {
     setIsNavigating(true);
     setBulkMode(false);
     setSelectedTasks([]);
+    setShowBulkMoveOptions(false);
+    setShowBulkRepeatOptions(false);
 
     const baseArray = [
       'SUNDAY',
@@ -753,6 +761,7 @@ function App() {
                 todo_id: task.originalId,
                 completion_date: task.instanceDate,
                 completed_at: new Date().toISOString(),
+                skipped: true,
               },
             ]);
             if (newTask && task.subItems && task.subItems.length > 0) {
@@ -992,31 +1001,36 @@ function App() {
       // and mark today as skipped
 
       // 1. Create one-time task on target date
-      const { error: createError } = await supabase.from('todos').insert([
-        {
-          user_id: session.user.id,
-          text: task.text,
-          day: targetDayName,
-          actual_date: getISOStringForLocalDate(targetDate),
-          completed: false,
-          recurring: false,
-          url: task.url,
-          notes: task.notes,
-        },
-      ]);
+      const { data: newTask, error: createError } = await supabase
+        .from('todos')
+        .insert([
+          {
+            user_id: session.user.id,
+            text: task.text,
+            day: targetDayName,
+            actual_date: getISOStringForLocalDate(targetDate),
+            completed: false,
+            recurring: false,
+            url: task.url,
+            notes: task.notes,
+          },
+        ])
+        .select('id')
+        .single();
 
       if (createError) {
         logError('Error creating moved task:', createError);
         return;
       }
 
-      // 2. Mark today's instance as completed (to hide it)
+      // 2. Mark today's instance as skipped (hidden, not completed)
       const { error: skipError } = await supabase.from('recurring_completions').insert([
         {
           user_id: session.user.id,
           todo_id: task.originalId,
           completion_date: task.instanceDate,
           completed_at: new Date().toISOString(),
+          skipped: true,
         },
       ]);
 
@@ -1027,17 +1041,6 @@ function App() {
 
       // 3. Copy sub-items to the new task if any exist
       if (task.subItems && task.subItems.length > 0) {
-        // First get the newly created task ID
-        const { data: newTask } = await supabase
-          .from('todos')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .eq('text', task.text)
-          .eq('day', targetDayName)
-          .eq('actual_date', getISOStringForLocalDate(targetDate))
-          .eq('recurring', false)
-          .single();
-
         if (newTask) {
           const subItemsToCreate = task.subItems.map((sub) => ({
             user_id: session.user.id,
@@ -1610,7 +1613,7 @@ function App() {
         setIsRepeating(false);
       }
     },
-    [session, days, isRepeating]
+    [session, days, isRepeating, getDateForDay]
   );
 
   const updateTaskText = async (taskId, day, newText) => {
@@ -1643,7 +1646,6 @@ function App() {
     }
 
     setEditingTaskId(null);
-    setEditingTaskText('');
 
     // Sync to database
     try {
@@ -1689,9 +1691,6 @@ function App() {
         [day]: prev[day].map((t) => (t.id === taskId ? { ...t, url: url } : t)),
       }));
     }
-
-    setEditingUrlTaskId(null);
-    setUrlInput('');
 
     // Sync to database
     try {
@@ -1741,7 +1740,6 @@ function App() {
 
     setShowNoteModal(false);
     setCurrentNoteTask(null);
-    setNoteInput('');
 
     // Sync to database
     try {
@@ -1818,7 +1816,6 @@ function App() {
     bulkMode,
     editingTaskId,
     setEditingTaskId,
-    setEditingTaskText,
     editingSubItemId,
     setEditingSubItemId,
     addingSubItemTo,
@@ -1831,7 +1828,6 @@ function App() {
     expandedSubItems,
     setCurrentNoteTask,
     setShowNoteModal,
-    setNoteInput,
     setCurrentUrlTask,
     setCurrentUrlDay,
     setShowUrlModal,
@@ -1917,7 +1913,7 @@ function App() {
                 <div
                   key={day}
                   onClick={() => {
-                    setSelectedDay(index);
+                    selectDay(index);
                     if (isMobile) setPrimedTaskId(null);
                   }}
                   className={`${getBackgroundColor(index)} p-6 space-y-2 transition-colors duration-200 cursor-pointer overflow-visible
@@ -2046,6 +2042,18 @@ function App() {
                             )}
                           </div>
 
+                          {/* Delete button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              bulkDeleteTasks(day);
+                            }}
+                            className="p-2 text-red-500 hover:text-red-600 transition-colors"
+                            title="Delete selected"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+
                           {/* Divider */}
                           <div
                             className={`w-px h-5 ${index >= 5 ? 'bg-white/30' : 'bg-gray-300'} mx-1`}
@@ -2084,7 +2092,7 @@ function App() {
                           if (input) {
                             try {
                               input.showPicker();
-                            } catch (err) {
+                            } catch {
                               input.focus();
                               input.click();
                             }
@@ -2234,7 +2242,7 @@ function App() {
               ))}
               <div
                 onClick={() => {
-                  setSelectedDay('task_bank');
+                  selectDay('task_bank');
                   if (isMobile) setPrimedTaskId(null);
                 }}
                 className="bg-black p-6 space-y-2 transition-colors duration-200 cursor-pointer hover:bg-opacity-90"
@@ -2299,6 +2307,18 @@ function App() {
                             </div>
                           )}
                         </div>
+
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            bulkDeleteTasks('TASK_BANK');
+                          }}
+                          className="p-2 text-red-500 hover:text-red-600 transition-colors"
+                          title="Delete selected"
+                        >
+                          <Trash2 size={20} />
+                        </button>
 
                         {/* Divider */}
                         <div className="w-px h-5 bg-white/30 mx-1"></div>
@@ -2450,7 +2470,7 @@ function App() {
         {fetchError && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-[calc(100%-2rem)] bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 flex items-start gap-3">
             <div className="flex-grow text-sm text-red-800">
-              <div className="font-medium">Couldn't sync your tasks</div>
+              <div className="font-medium">Couldn&apos;t sync your tasks</div>
               <div className="text-red-600 text-xs mt-0.5 break-words">{fetchError}</div>
             </div>
             <div className="flex flex-col gap-1 flex-shrink-0">
@@ -2477,7 +2497,6 @@ function App() {
             onClose={() => {
               setShowNoteModal(false);
               setCurrentNoteTask(null);
-              setNoteInput('');
             }}
           />
         )}

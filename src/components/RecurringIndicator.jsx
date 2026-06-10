@@ -1,4 +1,3 @@
-import React from 'react';
 import { Repeat } from 'lucide-react';
 
 const RecurringIndicator = ({ frequency, isDarkBackground }) => {

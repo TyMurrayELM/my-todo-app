@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { isValidUrl } from '../lib/utils';
 
 export default function UrlModal({ task, day, onClose, updateTaskUrl }) {

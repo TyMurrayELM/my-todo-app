@@ -30,7 +30,9 @@ export const shouldShowOnDate = (task, targetDate) => {
 
   if (checkDate < taskStartDate) return false;
 
-  const daysDiff = Math.floor((checkDate - taskStartDate) / (1000 * 60 * 60 * 24));
+  // Round, don't floor: both dates are local midnights, so across a DST
+  // transition the raw difference is ±1 hour off a whole number of days.
+  const daysDiff = Math.round((checkDate - taskStartDate) / (1000 * 60 * 60 * 24));
   const targetDayOfWeek = checkDate.getDay();
 
   switch (task.repeat_frequency) {

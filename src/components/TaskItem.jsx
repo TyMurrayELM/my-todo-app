@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import {
   Check,
   X,
@@ -13,10 +13,7 @@ import { isValidUrl, formatCompletionTime } from '../lib/utils';
 import RecurringIndicator from './RecurringIndicator';
 import RepeatMenu from './RepeatMenu';
 import MoveMenu from './MoveMenu';
-
-const TaskItemContext = createContext(null);
-
-export const TaskItemProvider = TaskItemContext.Provider;
+import { TaskItemContext } from './TaskItemContext';
 
 export default function TaskItem({ task, day, index }) {
   const {
@@ -27,7 +24,6 @@ export default function TaskItem({ task, day, index }) {
     bulkMode,
     editingTaskId,
     setEditingTaskId,
-    setEditingTaskText,
     editingSubItemId,
     setEditingSubItemId,
     addingSubItemTo,
@@ -40,7 +36,6 @@ export default function TaskItem({ task, day, index }) {
     expandedSubItems,
     setCurrentNoteTask,
     setShowNoteModal,
-    setNoteInput,
     setCurrentUrlTask,
     setCurrentUrlDay,
     setShowUrlModal,
@@ -84,7 +79,7 @@ export default function TaskItem({ task, day, index }) {
   const hasSubItems = task.subItems && task.subItems.length > 0;
   const isSubItemsExpanded = expandedSubItems[task.id];
 
-  const visuallyCompleted = pendingCompletions.hasOwnProperty(task.id)
+  const visuallyCompleted = Object.prototype.hasOwnProperty.call(pendingCompletions, task.id)
     ? pendingCompletions[task.id]
     : task.completed;
 
@@ -166,7 +161,6 @@ export default function TaskItem({ task, day, index }) {
                 updateTaskText(task.id, day, e.target.value);
               } else if (e.key === 'Escape') {
                 setEditingTaskId(null);
-                setEditingTaskText('');
               }
             }}
             className={`flex-grow bg-transparent border-none focus:outline-none resize-none overflow-hidden ${
@@ -442,7 +436,6 @@ export default function TaskItem({ task, day, index }) {
                   e.stopPropagation();
                   setCurrentNoteTask(task);
                   setShowNoteModal(true);
-                  setNoteInput(task.notes || '');
                 }}
                 className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
                 title={task.notes ? 'Edit Note' : 'Add Note'}
@@ -525,7 +518,6 @@ export default function TaskItem({ task, day, index }) {
                 e.stopPropagation();
                 setCurrentNoteTask(task);
                 setShowNoteModal(true);
-                setNoteInput(task.notes || '');
                 if (isMobile) setPrimedTaskId(null);
               }}
               className={`p-2 rounded ${isDarkBackground ? 'text-white/80 hover:text-white' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
