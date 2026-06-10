@@ -54,7 +54,7 @@ const RepeatMenu = ({ onSelect }) => {
       triggerTitle="Set repeat frequency"
       options={options}
       onSelect={onSelect}
-      hoverColor="green-500"
+      hoverClass="hover:text-green-500"
     />
   );
 };

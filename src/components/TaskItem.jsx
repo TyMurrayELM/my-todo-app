@@ -450,7 +450,8 @@ export default function TaskItem({ task, day, index }) {
                 onClick={(e) => {
                   e.stopPropagation();
                   if (task.url) {
-                    if (isValidUrl(task.url)) window.open(task.url, '_blank');
+                    if (isValidUrl(task.url))
+                      window.open(task.url, '_blank', 'noopener,noreferrer');
                   } else {
                     setCurrentUrlTask(task);
                     setCurrentUrlDay(day);

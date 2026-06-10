@@ -54,7 +54,7 @@ export default function UrlModal({ task, day, onClose, updateTaskUrl }) {
           {task.url && isValidUrl(task.url) && (
             <button
               onClick={() => {
-                window.open(task.url, '_blank');
+                window.open(task.url, '_blank', 'noopener,noreferrer');
                 onClose();
               }}
               className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"

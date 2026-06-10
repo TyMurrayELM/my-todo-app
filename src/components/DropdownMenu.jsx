@@ -7,7 +7,9 @@ const DropdownMenu = ({
   triggerTitle,
   options,
   onSelect,
-  hoverColor = 'gray-500',
+  // Must be a complete class name — Tailwind can't generate classes
+  // assembled at runtime from fragments.
+  hoverClass = 'hover:text-gray-500',
   buttonClass = '',
   onButtonClick,
 }) => {
@@ -42,7 +44,7 @@ const DropdownMenu = ({
         onMouseDown={(e) => {
           if (onButtonClick) onButtonClick(e); // Allow custom onMouseDown if needed
         }}
-        className={`flex items-center text-inherit hover:text-${hoverColor} ${buttonClass}`}
+        className={`flex items-center text-inherit ${hoverClass} ${buttonClass}`}
         title={triggerTitle}
         aria-label={triggerTitle}
         aria-expanded={isOpen}

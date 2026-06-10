@@ -47,7 +47,7 @@ const MoveMenu = ({ onSelect }) => {
       triggerTitle="Move task"
       options={options}
       onSelect={onSelect}
-      hoverColor="blue-500"
+      hoverClass="hover:text-blue-500"
       buttonClass="p-2"
       onButtonClick={handleButtonClick}
     />

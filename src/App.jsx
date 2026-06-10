@@ -603,7 +603,7 @@ function App() {
   // Function to open Google Calendar with task
   const openGoogleCalendar = (task, day) => {
     const url = createGoogleCalendarUrl(task, day);
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleNavigation = async (direction) => {
@@ -842,7 +842,7 @@ function App() {
     setTasks((prev) => ({
       ...prev,
       [day]: prev[day].map((t) =>
-        taskIdSet.has(t.id) ? { ...t, recurring: true, repeat_frequency: frequency } : t
+        taskIdSet.has(t.id) ? { ...t, recurring: true, repeatFrequency: frequency } : t
       ),
     }));
     setBulkMode(false);
@@ -1577,9 +1577,6 @@ function App() {
       if (!confirmDelete) return;
     }
 
-    // Store task for potential revert
-    const deletedTask = task;
-
     // Optimistic update - remove from UI immediately
     // For recurring tasks, remove all instances across all days
     if (task.recurring) {
@@ -1610,11 +1607,9 @@ function App() {
       if (error) throw error;
     } catch (error) {
       logError('Error deleting todo:', error);
-      // Revert optimistic update on failure
-      setTasks((prev) => ({
-        ...prev,
-        [day]: [...prev[day], deletedTask],
-      }));
+      // Recurring deletes touch every day, so a local revert can't
+      // reconstruct the optimistic removal — refetch instead.
+      await fetchTodos();
     }
   };
 
@@ -1814,15 +1809,14 @@ function App() {
   const handleLogout = async () => {
     log('Logout button clicked');
     try {
-      localStorage.clear();
+      // signOut clears its own session storage; don't wipe all of
+      // localStorage — that would lose the theme preference too.
       await supabase.auth.signOut();
       log('Logout completed');
-      setTimeout(() => {
-        window.location.replace('/');
-      }, 100);
     } catch (error) {
       logError('Error logging out:', error);
-      window.location.href = '/';
+    } finally {
+      window.location.replace('/');
     }
   };
 

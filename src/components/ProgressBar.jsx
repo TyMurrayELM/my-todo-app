@@ -26,7 +26,7 @@ export default function ProgressBar({ dayTasks, index, gradient }) {
           style={{
             width: `${percentage}%`,
             background: gradient,
-            backgroundSize: `${10000 / percentage}% 100%`,
+            backgroundSize: percentage > 0 ? `${10000 / percentage}% 100%` : '100% 100%',
             backgroundPosition: 'left',
           }}
         />
