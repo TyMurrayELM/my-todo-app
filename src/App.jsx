@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Check,
   ArrowLeft,
@@ -29,75 +29,15 @@ import { TaskItemProvider } from './components/TaskItemContext';
 import NoteModal from './components/NoteModal';
 import UrlModal from './components/UrlModal';
 import ProgressBar from './components/ProgressBar';
-
-// Security: Dev-only logging to prevent information disclosure in production
-const isDev = import.meta.env.DEV;
-const log = (...args) => isDev && console.log(...args);
-const logError = (...args) => isDev && console.error(...args);
-
-// Security: Input length limits
-const MAX_TASK_LENGTH = 500;
-const MAX_NOTES_LENGTH = 2000;
-const MAX_URL_LENGTH = 2000;
-
-const BG_THEMES = {
-  amber: [
-    'bg-amber-100',
-    'bg-amber-200',
-    'bg-amber-300',
-    'bg-amber-400',
-    'bg-amber-500',
-    'bg-amber-600',
-    'bg-amber-700',
-  ],
-  blue: [
-    'bg-blue-100',
-    'bg-blue-200',
-    'bg-blue-300',
-    'bg-blue-400',
-    'bg-blue-500',
-    'bg-blue-600',
-    'bg-blue-700',
-  ],
-  green: [
-    'bg-green-100',
-    'bg-green-200',
-    'bg-green-300',
-    'bg-green-400',
-    'bg-green-500',
-    'bg-green-600',
-    'bg-green-700',
-  ],
-  purple: [
-    'bg-purple-100',
-    'bg-purple-200',
-    'bg-purple-300',
-    'bg-purple-400',
-    'bg-purple-500',
-    'bg-purple-600',
-    'bg-purple-700',
-  ],
-  pink: [
-    'bg-pink-100',
-    'bg-pink-200',
-    'bg-pink-300',
-    'bg-pink-400',
-    'bg-pink-500',
-    'bg-pink-600',
-    'bg-pink-700',
-  ],
-};
-
-const PROGRESS_GRADIENTS = {
-  amber:
-    'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',
-  blue: 'linear-gradient(to right, #93c5fd 0%, #60a5fa 20%, #3b82f6 40%, #2563eb 60%, #1d4ed8 80%, #1e3a8a 100%)',
-  green:
-    'linear-gradient(to right, #86efac 0%, #4ade80 20%, #22c55e 40%, #16a34a 60%, #15803d 80%, #14532d 100%)',
-  purple:
-    'linear-gradient(to right, #d8b4fe 0%, #c084fc 20%, #a855f7 40%, #9333ea 60%, #7e22ce 80%, #3b0764 100%)',
-  pink: 'linear-gradient(to right, #fbcfe8 0%, #f9a8d4 20%, #ec4899 40%, #db2777 60%, #be185d 80%, #500724 100%)',
-};
+import { log, logError } from './lib/log';
+import { createGoogleCalendarUrl } from './lib/calendar';
+import {
+  MAX_TASK_LENGTH,
+  MAX_NOTES_LENGTH,
+  MAX_URL_LENGTH,
+  BG_THEMES,
+  PROGRESS_GRADIENTS,
+} from './lib/constants';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -503,8 +443,8 @@ function App() {
     }
   }, [session, currentDate, isNavigating]);
 
-  // Function to create Google Calendar URL
-  const createGoogleCalendarUrl = (task, day) => {
+  // Resolve the task's date, then build the Google Calendar URL
+  const openGoogleCalendar = (task, day) => {
     const dayIndex = days.indexOf(day);
     const taskDate = dayIndex >= 0 ? getDateForDay(dayIndex) : new Date();
 
@@ -514,91 +454,9 @@ function App() {
       taskDate.setFullYear(parseInt(year), parseInt(month) - 1, parseInt(dayNum));
     }
 
-    // Format date for Google Calendar (YYYYMMDD)
-    const formatGoogleDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}${month}${day}`;
-    };
-
-    const startDate = formatGoogleDate(taskDate);
-    // For all-day event, end date is the next day
-    const endDate = new Date(taskDate);
-    endDate.setDate(endDate.getDate() + 1);
-    const endDateStr = formatGoogleDate(endDate);
-
-    // Build the description
-    let description = '';
-    if (task.notes) {
-      description += task.notes;
-    }
-    if (task.url) {
-      if (description) description += '\n\n';
-      description += `Link: ${task.url}`;
-    }
-    if (task.subItems && task.subItems.length > 0) {
-      if (description) description += '\n\n';
-      description += 'Sub-tasks:\n';
-      task.subItems.forEach((sub) => {
-        description += `${sub.completed ? 'âœ“' : 'â—‹'} ${sub.text}\n`;
-      });
-    }
-
-    // Build recurrence rule (RRULE) for recurring tasks
-    // Format: RRULE:FREQ=DAILY;UNTIL=20251231
-    const getRecurrenceRule = () => {
-      if (!task.recurring || !task.repeatFrequency) return null;
-
-      // Set end date to 1 year from now for recurring events
-      const untilDate = new Date(taskDate);
-      untilDate.setFullYear(untilDate.getFullYear() + 1);
-      const untilStr = formatGoogleDate(untilDate);
-
-      switch (task.repeatFrequency) {
-        case 'daily':
-          return `RRULE:FREQ=DAILY;UNTIL=${untilStr}`;
-        case 'every-other-day':
-          return `RRULE:FREQ=DAILY;INTERVAL=2;UNTIL=${untilStr}`;
-        case 'weekdays':
-          // Monday through Friday
-          return `RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR;UNTIL=${untilStr}`;
-        case 'weekly':
-          return `RRULE:FREQ=WEEKLY;UNTIL=${untilStr}`;
-        case 'bi-weekly':
-          return `RRULE:FREQ=WEEKLY;INTERVAL=2;UNTIL=${untilStr}`;
-        case 'monthly':
-          return `RRULE:FREQ=MONTHLY;UNTIL=${untilStr}`;
-        case 'first-of-month':
-          return `RRULE:FREQ=MONTHLY;BYMONTHDAY=1;UNTIL=${untilStr}`;
-        default:
-          return null;
-      }
-    };
-
-    // Build Google Calendar URL
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: task.text,
-      dates: `${startDate}/${endDateStr}`,
-      details: description,
-    });
-
-    // Add recurrence rule if task is recurring
-    const recurrence = getRecurrenceRule();
-    if (recurrence) {
-      params.append('recur', recurrence);
-    }
-
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  };
-
-  // Function to open Google Calendar with task
-  const openGoogleCalendar = (task, day) => {
-    const url = createGoogleCalendarUrl(task, day);
+    const url = createGoogleCalendarUrl(task, taskDate);
     window.open(url, '_blank', 'noopener,noreferrer');
   };
-
   const handleNavigation = async (direction) => {
     setIsNavigating(true);
     setBulkMode(false);
