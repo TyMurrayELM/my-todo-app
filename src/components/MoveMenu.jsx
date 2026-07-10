@@ -1,6 +1,7 @@
 // MoveMenu.jsx
-import { SkipForward, Calendar, CalendarDays } from 'lucide-react';
+import { SkipForward, Calendar, CalendarDays, CalendarSearch } from 'lucide-react';
 import DropdownMenu from './DropdownMenu'; // Adjust path as needed g
+import { getLocalDateString } from '../lib/dates';
 
 const MoveMenu = ({ onSelect }) => {
   const options = [
@@ -33,6 +34,14 @@ const MoveMenu = ({ onSelect }) => {
       label: 'Next Weekend',
       icon: <Calendar size={14} />,
       subtitle: 'Saturday',
+    },
+    {
+      id: 'custom',
+      label: 'Pick a Date',
+      icon: <CalendarSearch size={14} />,
+      subtitle: 'Choose…',
+      datePicker: true,
+      min: getLocalDateString(new Date()),
     },
   ];
 

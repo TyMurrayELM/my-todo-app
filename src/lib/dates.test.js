@@ -184,6 +184,17 @@ describe('computeMoveTargetDate', () => {
     });
   });
 
+  describe('custom', () => {
+    it('lands on the exact picked date, ignoring fromDate', () => {
+      expect(result('custom:2024-07-04', monday)).toBe('2024-07-04');
+    });
+    it('returns a local-midnight date that maps to the right day name', () => {
+      const target = computeMoveTargetDate('custom:2024-06-22', monday);
+      expect(DAY_NAMES[target.getDay()]).toBe('SATURDAY');
+      expect(target.getHours()).toBe(0);
+    });
+  });
+
   describe('next-weekend', () => {
     it('Monday moves to the coming Saturday', () => {
       expect(result('next-weekend', monday)).toBe('2024-06-22');

@@ -9,6 +9,7 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
+  CalendarSearch,
 } from 'lucide-react';
 import { formatDate, getLocalDateString } from '../lib/dates';
 import { AppContext } from './AppContext';
@@ -21,6 +22,7 @@ const MOVE_OPTIONS = [
   { id: 'next-week', label: 'Next Week', icon: <Calendar size={16} /> },
   { id: 'next-weekday', label: 'Next Weekday', icon: <Calendar size={16} /> },
   { id: 'next-weekend', label: 'Next Weekend', icon: <Calendar size={16} /> },
+  { id: 'custom', label: 'Pick a Date', icon: <CalendarSearch size={16} />, datePicker: true },
 ];
 
 const REPEAT_OPTIONS = [
@@ -136,20 +138,55 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                   </button>
                   {showBulkMoveOptions && (
                     <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
-                      {MOVE_OPTIONS.map((option) => (
-                        <button
-                          key={option.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            bulkMoveTasks(option.id, day);
-                            setShowBulkMoveOptions(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                        >
-                          {option.icon}
-                          {option.label}
-                        </button>
-                      ))}
+                      {MOVE_OPTIONS.map((option) =>
+                        option.datePicker ? (
+                          // Row backed by an invisible native date input;
+                          // picking a date moves the batch to that day.
+                          <button
+                            key={option.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const input = e.currentTarget.querySelector('input');
+                              if (input) {
+                                try {
+                                  input.showPicker();
+                                } catch {
+                                  input.focus();
+                                }
+                              }
+                            }}
+                            className="relative w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                          >
+                            {option.icon}
+                            {option.label}
+                            <input
+                              type="date"
+                              min={getLocalDateString(new Date())}
+                              tabIndex={-1}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  bulkMoveTasks(`custom:${e.target.value}`, day);
+                                  setShowBulkMoveOptions(false);
+                                }
+                              }}
+                            />
+                          </button>
+                        ) : (
+                          <button
+                            key={option.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              bulkMoveTasks(option.id, day);
+                              setShowBulkMoveOptions(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                          >
+                            {option.icon}
+                            {option.label}
+                          </button>
+                        )
+                      )}
                     </div>
                   )}
                 </div>

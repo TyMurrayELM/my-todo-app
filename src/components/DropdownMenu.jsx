@@ -57,7 +57,44 @@ const DropdownMenu = ({
 
       {isOpen && (
         <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-44 bg-white border rounded shadow-lg z-[100]">
-          {options.map((option) => (
+          {options.map((option) =>
+            option.datePicker ? (
+              // Row backed by an invisible native date input; picking a date
+              // fires onSelect with `${option.id}:YYYY-MM-DD`.
+              <div
+                key={option.id}
+                role="menuitem"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const input = e.currentTarget.querySelector('input');
+                  if (input) {
+                    try {
+                      input.showPicker();
+                    } catch {
+                      input.focus();
+                    }
+                  }
+                }}
+                className="relative flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+              >
+                {option.icon}
+                <span className="text-sm">{option.label}</span>
+                <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
+                <input
+                  type="date"
+                  min={option.min}
+                  tabIndex={-1}
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      onSelect(`${option.id}:${e.target.value}`);
+                      setIsOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
             <div
               key={option.id}
               role="menuitem"
@@ -79,7 +116,8 @@ const DropdownMenu = ({
               <span className="text-sm">{option.label}</span>
               <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
             </div>
-          ))}
+            )
+          )}
         </div>
       )}
     </div>

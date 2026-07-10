@@ -10,7 +10,12 @@ export const DAY_NAMES = [
 
 // Compute the date a task lands on for a given move action.
 // `today` is injectable for testing.
+// moveType 'custom:YYYY-MM-DD' targets that exact date.
 export const computeMoveTargetDate = (moveType, fromDate, today = new Date()) => {
+  if (typeof moveType === 'string' && moveType.startsWith('custom:')) {
+    return parseUTCDateAsLocal(moveType.slice('custom:'.length));
+  }
+
   if (moveType === 'today') {
     const targetDate = new Date(today);
     targetDate.setHours(0, 0, 0, 0);
