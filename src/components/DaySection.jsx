@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import {
   Check,
+  X,
   SkipForward,
   Repeat,
   Calendar,
@@ -76,6 +77,11 @@ export default function DaySection({ day, index, isTaskBank = false }) {
   // Bulk repeat dropdown: swap the preset list for the custom frequency form
   const [showCustomRepeat, setShowCustomRepeat] = useState(false);
 
+  // Bulk-move date awaiting explicit confirmation. Mobile pickers fire
+  // change as soon as a day is tapped, so acting on change directly would
+  // move the batch before the user confirms.
+  const [pendingBulkDate, setPendingBulkDate] = useState(null);
+
   const dayTasks = tasks[day];
   const isSelected = isTaskBank ? selectedDay === 'task_bank' : selectedDay === index;
   const isCompletedExpanded = expandedCompletedSections[day] || false;
@@ -136,6 +142,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                       e.stopPropagation();
                       setShowBulkMoveOptions(!showBulkMoveOptions);
                       setShowBulkRepeatOptions(false);
+                      setPendingBulkDate(null);
                     }}
                     className={`p-2 text-blue-500 hover:text-blue-600 transition-colors ${showBulkMoveOptions ? 'text-blue-600' : ''}`}
                     title="Move selected"
@@ -146,16 +153,18 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
                       {MOVE_OPTIONS.map((option) =>
                         option.datePicker ? (
-                          // Row covered by an invisible native date input;
-                          // picking a date moves the batch to that day. On
-                          // touch devices the tap on the input opens the
-                          // picker natively, so showPicker() is for mouse
-                          // users only — calling it on touch too would
-                          // toggle the freshly opened picker closed.
+                          // Row covered by an invisible native date input.
+                          // Picking a day stores the date and swaps in
+                          // confirm/cancel buttons; only confirming moves the
+                          // batch. On touch devices the tap on the input opens
+                          // the picker natively, so showPicker() is for mouse
+                          // users only — calling it on touch too would toggle
+                          // the freshly opened picker closed.
                           <div
                             key={option.id}
                             onClick={(e) => {
                               e.stopPropagation();
+                              if (pendingBulkDate) return;
                               if (window.matchMedia('(pointer: coarse)').matches) return;
                               const input = e.currentTarget.querySelector('input');
                               if (input) {
@@ -169,22 +178,54 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                             className="relative w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700 cursor-pointer"
                           >
                             {option.icon}
-                            {option.label}
-                            {/* Mirrors the day-viewer date row below exactly:
-                                pre-filled value, no min, no tabIndex. Mobile
-                                Safari instantly dismisses the picker of an
-                                empty/constrained date input. */}
-                            <input
-                              type="date"
-                              value={getLocalDateString(new Date())}
-                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  bulkMoveTasks(`custom:${e.target.value}`, day);
-                                  setShowBulkMoveOptions(false);
-                                }
-                              }}
-                            />
+                            {pendingBulkDate ? (
+                              <>
+                                {pendingBulkDate.slice(5).replace('-', '/')}?
+                                <span className="ml-auto flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    title="Confirm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      bulkMoveTasks(`custom:${pendingBulkDate}`, day);
+                                      setPendingBulkDate(null);
+                                      setShowBulkMoveOptions(false);
+                                    }}
+                                    className="p-1 text-blue-500 hover:text-blue-600"
+                                  >
+                                    <Check size={16} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    title="Cancel"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setPendingBulkDate(null);
+                                    }}
+                                    className="p-1 text-gray-400 hover:text-gray-600"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                {option.label}
+                                {/* Mirrors the day-viewer date row below
+                                    exactly: pre-filled value, no min, no
+                                    tabIndex. Mobile Safari instantly dismisses
+                                    the picker of an empty/constrained date
+                                    input. */}
+                                <input
+                                  type="date"
+                                  value={getLocalDateString(new Date())}
+                                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                  onChange={(e) => {
+                                    if (e.target.value) setPendingBulkDate(e.target.value);
+                                  }}
+                                />
+                              </>
+                            )}
                           </div>
                         ) : (
                           <button

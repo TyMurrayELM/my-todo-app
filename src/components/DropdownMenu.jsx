@@ -1,7 +1,13 @@
 // DropdownMenu.jsx
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Check, X } from 'lucide-react';
 import { isDatePickerActive } from '../lib/utils';
+
+// 'YYYY-MM-DD' -> 'Jul 15' (parsed as local, not UTC)
+const formatPickedDate = (dateStr) => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleString('default', { month: 'short', day: 'numeric' });
+};
 
 const DropdownMenu = ({
   triggerIcon,
@@ -19,6 +25,10 @@ const DropdownMenu = ({
   const [isOpen, setIsOpen] = useState(false);
   // id of the option whose renderPanel is showing instead of the option list
   const [activePanelId, setActivePanelId] = useState(null);
+  // Date picked in a datePicker row, awaiting explicit confirmation. Mobile
+  // pickers fire change as soon as a day is tapped, so acting on change
+  // directly would move the task before the user confirms.
+  const [pendingDate, setPendingDate] = useState(null);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -34,6 +44,7 @@ const DropdownMenu = ({
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
         setActivePanelId(null);
+        setPendingDate(null);
       }
     };
 
@@ -50,6 +61,7 @@ const DropdownMenu = ({
     }
     setIsOpen(!isOpen);
     setActivePanelId(null);
+    setPendingDate(null);
   };
 
   const activePanelOption = activePanelId && options.find((o) => o.id === activePanelId);
@@ -107,18 +119,20 @@ const DropdownMenu = ({
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
               </div>
             ) : option.datePicker ? (
-              // Row covered by an invisible native date input; picking a date
-              // fires onSelect with `${option.id}:YYYY-MM-DD`. On touch
-              // devices the tap on the input opens the picker natively (the
-              // only way mobile browsers open it), so showPicker() is for
-              // mouse users only — calling it on touch too would toggle the
-              // freshly opened picker closed.
+              // Row covered by an invisible native date input. Picking a day
+              // stores the date and swaps in confirm/cancel buttons; only
+              // confirming fires onSelect with `${option.id}:YYYY-MM-DD`.
+              // On touch devices the tap on the input opens the picker
+              // natively (the only way mobile browsers open it), so
+              // showPicker() is for mouse users only — calling it on touch
+              // too would toggle the freshly opened picker closed.
               <div
                 key={option.id}
                 role="menuitem"
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (pendingDate) return;
                   if (window.matchMedia('(pointer: coarse)').matches) return;
                   const input = e.currentTarget.querySelector('input');
                   if (input) {
@@ -132,24 +146,55 @@ const DropdownMenu = ({
                 className="relative flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
               >
                 {option.icon}
-                <span className="text-sm">{option.label}</span>
-                <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
-                {/* Mirrors the day-viewer date row in DaySection exactly:
-                    pre-filled value, no min, no tabIndex. Mobile Safari
-                    instantly dismisses the picker of an empty/constrained
-                    date input, which is why this row's picker kept
-                    collapsing while the day viewer's worked. */}
-                <input
-                  type="date"
-                  value={option.defaultDate}
-                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      onSelect(`${option.id}:${e.target.value}`);
-                      setIsOpen(false);
-                    }
-                  }}
-                />
+                {pendingDate ? (
+                  <>
+                    <span className="text-sm">{formatPickedDate(pendingDate)}?</span>
+                    <span className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button"
+                        title="Confirm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(`${option.id}:${pendingDate}`);
+                          setPendingDate(null);
+                          setIsOpen(false);
+                        }}
+                        className="p-1 text-blue-500 hover:text-blue-600"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Cancel"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingDate(null);
+                        }}
+                        className="p-1 text-gray-400 hover:text-gray-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm">{option.label}</span>
+                    <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
+                    {/* Mirrors the day-viewer date row in DaySection exactly:
+                        pre-filled value, no min, no tabIndex. Mobile Safari
+                        instantly dismisses the picker of an empty/constrained
+                        date input, which is why this row's picker kept
+                        collapsing while the day viewer's worked. */}
+                    <input
+                      type="date"
+                      value={option.defaultDate}
+                      className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      onChange={(e) => {
+                        if (e.target.value) setPendingDate(e.target.value);
+                      }}
+                    />
+                  </>
+                )}
               </div>
             ) : (
             <div
