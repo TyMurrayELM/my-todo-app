@@ -110,6 +110,11 @@ const DropdownMenu = ({
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
+                  // On touch devices the tap lands on the input and opens the
+                  // native picker by itself — calling showPicker() as well
+                  // toggles it straight back closed. Only open it manually
+                  // for mouse users, where clicking the input does nothing.
+                  if (window.matchMedia('(pointer: coarse)').matches) return;
                   const input = e.currentTarget.querySelector('input');
                   if (input) {
                     try {
@@ -124,14 +129,11 @@ const DropdownMenu = ({
                 {option.icon}
                 <span className="text-sm">{option.label}</span>
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
-                {/* pointer-events-none so taps hit the row, not the input:
-                    on mobile a tap on the input natively opens the picker and
-                    the bubbled click's showPicker() then toggles it closed. */}
                 <input
                   type="date"
                   min={option.min}
                   tabIndex={-1}
-                  className="absolute inset-0 opacity-0 w-full h-full pointer-events-none"
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                   onChange={(e) => {
                     if (e.target.value) {
                       onSelect(`${option.id}:${e.target.value}`);
