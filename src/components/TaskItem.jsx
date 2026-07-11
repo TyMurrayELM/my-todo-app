@@ -10,7 +10,6 @@ import {
   Calendar,
 } from 'lucide-react';
 import { isValidUrl, formatCompletionTime } from '../lib/utils';
-import { getLocalDateString } from '../lib/dates';
 import RecurringIndicator from './RecurringIndicator';
 import RepeatMenu from './RepeatMenu';
 import MoveMenu from './MoveMenu';
@@ -63,28 +62,7 @@ export default function TaskItem({ task, day, index }) {
   const [completedSubExpanded, setCompletedSubExpanded] = useState(false);
   const editInputRef = useRef(null);
   const subItemInputRef = useRef(null);
-  const moveDateInputRef = useRef(null);
   const isSelected = selectedTasks.includes(task.id);
-
-  // Selecting 'custom' in the move menu opens the hidden date input at the
-  // task root instead of moving directly. The input must live outside the
-  // dropdown and the collapsible action bar: the native picker dismisses if
-  // its input unmounts while open, and stray clicks can close both. Same
-  // showPicker/focus+click recipe as the day-viewer date row in DaySection.
-  const handleMove = (moveType) => {
-    if (moveType !== 'custom') {
-      moveTask(task.id, day, moveType);
-      return;
-    }
-    const input = moveDateInputRef.current;
-    if (!input) return;
-    try {
-      input.showPicker();
-    } catch {
-      input.focus();
-      input.click();
-    }
-  };
 
   useEffect(() => {
     if (editingTaskId === task.id && editInputRef.current) {
@@ -114,20 +92,6 @@ export default function TaskItem({ task, day, index }) {
       onMouseEnter={() => !isMobile && setIsHovered(true)}
       onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
-      <input
-        ref={moveDateInputRef}
-        type="date"
-        min={getLocalDateString(new Date())}
-        tabIndex={-1}
-        className="absolute bottom-0 left-8 w-px h-px opacity-0 pointer-events-none"
-        onChange={(e) => {
-          if (e.target.value) {
-            moveTask(task.id, day, `custom:${e.target.value}`);
-            // Reset so picking the same date again still fires onChange
-            e.target.value = '';
-          }
-        }}
-      />
       <div className={`flex items-start gap-3 relative`}>
         {bulkMode ? (
           <button
@@ -530,7 +494,10 @@ export default function TaskItem({ task, day, index }) {
               )}
               {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
-                  <MoveMenu onSelect={handleMove} onOpenChange={setActionMenuOpen} />
+                  <MoveMenu
+                    onSelect={(moveType) => moveTask(task.id, day, moveType)}
+                    onOpenChange={setActionMenuOpen}
+                  />
                 </div>
               )}
               <button
@@ -605,7 +572,7 @@ export default function TaskItem({ task, day, index }) {
                 <MoveMenu
                   onSelect={(moveType) => {
                     if (isMobile) setPrimedTaskId(null);
-                    handleMove(moveType);
+                    moveTask(task.id, day, moveType);
                   }}
                 />
               </div>

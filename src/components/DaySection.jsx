@@ -1,4 +1,4 @@
-import { useContext, useState, useRef } from 'react';
+import { useContext, useState } from 'react';
 import {
   Check,
   SkipForward,
@@ -76,11 +76,6 @@ export default function DaySection({ day, index, isTaskBank = false }) {
   // Bulk repeat dropdown: swap the preset list for the custom frequency form
   const [showCustomRepeat, setShowCustomRepeat] = useState(false);
 
-  // Hidden date input for the bulk "Pick a Date" move. Lives outside the
-  // dropdown because the native picker dismisses if its input unmounts
-  // while open (the dropdown closes as soon as the option is picked).
-  const bulkMoveDateInputRef = useRef(null);
-
   const dayTasks = tasks[day];
   const isSelected = isTaskBank ? selectedDay === 'task_bank' : selectedDay === index;
   const isCompletedExpanded = expandedCompletedSections[day] || false;
@@ -151,29 +146,43 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
                       {MOVE_OPTIONS.map((option) =>
                         option.datePicker ? (
-                          // Opens the hidden bulk move-date input (mounted
-                          // outside this dropdown) with the same
-                          // showPicker/focus+click recipe as the day-viewer
-                          // date row.
-                          <button
+                          // Row covered by an invisible native date input;
+                          // picking a date moves the batch to that day. On
+                          // touch devices the tap on the input opens the
+                          // picker natively, so showPicker() is for mouse
+                          // users only — calling it on touch too would
+                          // toggle the freshly opened picker closed.
+                          <div
                             key={option.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setShowBulkMoveOptions(false);
-                              const input = bulkMoveDateInputRef.current;
-                              if (!input) return;
-                              try {
-                                input.showPicker();
-                              } catch {
-                                input.focus();
-                                input.click();
+                              if (window.matchMedia('(pointer: coarse)').matches) return;
+                              const input = e.currentTarget.querySelector('input');
+                              if (input) {
+                                try {
+                                  input.showPicker();
+                                } catch {
+                                  input.focus();
+                                }
                               }
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                            className="relative w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700 cursor-pointer"
                           >
                             {option.icon}
                             {option.label}
-                          </button>
+                            <input
+                              type="date"
+                              min={getLocalDateString(new Date())}
+                              tabIndex={-1}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  bulkMoveTasks(`custom:${e.target.value}`, day);
+                                  setShowBulkMoveOptions(false);
+                                }
+                              }}
+                            />
+                          </div>
                         ) : (
                           <button
                             key={option.id}
@@ -191,20 +200,6 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                       )}
                     </div>
                   )}
-                  <input
-                    ref={bulkMoveDateInputRef}
-                    type="date"
-                    min={getLocalDateString(new Date())}
-                    tabIndex={-1}
-                    className="absolute bottom-0 left-0 w-px h-px opacity-0 pointer-events-none"
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        bulkMoveTasks(`custom:${e.target.value}`, day);
-                        // Reset so picking the same date again still fires onChange
-                        e.target.value = '';
-                      }
-                    }}
-                  />
                 </div>
               )}
 

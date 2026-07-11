@@ -1,6 +1,7 @@
 // MoveMenu.jsx
 import { SkipForward, Calendar, CalendarDays, CalendarSearch } from 'lucide-react';
 import DropdownMenu from './DropdownMenu'; // Adjust path as needed g
+import { getLocalDateString } from '../lib/dates';
 
 const MoveMenu = ({ onSelect, onOpenChange }) => {
   const options = [
@@ -34,13 +35,13 @@ const MoveMenu = ({ onSelect, onOpenChange }) => {
       icon: <Calendar size={14} />,
       subtitle: 'Saturday',
     },
-    // Selecting 'custom' opens the caller's date picker (see TaskItem's
-    // hidden move-date input) rather than moving directly.
     {
       id: 'custom',
       label: 'Pick a Date',
       icon: <CalendarSearch size={14} />,
       subtitle: 'Choose…',
+      datePicker: true,
+      min: getLocalDateString(new Date()),
     },
   ];
 

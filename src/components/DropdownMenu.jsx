@@ -106,6 +106,47 @@ const DropdownMenu = ({
                 <span className="text-sm">{option.label}</span>
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
               </div>
+            ) : option.datePicker ? (
+              // Row covered by an invisible native date input; picking a date
+              // fires onSelect with `${option.id}:YYYY-MM-DD`. On touch
+              // devices the tap on the input opens the picker natively (the
+              // only way mobile browsers open it), so showPicker() is for
+              // mouse users only — calling it on touch too would toggle the
+              // freshly opened picker closed.
+              <div
+                key={option.id}
+                role="menuitem"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.matchMedia('(pointer: coarse)').matches) return;
+                  const input = e.currentTarget.querySelector('input');
+                  if (input) {
+                    try {
+                      input.showPicker();
+                    } catch {
+                      input.focus();
+                    }
+                  }
+                }}
+                className="relative flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+              >
+                {option.icon}
+                <span className="text-sm">{option.label}</span>
+                <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
+                <input
+                  type="date"
+                  min={option.min}
+                  tabIndex={-1}
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      onSelect(`${option.id}:${e.target.value}`);
+                      setIsOpen(false);
+                    }
+                  }}
+                />
+              </div>
             ) : (
             <div
               key={option.id}
