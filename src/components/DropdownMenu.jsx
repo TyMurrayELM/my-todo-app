@@ -14,12 +14,15 @@ const DropdownMenu = ({
   onButtonClick,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  // id of the option whose renderPanel is showing instead of the option list
+  const [activePanelId, setActivePanelId] = useState(null);
   const menuRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
+        setActivePanelId(null);
       }
     };
 
@@ -35,7 +38,10 @@ const DropdownMenu = ({
       onButtonClick(e);
     }
     setIsOpen(!isOpen);
+    setActivePanelId(null);
   };
+
+  const activePanelOption = activePanelId && options.find((o) => o.id === activePanelId);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -57,8 +63,39 @@ const DropdownMenu = ({
 
       {isOpen && (
         <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-44 bg-white border rounded shadow-lg z-[100]">
-          {options.map((option) =>
-            option.datePicker ? (
+          {activePanelOption ? (
+            // Option-supplied panel replaces the list (e.g. custom frequency form).
+            activePanelOption.renderPanel({
+              onSelect: (value) => {
+                onSelect(value);
+                setIsOpen(false);
+                setActivePanelId(null);
+              },
+              onBack: () => setActivePanelId(null),
+            })
+          ) : (
+          options.map((option) =>
+            option.renderPanel ? (
+              <div
+                key={option.id}
+                role="menuitem"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivePanelId(option.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    setActivePanelId(option.id);
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+              >
+                {option.icon}
+                <span className="text-sm">{option.label}</span>
+                <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
+              </div>
+            ) : option.datePicker ? (
               // Row backed by an invisible native date input; picking a date
               // fires onSelect with `${option.id}:YYYY-MM-DD`.
               <div
@@ -117,6 +154,7 @@ const DropdownMenu = ({
               <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
             </div>
             )
+          )
           )}
         </div>
       )}

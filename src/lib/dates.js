@@ -1,3 +1,5 @@
+import { parseCustomFrequency } from './frequency';
+
 export const DAY_NAMES = [
   'SUNDAY',
   'MONDAY',
@@ -104,7 +106,14 @@ export const shouldShowOnDate = (task, targetDate) => {
     }
     case 'first-of-month':
       return checkDate.getDate() === 1;
-    default:
-      return false;
+    default: {
+      const custom = parseCustomFrequency(task.repeat_frequency);
+      if (!custom) return false;
+      if (custom.kind === 'interval') {
+        const intervalDays = custom.unit === 'weeks' ? custom.n * 7 : custom.n;
+        return daysDiff % intervalDays === 0;
+      }
+      return custom.days.includes(targetDayOfWeek);
+    }
   }
 };

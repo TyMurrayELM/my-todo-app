@@ -1,6 +1,7 @@
 // RepeatMenu.jsx
-import { Repeat, Calendar } from 'lucide-react';
+import { Repeat, Calendar, Settings2 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu'; // Adjust path as needed
+import CustomFrequencyPicker from './CustomFrequencyPicker';
 
 const RepeatMenu = ({ onSelect }) => {
   const options = [
@@ -45,6 +46,15 @@ const RepeatMenu = ({ onSelect }) => {
       label: '1st of Month',
       icon: <Calendar size={14} />,
       subtitle: 'Every 1st',
+    },
+    {
+      id: 'custom',
+      label: 'Custom',
+      icon: <Settings2 size={14} />,
+      subtitle: 'Choose…',
+      renderPanel: ({ onSelect: onPanelSelect, onBack }) => (
+        <CustomFrequencyPicker onConfirm={onPanelSelect} onBack={onBack} />
+      ),
     },
   ];
 

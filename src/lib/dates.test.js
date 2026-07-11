@@ -134,6 +134,57 @@ describe('shouldShowOnDate', () => {
       expect(shouldShowOnDate(t, new Date(2024, 6, 2))).toBe(false);
     });
   });
+
+  describe('custom interval (every:N:unit)', () => {
+    const t = task('every:3:days', '2024-06-15');
+    it('shows on start date (day 0)', () => {
+      expect(shouldShowOnDate(t, new Date(2024, 5, 15))).toBe(true);
+    });
+    it('does not show on days 1-2', () => {
+      expect(shouldShowOnDate(t, new Date(2024, 5, 16))).toBe(false);
+      expect(shouldShowOnDate(t, new Date(2024, 5, 17))).toBe(false);
+    });
+    it('shows on day 3', () => {
+      expect(shouldShowOnDate(t, new Date(2024, 5, 18))).toBe(true);
+    });
+
+    it('every:6:weeks shows 42 days out but not 7 days out', () => {
+      const w = task('every:6:weeks', '2024-06-15');
+      expect(shouldShowOnDate(w, new Date(2024, 5, 15))).toBe(true);
+      expect(shouldShowOnDate(w, new Date(2024, 5, 22))).toBe(false);
+      expect(shouldShowOnDate(w, new Date(2024, 6, 27))).toBe(true); // +42 days
+    });
+
+    it('rejects malformed intervals', () => {
+      expect(shouldShowOnDate(task('every:0:days', '2024-06-15'), new Date(2024, 5, 15))).toBe(
+        false
+      );
+      expect(shouldShowOnDate(task('every:2:months', '2024-06-15'), new Date(2024, 5, 15))).toBe(
+        false
+      );
+    });
+  });
+
+  describe('custom weekdays (days:CODES)', () => {
+    // 2024-06-17 is a Monday
+    const t = task('days:MO,WE,FR', '2024-06-17');
+    it('shows on Monday, Wednesday, Friday', () => {
+      expect(shouldShowOnDate(t, new Date(2024, 5, 17))).toBe(true);
+      expect(shouldShowOnDate(t, new Date(2024, 5, 19))).toBe(true);
+      expect(shouldShowOnDate(t, new Date(2024, 5, 21))).toBe(true);
+    });
+    it('does not show on Tuesday or the weekend', () => {
+      expect(shouldShowOnDate(t, new Date(2024, 5, 18))).toBe(false);
+      expect(shouldShowOnDate(t, new Date(2024, 5, 22))).toBe(false);
+      expect(shouldShowOnDate(t, new Date(2024, 5, 23))).toBe(false);
+    });
+    it('does not show before the start date even on a matching weekday', () => {
+      expect(shouldShowOnDate(t, new Date(2024, 5, 14))).toBe(false); // prior Friday
+    });
+    it('rejects malformed day codes', () => {
+      expect(shouldShowOnDate(task('days:XX', '2024-06-17'), new Date(2024, 5, 17))).toBe(false);
+    });
+  });
 });
 
 describe('computeMoveTargetDate', () => {

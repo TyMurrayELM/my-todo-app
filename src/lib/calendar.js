@@ -1,3 +1,5 @@
+import { DAY_CODES, parseCustomFrequency } from './frequency';
+
 // Build a Google Calendar "create event" URL for a task on a given date.
 export const createGoogleCalendarUrl = (task, taskDate) => {
   // Format date for Google Calendar (YYYYMMDD)
@@ -57,8 +59,16 @@ export const createGoogleCalendarUrl = (task, taskDate) => {
         return `RRULE:FREQ=MONTHLY;UNTIL=${untilStr}`;
       case 'first-of-month':
         return `RRULE:FREQ=MONTHLY;BYMONTHDAY=1;UNTIL=${untilStr}`;
-      default:
-        return null;
+      default: {
+        const custom = parseCustomFrequency(task.repeatFrequency);
+        if (!custom) return null;
+        if (custom.kind === 'interval') {
+          const freq = custom.unit === 'weeks' ? 'WEEKLY' : 'DAILY';
+          return `RRULE:FREQ=${freq};INTERVAL=${custom.n};UNTIL=${untilStr}`;
+        }
+        const byDay = custom.days.map((i) => DAY_CODES[i]).join(',');
+        return `RRULE:FREQ=WEEKLY;BYDAY=${byDay};UNTIL=${untilStr}`;
+      }
     }
   };
 

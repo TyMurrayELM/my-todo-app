@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import {
   Check,
   SkipForward,
@@ -10,11 +10,13 @@ import {
   ChevronRight,
   ChevronDown,
   CalendarSearch,
+  Settings2,
 } from 'lucide-react';
 import { formatDate, getLocalDateString } from '../lib/dates';
 import { AppContext } from './AppContext';
 import TaskItem from './TaskItem';
 import ProgressBar from './ProgressBar';
+import CustomFrequencyPicker from './CustomFrequencyPicker';
 
 const MOVE_OPTIONS = [
   { id: 'today', label: 'Today', icon: <CalendarDays size={16} /> },
@@ -69,6 +71,9 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     setNewTask,
     addTask,
   } = useContext(AppContext);
+
+  // Bulk repeat dropdown: swap the preset list for the custom frequency form
+  const [showCustomRepeat, setShowCustomRepeat] = useState(false);
 
   const dayTasks = tasks[day];
   const isSelected = isTaskBank ? selectedDay === 'task_bank' : selectedDay === index;
@@ -199,6 +204,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     e.stopPropagation();
                     setShowBulkRepeatOptions(!showBulkRepeatOptions);
                     setShowBulkMoveOptions(false);
+                    setShowCustomRepeat(false);
                   }}
                   className={`p-2 text-purple-500 hover:text-purple-600 transition-colors ${showBulkRepeatOptions ? 'text-purple-600' : ''}`}
                   title="Repeat selected"
@@ -207,20 +213,43 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                 </button>
                 {showBulkRepeatOptions && (
                   <div className="absolute top-full right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {REPEAT_OPTIONS.map((option) => (
-                      <button
-                        key={option.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          bulkRepeatTasks(option.id, day);
+                    {showCustomRepeat ? (
+                      <CustomFrequencyPicker
+                        onConfirm={(frequency) => {
+                          bulkRepeatTasks(frequency, day);
+                          setShowCustomRepeat(false);
                           setShowBulkRepeatOptions(false);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
-                      >
-                        <Repeat size={14} />
-                        {option.label}
-                      </button>
-                    ))}
+                        onBack={() => setShowCustomRepeat(false)}
+                      />
+                    ) : (
+                      <>
+                        {REPEAT_OPTIONS.map((option) => (
+                          <button
+                            key={option.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              bulkRepeatTasks(option.id, day);
+                              setShowBulkRepeatOptions(false);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                          >
+                            <Repeat size={14} />
+                            {option.label}
+                          </button>
+                        ))}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCustomRepeat(true);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                        >
+                          <Settings2 size={14} />
+                          Custom…
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

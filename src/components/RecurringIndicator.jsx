@@ -1,4 +1,5 @@
 import { Repeat } from 'lucide-react';
+import { customFrequencyBadge, describeCustomFrequency } from '../lib/frequency';
 
 const RecurringIndicator = ({ frequency, isDarkBackground }) => {
   let label = '';
@@ -34,9 +35,16 @@ const RecurringIndicator = ({ frequency, isDarkBackground }) => {
       label = '1st';
       title = 'Repeats on 1st of each month';
       break;
-    default:
-      label = 'd'; // Default to daily
-      title = 'Repeats daily';
+    default: {
+      const customBadge = customFrequencyBadge(frequency);
+      if (customBadge) {
+        label = customBadge;
+        title = describeCustomFrequency(frequency);
+      } else {
+        label = 'd'; // Default to daily
+        title = 'Repeats daily';
+      }
+    }
   }
 
   return (
