@@ -3,7 +3,7 @@ import { Repeat, Calendar, Settings2 } from 'lucide-react';
 import DropdownMenu from './DropdownMenu'; // Adjust path as needed
 import CustomFrequencyPicker from './CustomFrequencyPicker';
 
-const RepeatMenu = ({ onSelect }) => {
+const RepeatMenu = ({ onSelect, onOpenChange }) => {
   const options = [
     {
       id: 'daily',
@@ -65,6 +65,7 @@ const RepeatMenu = ({ onSelect }) => {
       options={options}
       onSelect={onSelect}
       hoverClass="hover:text-green-500"
+      onOpenChange={onOpenChange}
     />
   );
 };

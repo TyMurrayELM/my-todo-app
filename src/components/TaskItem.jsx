@@ -56,6 +56,9 @@ export default function TaskItem({ task, day, index }) {
   const isExpanded = expandedTaskId === task.id;
   const isDarkBackground = index >= 4;
   const [isHovered, setIsHovered] = useState(false);
+  // Keeps the hover-revealed action bar open while a dropdown menu is up,
+  // so moving the mouse off the task doesn't collapse an open menu.
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [completedSubExpanded, setCompletedSubExpanded] = useState(false);
   const editInputRef = useRef(null);
   const subItemInputRef = useRef(null);
@@ -426,12 +429,15 @@ export default function TaskItem({ task, day, index }) {
 
       {!isMobile && !bulkMode && (
         <div
-          className={`transition-all duration-200 ${isHovered || addingSubItemTo === task.id ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}
+          className={`transition-all duration-200 ${isHovered || actionMenuOpen || addingSubItemTo === task.id ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}
         >
           <div className={`ml-8 p-3 rounded-lg relative z-50`}>
             <div className="flex items-center justify-around gap-2">
               <div className="relative">
-                <RepeatMenu onSelect={(frequency) => repeatTask(task, day, frequency)} />
+                <RepeatMenu
+                  onSelect={(frequency) => repeatTask(task, day, frequency)}
+                  onOpenChange={setActionMenuOpen}
+                />
               </div>
               <button
                 onClick={(e) => {
@@ -488,7 +494,10 @@ export default function TaskItem({ task, day, index }) {
               )}
               {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
-                  <MoveMenu onSelect={(moveType) => moveTask(task.id, day, moveType)} />
+                  <MoveMenu
+                    onSelect={(moveType) => moveTask(task.id, day, moveType)}
+                    onOpenChange={setActionMenuOpen}
+                  />
                 </div>
               )}
               <button

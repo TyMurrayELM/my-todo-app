@@ -3,7 +3,7 @@ import { SkipForward, Calendar, CalendarDays, CalendarSearch } from 'lucide-reac
 import DropdownMenu from './DropdownMenu'; // Adjust path as needed g
 import { getLocalDateString } from '../lib/dates';
 
-const MoveMenu = ({ onSelect }) => {
+const MoveMenu = ({ onSelect, onOpenChange }) => {
   const options = [
     {
       id: 'today',
@@ -59,6 +59,7 @@ const MoveMenu = ({ onSelect }) => {
       hoverClass="hover:text-blue-500"
       buttonClass="p-2"
       onButtonClick={handleButtonClick}
+      onOpenChange={onOpenChange}
     />
   );
 };

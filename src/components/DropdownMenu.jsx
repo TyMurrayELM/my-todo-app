@@ -12,11 +12,17 @@ const DropdownMenu = ({
   hoverClass = 'hover:text-gray-500',
   buttonClass = '',
   onButtonClick,
+  // Lets the parent keep hover-revealed containers visible while open
+  onOpenChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   // id of the option whose renderPanel is showing instead of the option list
   const [activePanelId, setActivePanelId] = useState(null);
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (onOpenChange) onOpenChange(isOpen);
+  }, [isOpen, onOpenChange]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
