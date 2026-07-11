@@ -1,6 +1,7 @@
 // DropdownMenu.jsx
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { isDatePickerActive } from '../lib/utils';
 
 const DropdownMenu = ({
   triggerIcon,
@@ -19,8 +20,6 @@ const DropdownMenu = ({
   // id of the option whose renderPanel is showing instead of the option list
   const [activePanelId, setActivePanelId] = useState(null);
   const menuRef = useRef(null);
-  // Touch devices get the modal date-picker flow (see the datePicker row)
-  const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
   useEffect(() => {
     if (onOpenChange) onOpenChange(isOpen);
@@ -28,6 +27,10 @@ const DropdownMenu = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Never close while a native date picker is up — on mobile a delayed
+      // synthetic click follows the tap that opened it, and closing the
+      // menu would unmount the picker's input and dismiss the picker.
+      if (isDatePickerActive()) return;
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
         setActivePanelId(null);
@@ -104,24 +107,19 @@ const DropdownMenu = ({
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
               </div>
             ) : option.datePicker ? (
-              // Date-picking row. On mouse devices an invisible date input
-              // covers the row and showPicker() opens the calendar in place,
-              // firing onSelect with `${option.id}:YYYY-MM-DD`. On touch
-              // devices the row instead selects `${option.id}:modal` so the
-              // caller can open an app-level date modal — a native picker
-              // anchored inside this menu dies on mobile when a stray
-              // tap/scroll collapses the surrounding task UI.
+              // Row covered by an invisible native date input; picking a date
+              // fires onSelect with `${option.id}:YYYY-MM-DD`. On touch
+              // devices the tap on the input opens the picker natively (the
+              // only way mobile browsers open it), so showPicker() is for
+              // mouse users only — calling it on touch too would toggle the
+              // freshly opened picker closed.
               <div
                 key={option.id}
                 role="menuitem"
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (coarsePointer) {
-                    onSelect(`${option.id}:modal`);
-                    setIsOpen(false);
-                    return;
-                  }
+                  if (window.matchMedia('(pointer: coarse)').matches) return;
                   const input = e.currentTarget.querySelector('input');
                   if (input) {
                     try {
@@ -141,7 +139,6 @@ const DropdownMenu = ({
                   min={option.min}
                   tabIndex={-1}
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  style={coarsePointer ? { pointerEvents: 'none' } : undefined}
                   onChange={(e) => {
                     if (e.target.value) {
                       onSelect(`${option.id}:${e.target.value}`);

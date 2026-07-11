@@ -13,6 +13,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { formatDate, getLocalDateString } from '../lib/dates';
+import { isDatePickerActive } from '../lib/utils';
 import { AppContext } from './AppContext';
 import TaskItem from './TaskItem';
 import ProgressBar from './ProgressBar';
@@ -63,7 +64,6 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     bulkMoveTasks,
     bulkRepeatTasks,
     bulkDeleteTasks,
-    setMoveDateTarget,
     selectAllTasks,
     deselectAllTasks,
     expandedCompletedSections,
@@ -146,20 +146,17 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
                       {MOVE_OPTIONS.map((option) =>
                         option.datePicker ? (
-                          // Date-picking row. Mouse devices get an invisible
-                          // date input opened via showPicker(); touch devices
-                          // defer to the app-level MoveDateModal — a native
-                          // picker anchored inside this menu dies on mobile
-                          // when a stray tap/scroll collapses the menu.
+                          // Row covered by an invisible native date input;
+                          // picking a date moves the batch to that day. On
+                          // touch devices the tap on the input opens the
+                          // picker natively, so showPicker() is for mouse
+                          // users only — calling it on touch too would
+                          // toggle the freshly opened picker closed.
                           <div
                             key={option.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (window.matchMedia('(pointer: coarse)').matches) {
-                                setMoveDateTarget({ type: 'bulk', day });
-                                setShowBulkMoveOptions(false);
-                                return;
-                              }
+                              if (window.matchMedia('(pointer: coarse)').matches) return;
                               const input = e.currentTarget.querySelector('input');
                               if (input) {
                                 try {
@@ -178,11 +175,6 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                               min={getLocalDateString(new Date())}
                               tabIndex={-1}
                               className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                              style={
-                                window.matchMedia('(pointer: coarse)').matches
-                                  ? { pointerEvents: 'none' }
-                                  : undefined
-                              }
                               onChange={(e) => {
                                 if (e.target.value) {
                                   bulkMoveTasks(`custom:${e.target.value}`, day);
@@ -376,8 +368,12 @@ export default function DaySection({ day, index, isTaskBank = false }) {
           <div
             className={isTaskBank ? 'space-y-3' : 'space-y-3 overflow-visible'}
             onClick={(e) => {
-              // Close expanded task when clicking empty space on mobile
-              if (isMobile && e.target === e.currentTarget) {
+              // Close expanded task when clicking empty space on mobile.
+              // Skipped while a native date picker is up: the tap that opened
+              // it is followed by a delayed synthetic click that can land
+              // here, and collapsing the task would unmount the picker's
+              // input and dismiss the picker.
+              if (isMobile && e.target === e.currentTarget && !isDatePickerActive()) {
                 setExpandedTaskId(null);
                 setPrimedTaskId(null);
               }
@@ -417,8 +413,10 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                 className="pt-6"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Close expanded task when clicking the add task input on mobile
-                  if (isMobile) {
+                  // Close expanded task when clicking the add task input on
+                  // mobile (but not from the stray click that follows opening
+                  // a native date picker — see the empty-space handler above)
+                  if (isMobile && !isDatePickerActive()) {
                     setExpandedTaskId(null);
                     setPrimedTaskId(null);
                   }
