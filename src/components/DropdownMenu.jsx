@@ -102,18 +102,20 @@ const DropdownMenu = ({
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
               </div>
             ) : option.datePicker ? (
-              // Row backed by an invisible native date input; picking a date
-              // fires onSelect with `${option.id}:YYYY-MM-DD`.
+              // Row with a visible native date input; picking a date fires
+              // onSelect with `${option.id}:YYYY-MM-DD`. The input must be
+              // visible: mobile browsers don't reliably open the picker for
+              // hidden inputs, via showPicker(), or via focus().
               <div
                 key={option.id}
                 role="menuitem"
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
-                  // On touch devices the tap lands on the input and opens the
-                  // native picker by itself — calling showPicker() as well
-                  // toggles it straight back closed. Only open it manually
-                  // for mouse users, where clicking the input does nothing.
+                  // Convenience for mouse users: open the calendar in one
+                  // click anywhere on the row. Skipped on touch devices,
+                  // where tapping the input itself opens the picker and a
+                  // showPicker() call can toggle it closed again.
                   if (window.matchMedia('(pointer: coarse)').matches) return;
                   const input = e.currentTarget.querySelector('input');
                   if (input) {
@@ -124,16 +126,17 @@ const DropdownMenu = ({
                     }
                   }
                 }}
-                className="relative flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
               >
-                {option.icon}
-                <span className="text-sm">{option.label}</span>
-                <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
+                <div className="flex items-center gap-2">
+                  {option.icon}
+                  <span className="text-sm">{option.label}</span>
+                </div>
                 <input
                   type="date"
                   min={option.min}
-                  tabIndex={-1}
-                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  className="mt-1 w-full text-sm text-gray-600 bg-white border rounded px-1.5 py-1"
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => {
                     if (e.target.value) {
                       onSelect(`${option.id}:${e.target.value}`);

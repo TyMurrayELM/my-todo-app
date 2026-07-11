@@ -145,17 +145,20 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
                       {MOVE_OPTIONS.map((option) =>
                         option.datePicker ? (
-                          // Row backed by an invisible native date input;
-                          // picking a date moves the batch to that day.
-                          <button
+                          // Row with a visible native date input; picking a
+                          // date moves the batch to that day. The input must
+                          // be visible: mobile browsers don't reliably open
+                          // the picker for hidden inputs, via showPicker(),
+                          // or via focus().
+                          <div
                             key={option.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              // On touch devices the tap lands on the input and
-                              // opens the native picker by itself — calling
-                              // showPicker() as well toggles it straight back
-                              // closed. Only open it manually for mouse users,
-                              // where clicking the input does nothing.
+                              // Convenience for mouse users: open the calendar
+                              // in one click anywhere on the row. Skipped on
+                              // touch devices, where tapping the input itself
+                              // opens the picker and a showPicker() call can
+                              // toggle it closed again.
                               if (window.matchMedia('(pointer: coarse)').matches) return;
                               const input = e.currentTarget.querySelector('input');
                               if (input) {
@@ -166,15 +169,17 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                                 }
                               }
                             }}
-                            className="relative w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700"
+                            className="px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700 cursor-pointer"
                           >
-                            {option.icon}
-                            {option.label}
+                            <div className="flex items-center gap-2">
+                              {option.icon}
+                              {option.label}
+                            </div>
                             <input
                               type="date"
                               min={getLocalDateString(new Date())}
-                              tabIndex={-1}
-                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                              className="mt-1 w-full text-sm text-gray-600 bg-white border rounded px-1.5 py-1"
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
                                 if (e.target.value) {
                                   bulkMoveTasks(`custom:${e.target.value}`, day);
@@ -182,7 +187,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                                 }
                               }}
                             />
-                          </button>
+                          </div>
                         ) : (
                           <button
                             key={option.id}
