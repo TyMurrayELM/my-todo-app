@@ -134,10 +134,14 @@ const DropdownMenu = ({
                 {option.icon}
                 <span className="text-sm">{option.label}</span>
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
+                {/* Mirrors the day-viewer date row in DaySection exactly:
+                    pre-filled value, no min, no tabIndex. Mobile Safari
+                    instantly dismisses the picker of an empty/constrained
+                    date input, which is why this row's picker kept
+                    collapsing while the day viewer's worked. */}
                 <input
                   type="date"
-                  min={option.min}
-                  tabIndex={-1}
+                  value={option.defaultDate}
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                   onChange={(e) => {
                     if (e.target.value) {

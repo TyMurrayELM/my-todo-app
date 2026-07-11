@@ -170,10 +170,13 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                           >
                             {option.icon}
                             {option.label}
+                            {/* Mirrors the day-viewer date row below exactly:
+                                pre-filled value, no min, no tabIndex. Mobile
+                                Safari instantly dismisses the picker of an
+                                empty/constrained date input. */}
                             <input
                               type="date"
-                              min={getLocalDateString(new Date())}
-                              tabIndex={-1}
+                              value={getLocalDateString(new Date())}
                               className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                               onChange={(e) => {
                                 if (e.target.value) {

@@ -41,7 +41,7 @@ const MoveMenu = ({ onSelect, onOpenChange }) => {
       icon: <CalendarSearch size={14} />,
       subtitle: 'Choose…',
       datePicker: true,
-      min: getLocalDateString(new Date()),
+      defaultDate: getLocalDateString(new Date()),
     },
   ];
 
