@@ -191,7 +191,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                                       setPendingBulkDate(null);
                                       setShowBulkMoveOptions(false);
                                     }}
-                                    className="p-1 text-blue-500 hover:text-blue-600"
+                                    className="p-1 text-green-500 hover:text-green-600"
                                   >
                                     <Check size={16} />
                                   </button>
