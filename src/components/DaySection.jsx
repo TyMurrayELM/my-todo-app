@@ -63,6 +63,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     bulkMoveTasks,
     bulkRepeatTasks,
     bulkDeleteTasks,
+    setMoveDateTarget,
     selectAllTasks,
     deselectAllTasks,
     expandedCompletedSections,
@@ -145,21 +146,20 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     <div className="absolute top-full right-0 mt-1 w-40 bg-white border rounded-lg shadow-lg z-50">
                       {MOVE_OPTIONS.map((option) =>
                         option.datePicker ? (
-                          // Row with a visible native date input; picking a
-                          // date moves the batch to that day. The input must
-                          // be visible: mobile browsers don't reliably open
-                          // the picker for hidden inputs, via showPicker(),
-                          // or via focus().
+                          // Date-picking row. Mouse devices get an invisible
+                          // date input opened via showPicker(); touch devices
+                          // defer to the app-level MoveDateModal — a native
+                          // picker anchored inside this menu dies on mobile
+                          // when a stray tap/scroll collapses the menu.
                           <div
                             key={option.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Convenience for mouse users: open the calendar
-                              // in one click anywhere on the row. Skipped on
-                              // touch devices, where tapping the input itself
-                              // opens the picker and a showPicker() call can
-                              // toggle it closed again.
-                              if (window.matchMedia('(pointer: coarse)').matches) return;
+                              if (window.matchMedia('(pointer: coarse)').matches) {
+                                setMoveDateTarget({ type: 'bulk', day });
+                                setShowBulkMoveOptions(false);
+                                return;
+                              }
                               const input = e.currentTarget.querySelector('input');
                               if (input) {
                                 try {
@@ -169,17 +169,20 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                                 }
                               }
                             }}
-                            className="px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700 cursor-pointer"
+                            className="relative w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left text-sm text-gray-700 cursor-pointer"
                           >
-                            <div className="flex items-center gap-2">
-                              {option.icon}
-                              {option.label}
-                            </div>
+                            {option.icon}
+                            {option.label}
                             <input
                               type="date"
                               min={getLocalDateString(new Date())}
-                              className="mt-1 w-full text-sm text-gray-600 bg-white border rounded px-1.5 py-1"
-                              onClick={(e) => e.stopPropagation()}
+                              tabIndex={-1}
+                              className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                              style={
+                                window.matchMedia('(pointer: coarse)').matches
+                                  ? { pointerEvents: 'none' }
+                                  : undefined
+                              }
                               onChange={(e) => {
                                 if (e.target.value) {
                                   bulkMoveTasks(`custom:${e.target.value}`, day);

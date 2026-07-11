@@ -19,6 +19,8 @@ const DropdownMenu = ({
   // id of the option whose renderPanel is showing instead of the option list
   const [activePanelId, setActivePanelId] = useState(null);
   const menuRef = useRef(null);
+  // Touch devices get the modal date-picker flow (see the datePicker row)
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
   useEffect(() => {
     if (onOpenChange) onOpenChange(isOpen);
@@ -102,21 +104,24 @@ const DropdownMenu = ({
                 <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
               </div>
             ) : option.datePicker ? (
-              // Row with a visible native date input; picking a date fires
-              // onSelect with `${option.id}:YYYY-MM-DD`. The input must be
-              // visible: mobile browsers don't reliably open the picker for
-              // hidden inputs, via showPicker(), or via focus().
+              // Date-picking row. On mouse devices an invisible date input
+              // covers the row and showPicker() opens the calendar in place,
+              // firing onSelect with `${option.id}:YYYY-MM-DD`. On touch
+              // devices the row instead selects `${option.id}:modal` so the
+              // caller can open an app-level date modal — a native picker
+              // anchored inside this menu dies on mobile when a stray
+              // tap/scroll collapses the surrounding task UI.
               <div
                 key={option.id}
                 role="menuitem"
                 tabIndex={0}
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Convenience for mouse users: open the calendar in one
-                  // click anywhere on the row. Skipped on touch devices,
-                  // where tapping the input itself opens the picker and a
-                  // showPicker() call can toggle it closed again.
-                  if (window.matchMedia('(pointer: coarse)').matches) return;
+                  if (coarsePointer) {
+                    onSelect(`${option.id}:modal`);
+                    setIsOpen(false);
+                    return;
+                  }
                   const input = e.currentTarget.querySelector('input');
                   if (input) {
                     try {
@@ -126,17 +131,17 @@ const DropdownMenu = ({
                     }
                   }
                 }}
-                className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                className="relative flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
               >
-                <div className="flex items-center gap-2">
-                  {option.icon}
-                  <span className="text-sm">{option.label}</span>
-                </div>
+                {option.icon}
+                <span className="text-sm">{option.label}</span>
+                <span className="text-xs text-gray-500 ml-auto">{option.subtitle}</span>
                 <input
                   type="date"
                   min={option.min}
-                  className="mt-1 w-full text-sm text-gray-600 bg-white border rounded px-1.5 py-1"
-                  onClick={(e) => e.stopPropagation()}
+                  tabIndex={-1}
+                  className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  style={coarsePointer ? { pointerEvents: 'none' } : undefined}
                   onChange={(e) => {
                     if (e.target.value) {
                       onSelect(`${option.id}:${e.target.value}`);

@@ -8,6 +8,7 @@ import { useTodos } from './hooks/useTodos';
 import { AppProvider } from './components/AppContext';
 import NoteModal from './components/NoteModal';
 import UrlModal from './components/UrlModal';
+import MoveDateModal from './components/MoveDateModal';
 import { log, logError } from './lib/log';
 import { createGoogleCalendarUrl } from './lib/calendar';
 import { MAX_TASK_LENGTH, BG_THEMES, PROGRESS_GRADIENTS } from './lib/constants';
@@ -63,6 +64,10 @@ function App() {
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [currentUrlTask, setCurrentUrlTask] = useState(null);
   const [currentUrlDay, setCurrentUrlDay] = useState(null);
+
+  // "Move to a date" modal state (touch devices pick dates here — see
+  // MoveDateModal). { type: 'task', taskId, day } or { type: 'bulk', day }.
+  const [moveDateTarget, setMoveDateTarget] = useState(null);
 
   // Check if mobile on mount and resize
   useEffect(() => {
@@ -448,6 +453,7 @@ function App() {
     setCurrentUrlTask,
     setCurrentUrlDay,
     setShowUrlModal,
+    setMoveDateTarget,
     // bulk mode
     bulkMode,
     toggleBulkMode,
@@ -604,6 +610,20 @@ function App() {
               setShowUrlModal(false);
               setCurrentUrlTask(null);
               setCurrentUrlDay(null);
+            }}
+          />
+        )}
+        {moveDateTarget && (
+          <MoveDateModal
+            taskCount={moveDateTarget.type === 'bulk' ? selectedTasks.length : 1}
+            onClose={() => setMoveDateTarget(null)}
+            onSave={(dateStr) => {
+              if (moveDateTarget.type === 'bulk') {
+                bulkMoveTasks(`custom:${dateStr}`, moveDateTarget.day);
+              } else {
+                moveTask(moveDateTarget.taskId, moveDateTarget.day, `custom:${dateStr}`);
+              }
+              setMoveDateTarget(null);
             }}
           />
         )}

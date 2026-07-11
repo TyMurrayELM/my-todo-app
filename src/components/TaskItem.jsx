@@ -51,7 +51,18 @@ export default function TaskItem({ task, day, index }) {
     openGoogleCalendar,
     moveTask,
     deleteTask,
+    setMoveDateTarget,
   } = useContext(AppContext);
+
+  // 'custom:modal' means the menu deferred date picking to the app-level
+  // modal (touch devices); anything else is a concrete move.
+  const handleMove = (moveType) => {
+    if (moveType === 'custom:modal') {
+      setMoveDateTarget({ type: 'task', taskId: task.id, day });
+      return;
+    }
+    moveTask(task.id, day, moveType);
+  };
 
   const isExpanded = expandedTaskId === task.id;
   const isDarkBackground = index >= 4;
@@ -494,10 +505,7 @@ export default function TaskItem({ task, day, index }) {
               )}
               {day !== 'TASK_BANK' && index < 6 && (
                 <div className="relative">
-                  <MoveMenu
-                    onSelect={(moveType) => moveTask(task.id, day, moveType)}
-                    onOpenChange={setActionMenuOpen}
-                  />
+                  <MoveMenu onSelect={handleMove} onOpenChange={setActionMenuOpen} />
                 </div>
               )}
               <button
@@ -572,7 +580,7 @@ export default function TaskItem({ task, day, index }) {
                 <MoveMenu
                   onSelect={(moveType) => {
                     if (isMobile) setPrimedTaskId(null);
-                    moveTask(task.id, day, moveType);
+                    handleMove(moveType);
                   }}
                 />
               </div>
