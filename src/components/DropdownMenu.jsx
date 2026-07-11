@@ -68,7 +68,7 @@ const DropdownMenu = ({
       </button>
 
       {isOpen && (
-        <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-44 bg-white border rounded shadow-lg z-[100]">
+        <div className="absolute left-1/2 transform -translate-x-1/2 mt-1 w-56 bg-white border rounded shadow-lg z-[100]">
           {activePanelOption ? (
             // Option-supplied panel replaces the list (e.g. custom frequency form).
             activePanelOption.renderPanel({

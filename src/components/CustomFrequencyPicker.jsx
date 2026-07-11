@@ -38,23 +38,26 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
   };
 
   return (
-    <div className="p-2" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center gap-1 mb-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="p-1 text-gray-400 hover:text-gray-600"
-          title="Back"
-          aria-label="Back"
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <div className="flex flex-1 rounded bg-gray-100 p-0.5 text-xs">
+    <div onClick={(e) => e.stopPropagation()}>
+      {/* Header styled like a menu row, with back navigation */}
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left border-b"
+      >
+        <ChevronLeft size={14} className="text-gray-400" />
+        <span className="text-sm">Custom Repeat</span>
+      </button>
+
+      <div className="p-3">
+        <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3">
           <button
             type="button"
             onClick={() => setMode('interval')}
-            className={`flex-1 rounded px-2 py-1 ${
-              mode === 'interval' ? 'bg-white shadow text-gray-800' : 'text-gray-500'
+            className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              mode === 'interval'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Interval
@@ -62,67 +65,69 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
           <button
             type="button"
             onClick={() => setMode('weekdays')}
-            className={`flex-1 rounded px-2 py-1 ${
-              mode === 'weekdays' ? 'bg-white shadow text-gray-800' : 'text-gray-500'
+            className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              mode === 'weekdays'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Weekdays
           </button>
         </div>
-      </div>
 
-      {mode === 'interval' ? (
-        <div className="flex items-center gap-1 text-sm mb-2">
-          <span className="text-gray-600">Every</span>
-          <input
-            type="number"
-            min="1"
-            max={MAX_INTERVAL}
-            value={n}
-            onChange={(e) => setN(e.target.value)}
-            className="w-14 border rounded px-1 py-0.5 text-sm text-center"
-            aria-label="Repeat interval"
-          />
-          <select
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            className="border rounded px-1 py-0.5 text-sm flex-1"
-            aria-label="Interval unit"
-          >
-            <option value="days">days</option>
-            <option value="weeks">weeks</option>
-          </select>
-        </div>
-      ) : (
-        <div className="flex justify-between gap-0.5 mb-2">
-          {DAY_LETTERS.map((letter, i) => (
-            <button
-              key={DAY_SHORT_NAMES[i]}
-              type="button"
-              onClick={() => toggleDay(i)}
-              title={DAY_SHORT_NAMES[i]}
-              aria-label={DAY_SHORT_NAMES[i]}
-              aria-pressed={selectedDays.includes(i)}
-              className={`w-6 h-6 rounded-full text-xs ${
-                selectedDays.includes(i)
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
+        {mode === 'interval' ? (
+          <div className="flex items-center gap-2 text-sm mb-3">
+            <span className="text-gray-600">Every</span>
+            <input
+              type="number"
+              min="1"
+              max={MAX_INTERVAL}
+              value={n}
+              onChange={(e) => setN(e.target.value)}
+              className="w-14 border border-gray-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-500"
+              aria-label="Repeat interval"
+            />
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              aria-label="Interval unit"
             >
-              {letter}
-            </button>
-          ))}
-        </div>
-      )}
+              <option value="days">days</option>
+              <option value="weeks">weeks</option>
+            </select>
+          </div>
+        ) : (
+          <div className="flex justify-between mb-3">
+            {DAY_LETTERS.map((letter, i) => (
+              <button
+                key={DAY_SHORT_NAMES[i]}
+                type="button"
+                onClick={() => toggleDay(i)}
+                title={DAY_SHORT_NAMES[i]}
+                aria-label={DAY_SHORT_NAMES[i]}
+                aria-pressed={selectedDays.includes(i)}
+                className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${
+                  selectedDays.includes(i)
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                {letter}
+              </button>
+            ))}
+          </div>
+        )}
 
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={!canConfirm}
-        className="w-full rounded bg-green-500 text-white text-sm py-1 hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400"
-      >
-        Set Repeat
-      </button>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!canConfirm}
+          className="w-full rounded-lg bg-green-500 text-white text-sm font-medium py-1.5 hover:bg-green-600 transition-colors disabled:bg-gray-200 disabled:text-gray-400"
+        >
+          Set Repeat
+        </button>
+      </div>
     </div>
   );
 };

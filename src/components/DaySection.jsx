@@ -212,7 +212,9 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                   <Repeat size={20} />
                 </button>
                 {showBulkRepeatOptions && (
-                  <div className="absolute top-full right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                  <div
+                    className={`absolute top-full right-0 mt-1 ${showCustomRepeat ? 'w-56' : 'w-44'} bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto`}
+                  >
                     {showCustomRepeat ? (
                       <CustomFrequencyPicker
                         onConfirm={(frequency) => {
