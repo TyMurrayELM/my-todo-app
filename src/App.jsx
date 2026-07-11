@@ -77,6 +77,38 @@ function App() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Touch browsers fire a delayed synthetic click after the tap that opens
+  // a native date picker. The page often scrolls the focused input into
+  // view first, so that click lands on whatever moved under the tap point —
+  // collapsing the expanded task or closing the menu that hosts the
+  // picker's input, which dismisses the picker itself. For a short window
+  // after a date input gains focus, swallow (capture-phase, before any
+  // other handler) every mouse/click event not aimed at that input.
+  useEffect(() => {
+    if (!('ontouchstart' in window)) return;
+    let armedUntil = 0;
+    const arm = (e) => {
+      if (e.target instanceof HTMLInputElement && e.target.type === 'date') {
+        armedUntil = Date.now() + 1200;
+      }
+    };
+    const shield = (e) => {
+      if (Date.now() > armedUntil) return;
+      if (e.target !== document.activeElement) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('focusin', arm, true);
+    document.addEventListener('mousedown', shield, true);
+    document.addEventListener('click', shield, true);
+    return () => {
+      document.removeEventListener('focusin', arm, true);
+      document.removeEventListener('mousedown', shield, true);
+      document.removeEventListener('click', shield, true);
+    };
+  }, []);
+
   // Auto-reset primed task after 3 seconds
   useEffect(() => {
     if (primedTaskId) {
