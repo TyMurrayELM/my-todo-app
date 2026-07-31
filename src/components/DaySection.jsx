@@ -100,30 +100,41 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     .sort((a, b) => a.text.localeCompare(b.text));
 
   // --- drag-to-reorder (grip handle, pointer events; no library) ---
-  const [dragTaskId, setDragTaskId] = useState(null);
-  const [previewIds, setPreviewIds] = useState(null);
+  // The list does NOT live-reorder mid-drag (that felt clunky): the dragged
+  // row lifts and follows the pointer, everything else holds still, and a
+  // glowing insertion bar marks the exact gap it will drop into.
+  const [drag, setDrag] = useState(null); // { taskId, dy, barTop } | null
   const rowRefs = useRef({});
-
-  const displayTasks = previewIds
-    ? previewIds.map((id) => incompleteTasks.find((t) => t.id === id)).filter(Boolean)
-    : incompleteTasks;
+  const listRef = useRef(null);
 
   const handleGripDown = (task) => (e) => {
     e.stopPropagation();
     e.preventDefault();
     const grip = e.currentTarget;
     grip.setPointerCapture(e.pointerId);
-    setDragTaskId(task.id);
-    let order = incompleteTasks.map((t) => t.id);
-    setPreviewIds(order);
+    const startY = e.clientY;
+    const others = incompleteTasks.filter((t) => t.id !== task.id);
+    let insertAt = incompleteTasks.findIndex((t) => t.id === task.id);
+    let lastInsertAt = insertAt;
+
+    const barTopFor = (idx) => {
+      const listRect = listRef.current?.getBoundingClientRect();
+      if (!listRect) return 0;
+      if (others.length === 0) return 0;
+      if (idx < others.length) {
+        const r = rowRefs.current[others[idx].id]?.getBoundingClientRect();
+        return r ? r.top - listRect.top - 7 : 0;
+      }
+      const r = rowRefs.current[others[others.length - 1].id]?.getBoundingClientRect();
+      return r ? r.bottom - listRect.top - 5 : 0;
+    };
+
+    setDrag({ taskId: task.id, dy: 0, barTop: barTopFor(insertAt) });
 
     const onMove = (ev) => {
-      // Find where the pointer sits among the row midpoints and move the
-      // dragged id there — the list re-renders in preview order live.
-      const others = order.filter((id) => id !== task.id);
-      let insertAt = others.length;
+      insertAt = others.length;
       for (let i = 0; i < others.length; i++) {
-        const el = rowRefs.current[others[i]];
+        const el = rowRefs.current[others[i].id];
         if (!el) continue;
         const r = el.getBoundingClientRect();
         if (ev.clientY < r.top + r.height / 2) {
@@ -131,24 +142,24 @@ export default function DaySection({ day, index, isTaskBank = false }) {
           break;
         }
       }
-      const next = [...others.slice(0, insertAt), task.id, ...others.slice(insertAt)];
-      if (next.join() !== order.join()) {
-        order = next;
-        setPreviewIds(next);
+      if (insertAt !== lastInsertAt) {
+        lastInsertAt = insertAt;
+        // Slot changed — tiny haptic tick where supported (Android)
+        if (navigator.vibrate) navigator.vibrate(8);
       }
+      setDrag({ taskId: task.id, dy: ev.clientY - startY, barTop: barTopFor(insertAt) });
     };
     const finish = (commit) => {
       grip.removeEventListener('pointermove', onMove);
       grip.removeEventListener('pointerup', onUp);
       grip.removeEventListener('pointercancel', onCancel);
-      if (commit && order.join() !== incompleteTasks.map((t) => t.id).join()) {
-        const orderedTasks = order
-          .map((id) => incompleteTasks.find((t) => t.id === id))
-          .filter(Boolean);
-        reorderTasks(day, orderedTasks);
+      if (commit) {
+        const next = [...others.slice(0, insertAt), task, ...others.slice(insertAt)];
+        if (next.map((t) => t.id).join() !== incompleteTasks.map((t) => t.id).join()) {
+          reorderTasks(day, next);
+        }
       }
-      setDragTaskId(null);
-      setPreviewIds(null);
+      setDrag(null);
     };
     const onUp = () => finish(true);
     const onCancel = () => finish(false);
@@ -475,7 +486,8 @@ export default function DaySection({ day, index, isTaskBank = false }) {
           )}
 
           <div
-            className={isTaskBank ? 'space-y-3' : 'space-y-3 overflow-visible'}
+            ref={listRef}
+            className={`relative ${isTaskBank ? 'space-y-3' : 'space-y-3 overflow-visible'}`}
             onClick={(e) => {
               // Close expanded task when clicking empty space on mobile.
               // Skipped while a native date picker is up: the tap that opened
@@ -488,17 +500,38 @@ export default function DaySection({ day, index, isTaskBank = false }) {
               }
             }}
           >
-            {displayTasks.map((task) => (
-              <div key={task.id} ref={(el) => (rowRefs.current[task.id] = el)}>
+            {incompleteTasks.map((task) => (
+              <div
+                key={task.id}
+                ref={(el) => (rowRefs.current[task.id] = el)}
+                className={drag?.taskId === task.id ? 'relative z-40' : ''}
+                style={
+                  drag?.taskId === task.id
+                    ? {
+                        transform: `translateY(${drag.dy}px) scale(1.02)`,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                        borderRadius: '0.5rem',
+                        opacity: 0.95,
+                      }
+                    : undefined
+                }
+              >
                 <TaskItem
                   task={task}
                   day={day}
                   index={index}
                   onGripDown={bulkMode ? null : handleGripDown(task)}
-                  isDragging={dragTaskId === task.id}
+                  isDragging={drag?.taskId === task.id}
                 />
               </div>
             ))}
+            {/* Insertion bar: marks the exact gap the dragged task drops
+                into. Always rendered (display-toggled) so the space-y
+                sibling margins never shift mid-drag. */}
+            <div
+              className="absolute left-0 right-0 h-1 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.9)] pointer-events-none z-30"
+              style={{ top: drag ? drag.barTop : 0, display: drag ? 'block' : 'none', margin: 0 }}
+            />
             {completedTasks.length > 0 && (
               <>
                 <button

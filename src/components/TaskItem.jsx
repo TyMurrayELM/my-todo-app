@@ -94,7 +94,7 @@ export default function TaskItem({ task, day, index, onGripDown = null, isDraggi
 
   return (
     <div
-      className={`relative group pb-3 ${isDragging ? 'opacity-70' : ''}`}
+      className="relative group pb-3"
       onMouseEnter={() => !isMobile && setIsHovered(true)}
       onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
@@ -106,7 +106,8 @@ export default function TaskItem({ task, day, index, onGripDown = null, isDraggi
           title="Drag to reorder"
           aria-label="Drag to reorder"
           style={{ touchAction: 'none' }}
-          className={`absolute -left-5 top-0.5 p-0.5 cursor-grab active:cursor-grabbing rounded transition-opacity duration-150
+          className={`absolute cursor-grab active:cursor-grabbing rounded transition-opacity duration-150
+            ${isMobile ? '-left-6 -top-1 p-2' : '-left-5 top-0.5 p-0.5'}
             ${gripVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
             ${
               isDarkBackground
@@ -114,7 +115,7 @@ export default function TaskItem({ task, day, index, onGripDown = null, isDraggi
                 : 'text-gray-400 hover:text-gray-600'
             }`}
         >
-          <GripVertical size={16} />
+          <GripVertical size={isMobile ? 18 : 16} />
         </button>
       )}
       <div className={`flex items-start gap-3 relative`}>
