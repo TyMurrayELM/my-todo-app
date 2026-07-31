@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useRef, useState } from 'react';
 import {
   Check,
   X,
@@ -65,6 +65,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     bulkMoveTasks,
     bulkRepeatTasks,
     bulkDeleteTasks,
+    reorderTasks,
     selectAllTasks,
     deselectAllTasks,
     expandedCompletedSections,
@@ -85,12 +86,76 @@ export default function DaySection({ day, index, isTaskBank = false }) {
   const dayTasks = tasks[day];
   const isSelected = isTaskBank ? selectedDay === 'task_bank' : selectedDay === index;
   const isCompletedExpanded = expandedCompletedSections[day] || false;
+  // Manual order first (sort_order), then alphabetical for anything never
+  // dragged — so the list feels unchanged until the first reorder.
   const incompleteTasks = dayTasks
     .filter((t) => !t.completed)
-    .sort((a, b) => a.text.localeCompare(b.text));
+    .sort(
+      (a, b) =>
+        (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) ||
+        a.text.localeCompare(b.text)
+    );
   const completedTasks = dayTasks
     .filter((t) => t.completed)
     .sort((a, b) => a.text.localeCompare(b.text));
+
+  // --- drag-to-reorder (grip handle, pointer events; no library) ---
+  const [dragTaskId, setDragTaskId] = useState(null);
+  const [previewIds, setPreviewIds] = useState(null);
+  const rowRefs = useRef({});
+
+  const displayTasks = previewIds
+    ? previewIds.map((id) => incompleteTasks.find((t) => t.id === id)).filter(Boolean)
+    : incompleteTasks;
+
+  const handleGripDown = (task) => (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const grip = e.currentTarget;
+    grip.setPointerCapture(e.pointerId);
+    setDragTaskId(task.id);
+    let order = incompleteTasks.map((t) => t.id);
+    setPreviewIds(order);
+
+    const onMove = (ev) => {
+      // Find where the pointer sits among the row midpoints and move the
+      // dragged id there — the list re-renders in preview order live.
+      const others = order.filter((id) => id !== task.id);
+      let insertAt = others.length;
+      for (let i = 0; i < others.length; i++) {
+        const el = rowRefs.current[others[i]];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (ev.clientY < r.top + r.height / 2) {
+          insertAt = i;
+          break;
+        }
+      }
+      const next = [...others.slice(0, insertAt), task.id, ...others.slice(insertAt)];
+      if (next.join() !== order.join()) {
+        order = next;
+        setPreviewIds(next);
+      }
+    };
+    const finish = (commit) => {
+      grip.removeEventListener('pointermove', onMove);
+      grip.removeEventListener('pointerup', onUp);
+      grip.removeEventListener('pointercancel', onCancel);
+      if (commit && order.join() !== incompleteTasks.map((t) => t.id).join()) {
+        const orderedTasks = order
+          .map((id) => incompleteTasks.find((t) => t.id === id))
+          .filter(Boolean);
+        reorderTasks(day, orderedTasks);
+      }
+      setDragTaskId(null);
+      setPreviewIds(null);
+    };
+    const onUp = () => finish(true);
+    const onCancel = () => finish(false);
+    grip.addEventListener('pointermove', onMove);
+    grip.addEventListener('pointerup', onUp);
+    grip.addEventListener('pointercancel', onCancel);
+  };
 
   return (
     <div
@@ -423,8 +488,16 @@ export default function DaySection({ day, index, isTaskBank = false }) {
               }
             }}
           >
-            {incompleteTasks.map((task) => (
-              <TaskItem key={task.id} task={task} day={day} index={index} />
+            {displayTasks.map((task) => (
+              <div key={task.id} ref={(el) => (rowRefs.current[task.id] = el)}>
+                <TaskItem
+                  task={task}
+                  day={day}
+                  index={index}
+                  onGripDown={bulkMode ? null : handleGripDown(task)}
+                  isDragging={dragTaskId === task.id}
+                />
+              </div>
             ))}
             {completedTasks.length > 0 && (
               <>

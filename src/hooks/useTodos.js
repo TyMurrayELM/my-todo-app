@@ -107,6 +107,7 @@ export function useTodos({
       .or(
         `day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`
       )
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('created_at');
 
     if (parentError) {
@@ -1237,6 +1238,44 @@ export function useTodos({
     }
   };
 
+  // Persist a drag-reorder of one day's incomplete list. orderedTasks is the
+  // full new order (task objects, so recurring instances resolve to their
+  // template row via originalId). Sequential integers, no fractions —
+  // rebuild the day's positions on every drop.
+  const reorderTasks = async (day, orderedTasks) => {
+    const positionById = new Map(orderedTasks.map((t, i) => [t.id, i]));
+    setTasks((prev) => ({
+      ...prev,
+      [day]: [...prev[day]]
+        .map((t) =>
+          positionById.has(t.id) ? { ...t, sortOrder: positionById.get(t.id) } : t
+        )
+        .sort((a, b) => {
+          const pa = positionById.has(a.id) ? positionById.get(a.id) : Infinity;
+          const pb = positionById.has(b.id) ? positionById.get(b.id) : Infinity;
+          return pa - pb;
+        }),
+    }));
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      await Promise.all(
+        orderedTasks.map((t, i) =>
+          supabase
+            .from('todos')
+            .update({ sort_order: i })
+            .eq('id', t.originalId || t.id)
+            .eq('user_id', session.user.id)
+        )
+      );
+    } catch (error) {
+      console.error('Error saving order:', error);
+      fetchTodos(); // fall back to server truth
+    }
+  };
+
   return {
     tasks,
     isLoading,
@@ -1250,6 +1289,7 @@ export function useTodos({
     toggleTask,
     deleteTask,
     moveTask,
+    reorderTasks,
     repeatTask,
     updateTaskText,
     updateTaskUrl,

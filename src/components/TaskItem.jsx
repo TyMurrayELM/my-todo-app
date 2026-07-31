@@ -5,6 +5,7 @@ import {
   Plus,
   ChevronRight,
   ChevronDown,
+  GripVertical,
   Link,
   StickyNote,
   Calendar,
@@ -15,7 +16,7 @@ import RepeatMenu from './RepeatMenu';
 import MoveMenu from './MoveMenu';
 import { AppContext } from './AppContext';
 
-export default function TaskItem({ task, day, index }) {
+export default function TaskItem({ task, day, index, onGripDown = null, isDragging = false }) {
   const {
     expandedTaskId,
     setExpandedTaskId,
@@ -86,12 +87,36 @@ export default function TaskItem({ task, day, index }) {
     ? pendingCompletions[task.id]
     : task.completed;
 
+  // Grip visibility: hover-reveal on desktop, primed-reveal on mobile
+  // (primed = the tap-to-arm state that also shows a task's actions).
+  const gripVisible =
+    isDragging || (isMobile ? primedTaskId === task.id : isHovered || actionMenuOpen);
+
   return (
     <div
-      className="relative group pb-3"
+      className={`relative group pb-3 ${isDragging ? 'opacity-70' : ''}`}
       onMouseEnter={() => !isMobile && setIsHovered(true)}
       onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
+      {onGripDown && !visuallyCompleted && (
+        <button
+          type="button"
+          onPointerDown={onGripDown}
+          onClick={(e) => e.stopPropagation()}
+          title="Drag to reorder"
+          aria-label="Drag to reorder"
+          style={{ touchAction: 'none' }}
+          className={`absolute -left-5 top-0.5 p-0.5 cursor-grab active:cursor-grabbing rounded transition-opacity duration-150
+            ${gripVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+            ${
+              isDarkBackground
+                ? 'text-white/50 hover:text-white/90'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+        >
+          <GripVertical size={16} />
+        </button>
+      )}
       <div className={`flex items-start gap-3 relative`}>
         {bulkMode ? (
           <button

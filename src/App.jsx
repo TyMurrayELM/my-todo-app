@@ -186,6 +186,7 @@ function App() {
     toggleTask: toggleTaskCompletion,
     deleteTask,
     moveTask,
+    reorderTasks,
     repeatTask,
     updateTaskText: saveTaskText,
     updateTaskUrl,
@@ -513,6 +514,7 @@ function App() {
     repeatTask,
     openGoogleCalendar,
     moveTask,
+    reorderTasks,
     deleteTask,
   };
 
