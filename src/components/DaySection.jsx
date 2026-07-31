@@ -522,6 +522,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                   index={index}
                   onGripDown={bulkMode ? null : handleGripDown(task)}
                   isDragging={drag?.taskId === task.id}
+                  dragActive={!!drag}
                 />
               </div>
             ))}
