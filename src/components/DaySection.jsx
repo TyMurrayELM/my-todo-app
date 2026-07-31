@@ -530,8 +530,13 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                 into. Always rendered (display-toggled) so the space-y
                 sibling margins never shift mid-drag. */}
             <div
-              className="absolute left-0 right-0 h-1 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.9)] pointer-events-none z-30"
-              style={{ top: drag ? drag.barTop : 0, display: drag ? 'block' : 'none', margin: 0 }}
+              className="absolute left-0 right-0 h-1 rounded-full shadow-md pointer-events-none z-30"
+              style={{
+                top: drag ? drag.barTop : 0,
+                display: drag ? 'block' : 'none',
+                margin: 0,
+                background: progressGradient,
+              }}
             />
             {completedTasks.length > 0 && (
               <>
