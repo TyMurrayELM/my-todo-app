@@ -7,6 +7,7 @@ import {
   DAY_LETTERS,
   DAY_SHORT_NAMES,
   MAX_INTERVAL,
+  MAX_YEAR_INTERVAL,
 } from '../lib/frequency';
 
 // Compact panel for picking a custom repeat frequency: either an interval
@@ -19,7 +20,8 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
   const [selectedDays, setSelectedDays] = useState([]);
 
   const nValue = Number(n);
-  const intervalValid = Number.isInteger(nValue) && nValue >= 1 && nValue <= MAX_INTERVAL;
+  const maxForUnit = unit === 'years' ? MAX_YEAR_INTERVAL : MAX_INTERVAL;
+  const intervalValid = Number.isInteger(nValue) && nValue >= 1 && nValue <= maxForUnit;
   const canConfirm = mode === 'interval' ? intervalValid : selectedDays.length > 0;
 
   const toggleDay = (dayIndex) => {
@@ -81,7 +83,7 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
             <input
               type="number"
               min="1"
-              max={MAX_INTERVAL}
+              max={maxForUnit}
               value={n}
               onChange={(e) => setN(e.target.value)}
               className="w-14 border border-gray-300 rounded-lg px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -95,6 +97,7 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
             >
               <option value="days">days</option>
               <option value="weeks">weeks</option>
+              <option value="years">years</option>
             </select>
           </div>
         ) : (

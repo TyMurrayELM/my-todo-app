@@ -1,6 +1,8 @@
 // Custom repeat frequencies, encoded in the repeat_frequency string alongside
 // the preset ids (same pattern as 'custom:YYYY-MM-DD' in move types):
 //   'every:N:days' | 'every:N:weeks'  - interval anchored to the task's start date
+//   'every:N:years'                   - anniversary of the start date (birthdays);
+//                                       calendar-aware, Feb 29 clamps to Feb 28
 //   'days:MO,WE,FR'                   - specific weekdays (RRULE day codes)
 
 export const DAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -8,6 +10,7 @@ export const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 export const DAY_SHORT_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export const MAX_INTERVAL = 365;
+export const MAX_YEAR_INTERVAL = 10;
 
 // Parse a custom frequency string. Returns
 //   { kind: 'interval', n, unit: 'days' | 'weeks' }
@@ -19,8 +22,14 @@ export const parseCustomFrequency = (frequency) => {
   if (frequency.startsWith('every:')) {
     const [, nStr, unit] = frequency.split(':');
     const n = Number(nStr);
-    if (!Number.isInteger(n) || n < 1 || n > MAX_INTERVAL) return null;
-    if (unit !== 'days' && unit !== 'weeks') return null;
+    if (!Number.isInteger(n) || n < 1) return null;
+    if (unit === 'years') {
+      if (n > MAX_YEAR_INTERVAL) return null;
+    } else if (unit === 'days' || unit === 'weeks') {
+      if (n > MAX_INTERVAL) return null;
+    } else {
+      return null;
+    }
     return { kind: 'interval', n, unit };
   }
 
@@ -62,7 +71,8 @@ export const customFrequencyBadge = (frequency) => {
   const custom = parseCustomFrequency(frequency);
   if (!custom) return null;
   if (custom.kind === 'interval') {
-    return `${custom.n}${custom.unit === 'weeks' ? 'w' : 'd'}`;
+    const letter = custom.unit === 'weeks' ? 'w' : custom.unit === 'years' ? 'y' : 'd';
+    return `${custom.n}${letter}`;
   }
   return custom.days.map((i) => DAY_LETTERS[i]).join('');
 };

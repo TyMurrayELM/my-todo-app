@@ -165,6 +165,35 @@ describe('shouldShowOnDate', () => {
     });
   });
 
+  describe('custom yearly (every:N:years)', () => {
+    const bday = task('every:1:years', '2024-06-15');
+    it('shows on the anchor date and next anniversary', () => {
+      expect(shouldShowOnDate(bday, new Date(2024, 5, 15))).toBe(true);
+      expect(shouldShowOnDate(bday, new Date(2025, 5, 15))).toBe(true);
+    });
+    it('does not show a day off or a month off', () => {
+      expect(shouldShowOnDate(bday, new Date(2025, 5, 14))).toBe(false);
+      expect(shouldShowOnDate(bday, new Date(2025, 5, 16))).toBe(false);
+      expect(shouldShowOnDate(bday, new Date(2025, 6, 15))).toBe(false);
+    });
+    it('calendar-aware across leap years (no 365-day drift)', () => {
+      // 2024 is a leap year: day-count math would land on Jun 14, 2025
+      expect(shouldShowOnDate(bday, new Date(2025, 5, 15))).toBe(true);
+      expect(shouldShowOnDate(bday, new Date(2026, 5, 15))).toBe(true);
+    });
+    it('every:2:years skips odd anniversaries', () => {
+      const biennial = task('every:2:years', '2024-06-15');
+      expect(shouldShowOnDate(biennial, new Date(2025, 5, 15))).toBe(false);
+      expect(shouldShowOnDate(biennial, new Date(2026, 5, 15))).toBe(true);
+    });
+    it('Feb 29 anchor clamps to Feb 28 in non-leap years', () => {
+      const leapling = task('every:1:years', '2024-02-29');
+      expect(shouldShowOnDate(leapling, new Date(2025, 1, 28))).toBe(true);
+      expect(shouldShowOnDate(leapling, new Date(2025, 2, 1))).toBe(false);
+      expect(shouldShowOnDate(leapling, new Date(2028, 1, 29))).toBe(true);
+    });
+  });
+
   describe('custom weekdays (days:CODES)', () => {
     // 2024-06-17 is a Monday
     const t = task('days:MO,WE,FR', '2024-06-17');

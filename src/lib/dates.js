@@ -110,6 +110,20 @@ export const shouldShowOnDate = (task, targetDate) => {
       const custom = parseCustomFrequency(task.repeat_frequency);
       if (!custom) return false;
       if (custom.kind === 'interval') {
+        if (custom.unit === 'years') {
+          // Anniversary of the start date, calendar-aware — day-count math
+          // would drift birthdays across leap years. Feb 29 anchors clamp
+          // to Feb 28 in non-leap years (same convention as 'monthly').
+          const yearsDiff = checkDate.getFullYear() - taskStartDate.getFullYear();
+          if (yearsDiff < 0 || yearsDiff % custom.n !== 0) return false;
+          if (checkDate.getMonth() !== taskStartDate.getMonth()) return false;
+          const daysInMonth = new Date(
+            checkDate.getFullYear(),
+            checkDate.getMonth() + 1,
+            0
+          ).getDate();
+          return checkDate.getDate() === Math.min(taskStartDate.getDate(), daysInMonth);
+        }
         const intervalDays = custom.unit === 'weeks' ? custom.n * 7 : custom.n;
         return daysDiff % intervalDays === 0;
       }

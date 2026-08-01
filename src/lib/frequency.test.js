@@ -15,6 +15,20 @@ describe('parseCustomFrequency', () => {
       n: 6,
       unit: 'weeks',
     });
+    expect(parseCustomFrequency('every:1:years')).toEqual({
+      kind: 'interval',
+      n: 1,
+      unit: 'years',
+    });
+  });
+
+  it('caps yearly intervals at MAX_YEAR_INTERVAL', () => {
+    expect(parseCustomFrequency('every:10:years')).toEqual({
+      kind: 'interval',
+      n: 10,
+      unit: 'years',
+    });
+    expect(parseCustomFrequency('every:11:years')).toBeNull();
   });
 
   it('parses weekday frequencies sorted and deduped', () => {
