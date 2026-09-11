@@ -44,6 +44,8 @@ export function groupTodosByDay({ todos, completions, subItemCompletions, days, 
       completedAt: subItem.completed_at,
       parentTaskId: subItem.parent_task_id,
       isRecurringSubItem: parentTask?.recurring || false,
+      // Manual drag order within the parent (same column as top-level tasks)
+      sortOrder: subItem.sort_order ?? null,
     });
   });
 

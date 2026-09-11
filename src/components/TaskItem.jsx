@@ -59,6 +59,8 @@ export default function TaskItem({
     openGoogleCalendar,
     moveTask,
     deleteTask,
+    progressGradient,
+    reorderSubItems,
   } = useContext(AppContext);
 
   const isExpanded = expandedTaskId === task.id;
@@ -70,6 +72,11 @@ export default function TaskItem({
   const [completedSubExpanded, setCompletedSubExpanded] = useState(false);
   const editInputRef = useRef(null);
   const subItemInputRef = useRef(null);
+  // Sub-item drag-to-reorder: same pointer-capture scheme as the task list
+  // in DaySection (lifted row + insertion bar, no live reorder mid-drag).
+  const [subDrag, setSubDrag] = useState(null); // { subId, dy, barTop } | null
+  const subRowRefs = useRef({});
+  const subListRef = useRef(null);
   const isSelected = selectedTasks.includes(task.id);
 
   useEffect(() => {
@@ -315,7 +322,51 @@ export default function TaskItem({
         hasSubItems &&
         (() => {
           const renderSubItem = (subItem) => (
-            <div key={subItem.id} className="flex items-center gap-2">
+            <div
+              key={subItem.id}
+              ref={(el) => (subRowRefs.current[subItem.id] = el)}
+              className={`group/sub relative flex items-center gap-2 ${
+                subDrag?.subId === subItem.id ? 'z-40' : ''
+              }`}
+              style={
+                subDrag?.subId === subItem.id
+                  ? {
+                      transform: `translateY(${subDrag.dy}px) scale(1.02)`,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                      borderRadius: '0.5rem',
+                      opacity: 0.95,
+                    }
+                  : undefined
+              }
+            >
+              {!subItem.completed && !editingSubItemId && (
+                <button
+                  type="button"
+                  onPointerDown={handleSubGripDown(subItem)}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Drag to reorder"
+                  aria-label="Drag to reorder"
+                  style={{ touchAction: 'none' }}
+                  className={`absolute cursor-grab active:cursor-grabbing rounded transition-opacity duration-150
+                    ${isMobile ? '-left-6 -top-1.5 p-1.5' : '-left-5 top-0 p-0.5'}
+                    ${
+                      subDrag?.subId === subItem.id
+                        ? 'opacity-100'
+                        : isMobile
+                          ? primedTaskId === subItem.id
+                            ? 'opacity-100'
+                            : 'opacity-0 pointer-events-none'
+                          : 'opacity-0 group-hover/sub:opacity-100'
+                    }
+                    ${
+                      isDarkBackground
+                        ? 'text-white/50 hover:text-white/90'
+                        : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                >
+                  <GripVertical size={isMobile ? 16 : 14} />
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -381,16 +432,95 @@ export default function TaskItem({
             </div>
           );
 
+          // Manual order first (sort_order), then alphabetical for anything
+          // never dragged — same rule as the task list.
           const activeSubItems = task.subItems
             .filter((s) => !s.completed)
-            .sort((a, b) => a.text.localeCompare(b.text));
+            .sort(
+              (a, b) =>
+                (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) ||
+                a.text.localeCompare(b.text)
+            );
+
+          // Pointer-capture drag on the grip: the row follows the pointer,
+          // the bar marks the gap, drop commits reorderSubItems.
+          const handleSubGripDown = (subItem) => (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const grip = e.currentTarget;
+            grip.setPointerCapture(e.pointerId);
+            const startY = e.clientY;
+            const others = activeSubItems.filter((s) => s.id !== subItem.id);
+            let insertAt = activeSubItems.findIndex((s) => s.id === subItem.id);
+            let lastInsertAt = insertAt;
+
+            // space-y-2 gaps are 8px: centre the 4px bar in the gap
+            const barTopFor = (idx) => {
+              const listRect = subListRef.current?.getBoundingClientRect();
+              if (!listRect || others.length === 0) return 0;
+              if (idx < others.length) {
+                const r = subRowRefs.current[others[idx].id]?.getBoundingClientRect();
+                return r ? r.top - listRect.top - 6 : 0;
+              }
+              const r = subRowRefs.current[others[others.length - 1].id]?.getBoundingClientRect();
+              return r ? r.bottom - listRect.top + 2 : 0;
+            };
+
+            setSubDrag({ subId: subItem.id, dy: 0, barTop: barTopFor(insertAt) });
+
+            const onMove = (ev) => {
+              insertAt = others.length;
+              for (let i = 0; i < others.length; i++) {
+                const el = subRowRefs.current[others[i].id];
+                if (!el) continue;
+                const r = el.getBoundingClientRect();
+                if (ev.clientY < r.top + r.height / 2) {
+                  insertAt = i;
+                  break;
+                }
+              }
+              if (insertAt !== lastInsertAt) {
+                lastInsertAt = insertAt;
+                if (navigator.vibrate) navigator.vibrate(8);
+              }
+              setSubDrag({ subId: subItem.id, dy: ev.clientY - startY, barTop: barTopFor(insertAt) });
+            };
+            const finish = (commit) => {
+              grip.removeEventListener('pointermove', onMove);
+              grip.removeEventListener('pointerup', onUp);
+              grip.removeEventListener('pointercancel', onCancel);
+              if (commit) {
+                const next = [...others.slice(0, insertAt), subItem, ...others.slice(insertAt)];
+                if (next.map((s) => s.id).join() !== activeSubItems.map((s) => s.id).join()) {
+                  reorderSubItems(task, next);
+                }
+              }
+              setSubDrag(null);
+            };
+            const onUp = () => finish(true);
+            const onCancel = () => finish(false);
+            grip.addEventListener('pointermove', onMove);
+            grip.addEventListener('pointerup', onUp);
+            grip.addEventListener('pointercancel', onCancel);
+          };
           const completedSubItems = task.subItems
             .filter((s) => s.completed)
             .sort((a, b) => a.text.localeCompare(b.text));
 
           return (
-            <div className="ml-8 mt-2 space-y-2">
+            <div ref={subListRef} className="ml-8 mt-2 space-y-2 relative">
               {activeSubItems.map(renderSubItem)}
+              {/* Insertion bar for sub-item drags (display-toggled so the
+                  space-y margins never shift mid-drag) */}
+              <div
+                className="absolute left-0 right-0 h-1 rounded-full shadow-md pointer-events-none z-30"
+                style={{
+                  top: subDrag ? subDrag.barTop : 0,
+                  display: subDrag ? 'block' : 'none',
+                  margin: 0,
+                  background: progressGradient,
+                }}
+              />
               {completedSubItems.length > 0 && (
                 <>
                   <button
@@ -462,7 +592,7 @@ export default function TaskItem({
 
       {!isMobile && !bulkMode && (
         <div
-          className={`transition-all duration-200 ${!dragActive && (isHovered || actionMenuOpen || addingSubItemTo === task.id) ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}
+          className={`transition-all duration-200 ${!dragActive && !subDrag && (isHovered || actionMenuOpen || addingSubItemTo === task.id) ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'} overflow-visible`}
         >
           <div className={`ml-8 p-3 rounded-lg relative z-50`}>
             <div className="flex items-center justify-around gap-2">

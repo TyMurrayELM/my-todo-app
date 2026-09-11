@@ -1276,6 +1276,49 @@ export function useTodos({
     }
   };
 
+  // Persist a drag-reorder of one task's active sub-items. Sub-items keep
+  // their real row ids even under recurring instances, and a template's
+  // sub-items are shared by every instance, so the optimistic update touches
+  // every card the parent appears on. Sequential integers, rebuilt per drop.
+  const reorderSubItems = async (parentTask, orderedSubItems) => {
+    const parentKey = parentTask.originalId || parentTask.id;
+    const positionById = new Map(orderedSubItems.map((s, i) => [s.id, i]));
+    setTasks((prev) => {
+      const next = {};
+      for (const d of Object.keys(prev)) {
+        next[d] = prev[d].map((t) =>
+          t.id === parentKey || t.originalId === parentKey
+            ? {
+                ...t,
+                subItems: (t.subItems || []).map((s) =>
+                  positionById.has(s.id) ? { ...s, sortOrder: positionById.get(s.id) } : s
+                ),
+              }
+            : t
+        );
+      }
+      return next;
+    });
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      await Promise.all(
+        orderedSubItems.map((s, i) =>
+          supabase
+            .from('todos')
+            .update({ sort_order: i })
+            .eq('id', s.id)
+            .eq('user_id', session.user.id)
+        )
+      );
+    } catch (error) {
+      console.error('Error saving sub-item order:', error);
+      fetchTodos(); // fall back to server truth
+    }
+  };
+
   return {
     tasks,
     isLoading,
@@ -1290,6 +1333,7 @@ export function useTodos({
     deleteTask,
     moveTask,
     reorderTasks,
+    reorderSubItems,
     repeatTask,
     updateTaskText,
     updateTaskUrl,

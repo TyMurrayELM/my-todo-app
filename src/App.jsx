@@ -187,6 +187,7 @@ function App() {
     deleteTask,
     moveTask,
     reorderTasks,
+    reorderSubItems,
     repeatTask,
     updateTaskText: saveTaskText,
     updateTaskUrl,
@@ -515,6 +516,7 @@ function App() {
     openGoogleCalendar,
     moveTask,
     reorderTasks,
+    reorderSubItems,
     deleteTask,
   };
 

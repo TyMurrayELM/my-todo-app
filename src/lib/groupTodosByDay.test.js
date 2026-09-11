@@ -232,6 +232,19 @@ describe('groupTodosByDay', () => {
       expect(result.MONDAY[0].subItems[0].isRecurringSubItem).toBe(true);
     });
 
+    it('carry sort_order as sortOrder (null when never dragged)', () => {
+      const result = group({
+        todos: [
+          oneTime(),
+          subItem({ id: 's1', sort_order: 1 }),
+          subItem({ id: 's2', sort_order: 0 }),
+          subItem({ id: 's3' }),
+        ],
+      });
+      const byId = Object.fromEntries(result.TUESDAY[0].subItems.map((s) => [s.id, s.sortOrder]));
+      expect(byId).toEqual({ s1: 1, s2: 0, s3: null });
+    });
+
     it('sub-items are never promoted to top-level tasks', () => {
       const result = group({ todos: [oneTime(), subItem()] });
       expect(countAll(result)).toBe(1);
