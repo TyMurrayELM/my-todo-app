@@ -207,6 +207,17 @@ export function useTodos({
     }
   }, [session, currentDate, isNavigating]);
 
+  // The date a move counts from. Task Bank tasks have no date of their own,
+  // so "Next Day" etc. count from the real today, not the week being viewed.
+  const getMoveFromDate = (day) => {
+    if (day === 'TASK_BANK') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return today;
+    }
+    return getDateForDay(days.indexOf(day));
+  };
+
   // Bulk move tasks
   const bulkMoveTasks = async (taskIds, moveType, day) => {
     // Snapshot tasks before removing from UI
@@ -223,8 +234,7 @@ export function useTodos({
     clearBulkSelection();
 
     // Calculate target date (same for all tasks in the batch)
-    const fromDayIndex = days.indexOf(day);
-    const targetDate = computeMoveTargetDate(moveType, getDateForDay(fromDayIndex));
+    const targetDate = computeMoveTargetDate(moveType, getMoveFromDate(day));
     const targetDayName = DAY_NAMES[targetDate.getDay()];
     const targetActualDate = getISOStringForLocalDate(targetDate);
 
@@ -458,8 +468,7 @@ export function useTodos({
     if (!task) return;
 
     // Calculate the target date based on move type
-    const fromDayIndex = days.indexOf(fromDay);
-    const targetDate = computeMoveTargetDate(moveType, getDateForDay(fromDayIndex));
+    const targetDate = computeMoveTargetDate(moveType, getMoveFromDate(fromDay));
     const targetDayName = DAY_NAMES[targetDate.getDay()];
 
     if (task.isRecurringInstance) {
@@ -1247,9 +1256,7 @@ export function useTodos({
     setTasks((prev) => ({
       ...prev,
       [day]: [...prev[day]]
-        .map((t) =>
-          positionById.has(t.id) ? { ...t, sortOrder: positionById.get(t.id) } : t
-        )
+        .map((t) => (positionById.has(t.id) ? { ...t, sortOrder: positionById.get(t.id) } : t))
         .sort((a, b) => {
           const pa = positionById.has(a.id) ? positionById.get(a.id) : Infinity;
           const pb = positionById.has(b.id) ? positionById.get(b.id) : Infinity;

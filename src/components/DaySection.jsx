@@ -40,8 +40,8 @@ const REPEAT_OPTIONS = [
 ];
 
 // One card in the week list. Weekday cards (index 0-6) show a date row and
-// a bulk Move option; the Task Bank card (isTaskBank, index 7) is black,
-// dateless, and can't move tasks.
+// date picker; the Task Bank card (isTaskBank, index 7) is black and
+// dateless, and its tasks move onto a day counted from today.
 export default function DaySection({ day, index, isTaskBank = false }) {
   const {
     tasks,
@@ -92,8 +92,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     .filter((t) => !t.completed)
     .sort(
       (a, b) =>
-        (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) ||
-        a.text.localeCompare(b.text)
+        (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity) || a.text.localeCompare(b.text)
     );
   const completedTasks = dayTasks
     .filter((t) => t.completed)
@@ -210,8 +209,8 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                 <Check size={20} />
               </button>
 
-              {/* Move button with dropdown - not available in the Task Bank */}
-              {!isTaskBank && (
+              {/* Move button with dropdown (Task Bank moves count from today) */}
+              <>
                 <div className="relative">
                   <button
                     onClick={(e) => {
@@ -321,7 +320,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     </div>
                   )}
                 </div>
-              )}
+              </>
 
               {/* Repeat button with dropdown */}
               <div className="relative">

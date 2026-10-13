@@ -483,7 +483,11 @@ export default function TaskItem({
                 lastInsertAt = insertAt;
                 if (navigator.vibrate) navigator.vibrate(8);
               }
-              setSubDrag({ subId: subItem.id, dy: ev.clientY - startY, barTop: barTopFor(insertAt) });
+              setSubDrag({
+                subId: subItem.id,
+                dy: ev.clientY - startY,
+                barTop: barTopFor(insertAt),
+              });
             };
             const finish = (commit) => {
               grip.removeEventListener('pointermove', onMove);
@@ -534,11 +538,7 @@ export default function TaskItem({
                         : 'text-gray-400 hover:text-gray-600'
                     } transition-colors`}
                   >
-                    {completedSubExpanded ? (
-                      <ChevronDown size={14} />
-                    ) : (
-                      <ChevronRight size={14} />
-                    )}
+                    {completedSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     Completed ({completedSubItems.length})
                   </button>
                   {completedSubExpanded && completedSubItems.map(renderSubItem)}
@@ -655,14 +655,12 @@ export default function TaskItem({
                   <Calendar size={20} />
                 </button>
               )}
-              {day !== 'TASK_BANK' && index < 6 && (
-                <div className="relative">
-                  <MoveMenu
-                    onSelect={(moveType) => moveTask(task.id, day, moveType)}
-                    onOpenChange={setActionMenuOpen}
-                  />
-                </div>
-              )}
+              <div className="relative">
+                <MoveMenu
+                  onSelect={(moveType) => moveTask(task.id, day, moveType)}
+                  onOpenChange={setActionMenuOpen}
+                />
+              </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -730,16 +728,14 @@ export default function TaskItem({
                 <Calendar size={20} />
               </button>
             )}
-            {day !== 'TASK_BANK' && index < 6 && (
-              <div className="relative">
-                <MoveMenu
-                  onSelect={(moveType) => {
-                    if (isMobile) setPrimedTaskId(null);
-                    moveTask(task.id, day, moveType);
-                  }}
-                />
-              </div>
-            )}
+            <div className="relative">
+              <MoveMenu
+                onSelect={(moveType) => {
+                  if (isMobile) setPrimedTaskId(null);
+                  moveTask(task.id, day, moveType);
+                }}
+              />
+            </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
