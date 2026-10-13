@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { isValidUrl } from '../lib/utils';
 import {
@@ -100,26 +100,55 @@ export function useTodos({
 
     log('Fetching todos between:', startStr, 'and', endStr);
 
-    // First, fetch parent tasks (tasks without parent_task_id)
+    // Round trip 1, all at once: parent tasks plus the week's completion
+    // rows. Completions are filtered by user + week only (not by task id),
+    // so they don't have to wait for the parent list.
     // For recurring tasks, we need their start date to be <= endStr (they could have started before our week)
     // For non-recurring tasks, we need them to be within our date range
-    const { data: parentTodos, error: parentError } = await supabase
-      .from('todos')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .is('parent_task_id', null)
-      .or(
-        `day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`
-      )
-      .order('sort_order', { ascending: true, nullsFirst: false })
-      .order('created_at');
+    const [parentsRes, completionsRes, subCompletionsRes] = await Promise.all([
+      supabase
+        .from('todos')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .is('parent_task_id', null)
+        .or(
+          `day.eq.TASK_BANK,and(recurring.eq.true,actual_date.lte.${endStr}T23:59:59.999Z),and(recurring.eq.false,actual_date.gte.${startStr}T00:00:00.000Z,actual_date.lte.${endStr}T23:59:59.999Z)`
+        )
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('created_at'),
+      supabase
+        .from('recurring_completions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .gte('completion_date', startStr)
+        .lte('completion_date', endStr),
+      supabase
+        .from('recurring_subitem_completions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .gte('completion_date', startStr)
+        .lte('completion_date', endStr),
+    ]);
 
-    if (parentError) {
-      failFetch('Error fetching parent todos:', parentError);
+    if (parentsRes.error) {
+      failFetch('Error fetching parent todos:', parentsRes.error);
       return;
     }
+    // A failed completions fetch must NOT fall through to rendering —
+    // every recurring task would show incomplete and invite re-completes.
+    if (completionsRes.error) {
+      failFetch('Error fetching completions:', completionsRes.error);
+      return;
+    }
+    if (subCompletionsRes.error) {
+      failFetch('Error fetching sub-item completions:', subCompletionsRes.error);
+      return;
+    }
+    const parentTodos = parentsRes.data;
+    const completionRecords = completionsRes.data || [];
+    const subItemCompletionRecords = subCompletionsRes.data || [];
 
-    // Now fetch all sub-items for these parent tasks
+    // Round trip 2: sub-items of those parents
     const parentIds = parentTodos.map((t) => t.id);
     let subItemTodos = [];
 
@@ -141,52 +170,6 @@ export function useTodos({
     const allTodos = [...parentTodos, ...subItemTodos];
     log('Fetched todos:', allTodos);
 
-    // Fetch completion records for recurring tasks
-    const recurringTodoIds = allTodos.filter((t) => t.recurring).map((t) => t.id);
-    let completionRecords = [];
-
-    if (recurringTodoIds.length > 0) {
-      const { data: completions, error: completionsError } = await supabase
-        .from('recurring_completions')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .in('todo_id', recurringTodoIds)
-        .gte('completion_date', startStr)
-        .lte('completion_date', endStr);
-
-      // A failed completions fetch must NOT fall through to rendering —
-      // every recurring task would show incomplete and invite re-completes.
-      if (completionsError) {
-        failFetch('Error fetching completions:', completionsError);
-        return;
-      }
-      completionRecords = completions || [];
-    }
-
-    // Fetch sub-item completion records for recurring tasks
-    const subItemIds = allTodos
-      .filter(
-        (t) => t.parent_task_id && allTodos.find((p) => p.id === t.parent_task_id && p.recurring)
-      )
-      .map((t) => t.id);
-    let subItemCompletionRecords = [];
-
-    if (subItemIds.length > 0) {
-      const { data: subCompletions, error: subCompletionsError } = await supabase
-        .from('recurring_subitem_completions')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .in('subitem_id', subItemIds)
-        .gte('completion_date', startStr)
-        .lte('completion_date', endStr);
-
-      if (subCompletionsError) {
-        failFetch('Error fetching sub-item completions:', subCompletionsError);
-        return;
-      }
-      subItemCompletionRecords = subCompletions || [];
-    }
-
     const todosByDay = groupTodosByDay({
       todos: allTodos,
       completions: completionRecords,
@@ -205,6 +188,33 @@ export function useTodos({
   useEffect(() => {
     fetchTodosRef.current = fetchTodos;
   });
+
+  // `tasks` is keyed by day name, so when the viewed week changes the old
+  // lists would sit under the new dates until the fetch lands. Before the
+  // browser paints the new week, file each list under its real date and
+  // rebuild the cards from that per-date cache: days already seen show at
+  // once, days never seen show empty. The fetch then brings the truth.
+  const dayCacheRef = useRef(new Map()); // 'YYYY-MM-DD' -> task list
+  const viewDatesRef = useRef(null); // day name -> 'YYYY-MM-DD' of the week on screen
+  useLayoutEffect(() => {
+    const dateOf = {};
+    days.forEach((d, i) => {
+      dateOf[d] = getLocalDateString(getDateForDay(i));
+    });
+    const prev = viewDatesRef.current;
+    viewDatesRef.current = dateOf;
+    if (!prev || DAY_NAMES.every((d) => prev[d] === dateOf[d])) return;
+
+    fetchSeqRef.current++; // a load of the old week must not land on the new one
+    setTasks((cur) => {
+      DAY_NAMES.forEach((d) => dayCacheRef.current.set(prev[d], cur[d]));
+      const next = { TASK_BANK: cur.TASK_BANK };
+      DAY_NAMES.forEach((d) => {
+        next[d] = dayCacheRef.current.get(dateOf[d]) || [];
+      });
+      return next;
+    });
+  }, [days, getDateForDay]);
 
   useEffect(() => {
     if (session && !isNavigating) {

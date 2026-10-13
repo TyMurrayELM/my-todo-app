@@ -15,6 +15,9 @@ import { MAX_TASK_LENGTH, BG_THEMES, PROGRESS_GRADIENTS } from './lib/constants'
 
 function App() {
   const [session, setSession] = useState(null);
+  // False until the stored session has been read, so a signed-in user never
+  // sees the login screen flash on load.
+  const [authReady, setAuthReady] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isNavigating, setIsNavigating] = useState(false);
@@ -202,9 +205,10 @@ function App() {
     bulkDeleteTasks: bulkDelete,
   } = useTodos({ session, days, currentDate, isNavigating, getDateForDay, clearBulkSelection });
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => setSession(session))
+      .finally(() => setAuthReady(true));
 
     const {
       data: { subscription },
@@ -436,6 +440,10 @@ function App() {
     }
   };
 
+  if (!session && !authReady) {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
+
   if (!session) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -553,9 +561,25 @@ function App() {
               >
                 <ArrowRight size={20} />
               </button>
+              {/* Only shown when the first card is not today */}
+              {getLocalDateString(currentDate) !== getLocalDateString(new Date()) && (
+                <button
+                  onClick={() => handleJumpToDate(getLocalDateString(new Date()))}
+                  disabled={isNavigating}
+                  className="ml-3 flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700"
+                  title="Back to today"
+                >
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full"
+                    style={{ background: PROGRESS_GRADIENTS[colorTheme] }}
+                  />
+                  Today
+                </button>
+              )}
             </div>
 
-            <div className="flex items-center gap-5">
+            {/* Centred on its own so the Today button never nudges it */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-5">
               <ThemeSelector
                 value={colorTheme}
                 onChange={(value) => {
