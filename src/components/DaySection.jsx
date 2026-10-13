@@ -503,7 +503,13 @@ export default function DaySection({ day, index, isTaskBank = false }) {
               <div
                 key={task.id}
                 ref={(el) => (rowRefs.current[task.id] = el)}
-                className={drag?.taskId === task.id ? 'relative z-40' : ''}
+                className={
+                  drag?.taskId === task.id
+                    ? 'relative z-40'
+                    : task.pending
+                      ? 'opacity-60 pointer-events-none'
+                      : ''
+                }
                 style={
                   drag?.taskId === task.id
                     ? {

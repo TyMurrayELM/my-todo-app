@@ -59,6 +59,9 @@ export function useTodos({
   // Monotonic id so a slow response from an older fetch can't
   // overwrite the result of a newer one (e.g. rapid week navigation).
   const fetchSeqRef = useRef(0);
+  // Seq of the last fetch that finished; differs from fetchSeqRef while a
+  // fetch is still in flight.
+  const fetchDoneSeqRef = useRef(0);
   const intendedCompletionsRef = useRef({});
   const completionTimeoutsRef = useRef({});
   // Maps a just-added sub-item's temp id to a promise of its real DB id.
@@ -79,6 +82,7 @@ export function useTodos({
     const failFetch = (label, error) => {
       logError(label, error);
       if (isCurrent()) {
+        fetchDoneSeqRef.current = fetchSeq;
         setFetchError(error.message || 'Could not load your tasks');
         setIsLoading(false);
       }
@@ -192,6 +196,7 @@ export function useTodos({
     });
     log('Final tasks by day:', todosByDay);
     if (!isCurrent()) return; // superseded by a newer fetch
+    fetchDoneSeqRef.current = fetchSeq;
     setTasks(todosByDay);
     setIsLoading(false);
   }, [session, isNavigating, days, getDateForDay]);
@@ -471,6 +476,25 @@ export function useTodos({
     const targetDate = computeMoveTargetDate(moveType, getMoveFromDate(fromDay));
     const targetDayName = DAY_NAMES[targetDate.getDay()];
 
+    // The visible card the target date lands on, if it is in this week
+    const targetDateStr = getLocalDateString(targetDate);
+    const targetIndex = days.findIndex(
+      (_, i) => getLocalDateString(getDateForDay(i)) === targetDateStr
+    );
+    const targetCard = targetIndex >= 0 ? days[targetIndex] : null;
+    if (targetCard === fromDay) return; // already on that date
+
+    // Optimistic: the task leaves its card at once and, when the target is
+    // on screen, lands there. A moved recurring instance becomes a new row,
+    // so it only shows on the target after the refetch below.
+    setTasks((prev) => {
+      const next = { ...prev, [fromDay]: prev[fromDay].filter((t) => t.id !== taskId) };
+      if (targetCard && !task.isRecurringInstance) {
+        next[targetCard] = [...next[targetCard], task];
+      }
+      return next;
+    });
+
     if (task.isRecurringInstance) {
       // For recurring instances: create a one-time task on target date
       // and mark today as skipped
@@ -496,6 +520,7 @@ export function useTodos({
       if (createError) {
         logError('Error creating moved task:', createError);
         reportSaveError("Couldn't move task");
+        await fetchTodos(); // put the task back
         return;
       }
 
@@ -516,6 +541,7 @@ export function useTodos({
       if (skipError) {
         logError('Error skipping today:', skipError);
         reportSaveError("Couldn't move task");
+        await fetchTodos(); // put the task back
         return;
       }
 
@@ -548,6 +574,7 @@ export function useTodos({
       if (error) {
         logError('Error moving todo:', error);
         reportSaveError("Couldn't move task");
+        await fetchTodos(); // put the task back
         return;
       }
     }
@@ -556,12 +583,25 @@ export function useTodos({
     await fetchTodos();
   };
 
-  // Add a task; returns true when it was saved (caller clears its input)
+  // Add a task; returns true when it was saved (on false the caller puts
+  // the text back in its input)
   const addTask = async (text, day) => {
     if (!text.trim()) return false;
     if (typeof text !== 'string' || text.trim().length > MAX_TASK_LENGTH) return false;
     const taskDate = getDateForDay(days.indexOf(day));
     const actualDate = getISOStringForLocalDate(taskDate);
+
+    // Optimistic: show the task at once. It stays `pending` (dimmed, not
+    // interactive) until the insert returns its real id, so no action can
+    // reach the database with the temp id.
+    const tempId = `temp_${Date.now()}`;
+    setTasks((prev) => ({
+      ...prev,
+      [day]: [
+        ...prev[day],
+        { id: tempId, text: text.trim(), completed: false, subItems: [], pending: true },
+      ],
+    }));
 
     const { data, error } = await supabase
       .from('todos')
@@ -580,13 +620,20 @@ export function useTodos({
     if (error) {
       logError('Error adding todo:', error);
       reportSaveError("Couldn't add task");
+      setTasks((prev) => ({ ...prev, [day]: prev[day].filter((t) => t.id !== tempId) }));
       return false;
     }
 
+    // Swap the temp row for the saved one
     setTasks((prev) => ({
       ...prev,
-      [day]: [...prev[day], { id: data.id, text: data.text, completed: false, subItems: [] }],
+      [day]: prev[day].map((t) =>
+        t.id === tempId ? { id: data.id, text: data.text, completed: false, subItems: [] } : t
+      ),
     }));
+    // A week load that was running during the insert may not include the
+    // new row and would wipe the swap above — reload once to be sure.
+    if (fetchSeqRef.current !== fetchDoneSeqRef.current) fetchTodos();
     return true;
   };
 
@@ -1078,6 +1125,14 @@ export function useTodos({
         const clickedTaskDate = new Date(getDateForDay(days.indexOf(day)));
         clickedTaskDate.setHours(0, 0, 0, 0);
 
+        // Optimistic: show the repeat badge on the clicked task at once
+        setTasks((prev) => ({
+          ...prev,
+          [day]: prev[day].map((t) =>
+            t.id === task.id ? { ...t, recurring: true, repeatFrequency: frequency } : t
+          ),
+        }));
+
         // Update the task to be recurring
         const { error: updateError } = await supabase
           .from('todos')
@@ -1098,6 +1153,7 @@ export function useTodos({
       } catch (error) {
         logError('RepeatTask failed:', error);
         reportSaveError("Couldn't set repeat");
+        await fetchTodosRef.current(); // drop the optimistic badge
       } finally {
         setIsRepeating(false);
       }

@@ -340,8 +340,13 @@ function App() {
 
   const addTask = async (e, day) => {
     e.preventDefault();
-    if (await saveTask(newTask, day)) {
-      setNewTask('');
+    const text = newTask;
+    if (!text.trim() || text.trim().length > MAX_TASK_LENGTH) return;
+    // Clear the box at once (a second Enter then has nothing to add); put
+    // the text back if the save fails and nothing new was typed meanwhile.
+    setNewTask('');
+    if (!(await saveTask(text, day))) {
+      setNewTask((current) => current || text);
     }
   };
 
