@@ -51,6 +51,10 @@ export const BG_THEMES = {
   ],
 };
 
+// First card index (0-6) that takes white text: the 500 shade and darker.
+// Every piece of card text follows this one rule.
+export const DARK_FROM = 4;
+
 export const PROGRESS_GRADIENTS = {
   amber:
     'linear-gradient(to right, #fcd34d 0%, #fbbf24 20%, #f59e0b 40%, #d97706 60%, #b45309 80%, #92400e 100%)',

@@ -11,6 +11,9 @@ import { groupTodosByDay } from '../lib/groupTodosByDay';
 import { log, logError } from '../lib/log';
 import { MAX_TASK_LENGTH, MAX_NOTES_LENGTH, MAX_URL_LENGTH } from '../lib/constants';
 
+// localStorage key of the saved copy of the week (cleared on sign-out)
+export const WEEK_CACHE_KEY = 'todoWeekCache';
+
 // Owns the week's task data and every Supabase read/write. UI-only state
 // (day selection, bulk-mode selection, editing/input state, modals) stays
 // in App; bulk actions receive explicit task-id lists and report UI resets
@@ -62,6 +65,8 @@ export function useTodos({
   // Seq of the last fetch that finished; differs from fetchSeqRef while a
   // fetch is still in flight.
   const fetchDoneSeqRef = useRef(0);
+  // True once a week load has succeeded in this session
+  const loadedOnceRef = useRef(false);
   const intendedCompletionsRef = useRef({});
   const completionTimeoutsRef = useRef({});
   // Maps a just-added sub-item's temp id to a promise of its real DB id.
@@ -180,6 +185,7 @@ export function useTodos({
     log('Final tasks by day:', todosByDay);
     if (!isCurrent()) return; // superseded by a newer fetch
     fetchDoneSeqRef.current = fetchSeq;
+    loadedOnceRef.current = true;
     setTasks(todosByDay);
     setIsLoading(false);
   }, [session, isNavigating, days, getDateForDay]);
@@ -215,6 +221,52 @@ export function useTodos({
       return next;
     });
   }, [days, getDateForDay]);
+
+  // Instant first paint: the week from today is saved on this device (per
+  // user, each day's list under its real date) and shown on the next open
+  // while the real load runs. Saved by date, so a copy written yesterday
+  // still fills six of today's seven cards.
+  const userId = session?.user?.id;
+  useLayoutEffect(() => {
+    if (!userId || loadedOnceRef.current) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(WEEK_CACHE_KEY) || 'null');
+      if (!saved || saved.user !== userId || !saved.byDate) return;
+      const today = new Date();
+      // One-time read of device storage once the user is known, before paint
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTasks((cur) => {
+        const next = { ...cur, TASK_BANK: saved.bank || [] };
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(today);
+          date.setDate(today.getDate() + i);
+          next[DAY_NAMES[date.getDay()]] = saved.byDate[getLocalDateString(date)] || [];
+        }
+        return next;
+      });
+    } catch {
+      // unreadable or blocked storage: just wait for the load
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !loadedOnceRef.current) return;
+    const dates = days.map((_, i) => getLocalDateString(getDateForDay(i)));
+    if (dates[0] !== getLocalDateString(new Date())) return; // only the week from today
+    const settled = (list) => list.filter((t) => !t.pending);
+    try {
+      const byDate = {};
+      days.forEach((d, i) => {
+        byDate[dates[i]] = settled(tasks[d]);
+      });
+      localStorage.setItem(
+        WEEK_CACHE_KEY,
+        JSON.stringify({ user: userId, byDate, bank: settled(tasks.TASK_BANK) })
+      );
+    } catch {
+      // storage full or blocked: the app works without the saved copy
+    }
+  }, [tasks, userId, days, getDateForDay]);
 
   useEffect(() => {
     if (session && !isNavigating) {
@@ -273,30 +325,37 @@ export function useTodos({
                 },
               ])
               .select('id')
-              .single();
-            await supabase.from('recurring_completions').upsert(
-              [
-                {
-                  user_id: session.user.id,
-                  todo_id: task.originalId,
-                  completion_date: task.instanceDate,
-                  completed_at: new Date().toISOString(),
-                  skipped: true,
-                },
-              ],
-              { onConflict: 'todo_id,completion_date' }
-            );
+              .single()
+              .throwOnError();
+            await supabase
+              .from('recurring_completions')
+              .upsert(
+                [
+                  {
+                    user_id: session.user.id,
+                    todo_id: task.originalId,
+                    completion_date: task.instanceDate,
+                    completed_at: new Date().toISOString(),
+                    skipped: true,
+                  },
+                ],
+                { onConflict: 'todo_id,completion_date' }
+              )
+              .throwOnError();
             if (newTask && task.subItems && task.subItems.length > 0) {
-              await supabase.from('todos').insert(
-                task.subItems.map((sub) => ({
-                  user_id: session.user.id,
-                  text: sub.text,
-                  day: targetDayName,
-                  actual_date: targetActualDate,
-                  completed: false,
-                  parent_task_id: newTask.id,
-                }))
-              );
+              await supabase
+                .from('todos')
+                .insert(
+                  task.subItems.map((sub) => ({
+                    user_id: session.user.id,
+                    text: sub.text,
+                    day: targetDayName,
+                    actual_date: targetActualDate,
+                    completed: false,
+                    parent_task_id: newTask.id,
+                  }))
+                )
+                .throwOnError();
             }
           } else {
             await supabase
@@ -306,7 +365,8 @@ export function useTodos({
                 actual_date: targetActualDate,
               })
               .eq('id', task.id)
-              .eq('user_id', session.user.id);
+              .eq('user_id', session.user.id)
+              .throwOnError();
           }
         } catch (error) {
           logError('Error in bulk move:', error);
@@ -358,7 +418,8 @@ export function useTodos({
               actual_date: actualDate,
             })
             .eq('id', taskId)
-            .eq('user_id', session.user.id);
+            .eq('user_id', session.user.id)
+            .throwOnError();
         } catch (error) {
           logError('Error in bulk repeat:', error);
           reportSaveError("Couldn't set repeat on some tasks");
@@ -408,7 +469,12 @@ export function useTodos({
       tasksToDelete.map(async (task) => {
         try {
           const actualId = task.isRecurringInstance ? task.originalId : task.id;
-          await supabase.from('todos').delete().eq('id', actualId).eq('user_id', session.user.id);
+          await supabase
+            .from('todos')
+            .delete()
+            .eq('id', actualId)
+            .eq('user_id', session.user.id)
+            .throwOnError();
         } catch (error) {
           logError('Error in bulk delete:', error);
           reportSaveError("Couldn't delete some tasks");
@@ -444,22 +510,26 @@ export function useTodos({
     clearBulkSelection();
 
     // Fire all DB updates in parallel
+    let anyFailed = false;
     await Promise.all(
       tasksToComplete.map(async (task) => {
         try {
           if (task.isRecurringInstance) {
-            await supabase.from('recurring_completions').upsert(
-              [
-                {
-                  user_id: session.user.id,
-                  todo_id: task.originalId,
-                  completion_date: task.instanceDate,
-                  completed_at: completedAt,
-                  skipped: false,
-                },
-              ],
-              { onConflict: 'todo_id,completion_date' }
-            );
+            await supabase
+              .from('recurring_completions')
+              .upsert(
+                [
+                  {
+                    user_id: session.user.id,
+                    todo_id: task.originalId,
+                    completion_date: task.instanceDate,
+                    completed_at: completedAt,
+                    skipped: false,
+                  },
+                ],
+                { onConflict: 'todo_id,completion_date' }
+              )
+              .throwOnError();
           } else {
             await supabase
               .from('todos')
@@ -468,14 +538,18 @@ export function useTodos({
                 completed_at: completedAt,
               })
               .eq('id', task.id)
-              .eq('user_id', session.user.id);
+              .eq('user_id', session.user.id)
+              .throwOnError();
           }
         } catch (error) {
           logError('Error in bulk complete:', error);
           reportSaveError("Couldn't complete some tasks");
+          anyFailed = true;
         }
       })
     );
+    // Untick whatever did not save
+    if (anyFailed) await fetchTodos();
   };
 
   const moveTask = async (taskId, fromDay, moveType = 'next-day') => {
@@ -1062,7 +1136,9 @@ export function useTodos({
     } catch (error) {
       logError('Error updating todo:', error);
       reportSaveError("Couldn't update task");
-      // Clear in-flight state and don't update committed state on failure
+      // Clear in-flight state, then put the task back to what the server
+      // still holds. The 400ms commit has usually fired by the time a save
+      // fails, so without this the task would stay ticked until a refresh.
       delete intendedCompletionsRef.current[taskId];
       if (completionTimeoutsRef.current[taskId]) {
         clearTimeout(completionTimeoutsRef.current[taskId]);
@@ -1073,6 +1149,12 @@ export function useTodos({
         delete next[taskId];
         return next;
       });
+      setTasks((prev) => ({
+        ...prev,
+        [day]: prev[day].map((t) =>
+          t.id === taskId ? { ...t, completed: !newCompleted, completedAt: task.completedAt } : t
+        ),
+      }));
     }
   };
 
@@ -1341,10 +1423,12 @@ export function useTodos({
             .update({ sort_order: i })
             .eq('id', t.originalId || t.id)
             .eq('user_id', session.user.id)
+            .throwOnError()
         )
       );
     } catch (error) {
-      console.error('Error saving order:', error);
+      logError('Error saving order:', error);
+      reportSaveError("Couldn't save the new order");
       fetchTodos(); // fall back to server truth
     }
   };
@@ -1384,10 +1468,12 @@ export function useTodos({
             .update({ sort_order: i })
             .eq('id', s.id)
             .eq('user_id', session.user.id)
+            .throwOnError()
         )
       );
     } catch (error) {
-      console.error('Error saving sub-item order:', error);
+      logError('Error saving sub-item order:', error);
+      reportSaveError("Couldn't save the new order");
       fetchTodos(); // fall back to server truth
     }
   };

@@ -4,14 +4,14 @@ import { supabase } from './lib/supabase';
 import { DAY_NAMES, getLocalDateString } from './lib/dates';
 import ThemeSelector from './components/ThemeSelector';
 import DaySection from './components/DaySection';
-import { useTodos } from './hooks/useTodos';
+import { useTodos, WEEK_CACHE_KEY } from './hooks/useTodos';
 import { AppProvider } from './components/AppContext';
 import NoteModal from './components/NoteModal';
 import UrlModal from './components/UrlModal';
 import { isDatePickerActive } from './lib/utils';
 import { log, logError } from './lib/log';
 import { createGoogleCalendarUrl } from './lib/calendar';
-import { MAX_TASK_LENGTH, BG_THEMES, PROGRESS_GRADIENTS } from './lib/constants';
+import { MAX_TASK_LENGTH, BG_THEMES, PROGRESS_GRADIENTS, DARK_FROM } from './lib/constants';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -40,7 +40,6 @@ function App() {
   const [expandedSubItems, setExpandedSubItems] = useState({});
   // State for adding new sub-items
   const [addingSubItemTo, setAddingSubItemTo] = useState(null);
-  const [newSubItemText, setNewSubItemText] = useState('');
   // State for editing sub-items
   const [editingSubItemId, setEditingSubItemId] = useState(null);
   // Track which days have their completed section expanded (collapsed by default)
@@ -56,7 +55,6 @@ function App() {
     return [...DAY_NAMES.slice(currentIndex), ...DAY_NAMES.slice(0, currentIndex)];
   });
 
-  const [newTask, setNewTask] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
 
   // Notes modal state
@@ -158,6 +156,8 @@ function App() {
   }, [showBulkMoveOptions, showBulkRepeatOptions]);
 
   const getBackgroundColor = (index) => BG_THEMES[colorTheme][index];
+  // Whether a card takes white text. The Task Bank (index 7) is black.
+  const isDarkCard = (index) => index >= DARK_FROM;
 
   const getDateForDay = useCallback(
     (dayIndex) => {
@@ -342,27 +342,18 @@ function App() {
   const bulkDeleteTasks = (day) => bulkDelete(selectedTasks, day);
   const bulkCompleteTasks = (day) => bulkComplete(selectedTasks, day);
 
-  const addTask = async (e, day) => {
-    e.preventDefault();
-    const text = newTask;
-    if (!text.trim() || text.trim().length > MAX_TASK_LENGTH) return;
-    // Clear the box at once (a second Enter then has nothing to add); put
-    // the text back if the save fails and nothing new was typed meanwhile.
-    setNewTask('');
-    if (!(await saveTask(text, day))) {
-      setNewTask((current) => current || text);
-    }
-  };
+  // Resolves true when the task was saved. The add-task box clears itself
+  // at once and puts the text back on false.
+  const addTask = (text, day) => saveTask(text, day);
 
-  const addSubItem = (parentTaskId, day) => {
-    if (!newSubItemText.trim() || newSubItemText.trim().length > MAX_TASK_LENGTH) return;
+  const addSubItem = (parentTaskId, day, text) => {
+    if (!text.trim() || text.trim().length > MAX_TASK_LENGTH) return;
     const parentTask = tasks[day].find(
       (t) => t.id === parentTaskId || t.originalId === parentTaskId
     );
     if (!parentTask) return;
 
-    saveSubItem(parentTaskId, day, newSubItemText);
-    setNewSubItemText('');
+    saveSubItem(parentTaskId, day, text);
     setAddingSubItemTo(null);
   };
 
@@ -432,6 +423,7 @@ function App() {
       // signOut clears its own session storage; don't wipe all of
       // localStorage — that would lose the theme preference too.
       await supabase.auth.signOut();
+      localStorage.removeItem(WEEK_CACHE_KEY); // saved copy of this user's week
       log('Logout completed');
     } catch (error) {
       logError('Error logging out:', error);
@@ -474,6 +466,7 @@ function App() {
     handleJumpToDate,
     // theming
     getBackgroundColor,
+    isDarkCard,
     progressGradient: PROGRESS_GRADIENTS[colorTheme],
     // task item UI state
     expandedTaskId,
@@ -485,8 +478,6 @@ function App() {
     setEditingSubItemId,
     addingSubItemTo,
     setAddingSubItemTo,
-    newSubItemText,
-    setNewSubItemText,
     pendingCompletions,
     primedTaskId,
     setPrimedTaskId,
@@ -515,8 +506,6 @@ function App() {
     bulkRepeatTasks,
     bulkDeleteTasks,
     // task mutations
-    newTask,
-    setNewTask,
     addTask,
     toggleTask,
     toggleSubItems,

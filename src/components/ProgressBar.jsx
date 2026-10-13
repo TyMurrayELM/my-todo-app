@@ -1,8 +1,8 @@
 import { calculateProgress } from '../lib/utils';
 
-export default function ProgressBar({ dayTasks, index, gradient }) {
+export default function ProgressBar({ dayTasks, isDark, gradient }) {
   const { percentage, completed, total } = calculateProgress(dayTasks);
-  const isDarkBackground = index >= 4;
+  const isDarkBackground = isDark;
 
   if (total === 0) return null;
 

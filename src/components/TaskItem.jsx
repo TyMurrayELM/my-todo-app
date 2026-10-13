@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext } from 'react';
+import { memo, useState, useEffect, useRef, useContext } from 'react';
 import {
   Check,
   X,
@@ -16,14 +16,7 @@ import RepeatMenu from './RepeatMenu';
 import MoveMenu from './MoveMenu';
 import { AppContext } from './AppContext';
 
-export default function TaskItem({
-  task,
-  day,
-  index,
-  onGripDown = null,
-  isDragging = false,
-  dragActive = false,
-}) {
+function TaskItem({ task, day, index, onGripDown = null, isDragging = false, dragActive = false }) {
   const {
     expandedTaskId,
     setExpandedTaskId,
@@ -36,8 +29,6 @@ export default function TaskItem({
     setEditingSubItemId,
     addingSubItemTo,
     setAddingSubItemTo,
-    newSubItemText,
-    setNewSubItemText,
     pendingCompletions,
     primedTaskId,
     setPrimedTaskId,
@@ -61,10 +52,14 @@ export default function TaskItem({
     deleteTask,
     progressGradient,
     reorderSubItems,
+    isDarkCard,
   } = useContext(AppContext);
 
+  // Local, so typing a sub-item redraws only this task
+  const [newSubItemText, setNewSubItemText] = useState('');
+
   const isExpanded = expandedTaskId === task.id;
-  const isDarkBackground = index >= 4;
+  const isDarkBackground = isDarkCard(index);
   const [isHovered, setIsHovered] = useState(false);
   // Keeps the hover-revealed action bar open while a dropdown menu is up,
   // so moving the mouse off the task doesn't collapse an open menu.
@@ -115,7 +110,7 @@ export default function TaskItem({
       {onGripDown && !visuallyCompleted && (
         <button
           type="button"
-          onPointerDown={onGripDown}
+          onPointerDown={(e) => onGripDown(task, e)}
           onClick={(e) => e.stopPropagation()}
           title="Drag to reorder"
           aria-label="Drag to reorder"
@@ -561,7 +556,8 @@ export default function TaskItem({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  addSubItem(task.id, day);
+                  addSubItem(task.id, day, newSubItemText);
+                  setNewSubItemText('');
                 } else if (e.key === 'Escape') {
                   setAddingSubItemTo(null);
                   setNewSubItemText('');
@@ -569,7 +565,8 @@ export default function TaskItem({
               }}
               onBlur={() => {
                 if (newSubItemText.trim()) {
-                  addSubItem(task.id, day);
+                  addSubItem(task.id, day, newSubItemText);
+                  setNewSubItemText('');
                 } else {
                   setAddingSubItemTo(null);
                   setNewSubItemText('');
@@ -596,12 +593,16 @@ export default function TaskItem({
         >
           <div className={`ml-8 p-3 rounded-lg relative z-50`}>
             <div className="flex items-center justify-around gap-2">
-              <div className="relative">
-                <RepeatMenu
-                  onSelect={(frequency) => repeatTask(task, day, frequency)}
-                  onOpenChange={setActionMenuOpen}
-                />
-              </div>
+              {/* No Repeat in the Task Bank: it has no date for a repeat to
+                  start from. Move the task to a day, then set it there. */}
+              {day !== 'TASK_BANK' && (
+                <div className="relative">
+                  <RepeatMenu
+                    onSelect={(frequency) => repeatTask(task, day, frequency)}
+                    onOpenChange={setActionMenuOpen}
+                  />
+                </div>
+              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -678,14 +679,16 @@ export default function TaskItem({
       {isMobile && isExpanded && !bulkMode && (
         <div className={`mt-2 ml-8 p-3 rounded-lg transition-all duration-200`}>
           <div className="flex items-center justify-around gap-2">
-            <div className="relative">
-              <RepeatMenu
-                onSelect={(frequency) => {
-                  if (isMobile) setPrimedTaskId(null);
-                  repeatTask(task, day, frequency);
-                }}
-              />
-            </div>
+            {day !== 'TASK_BANK' && (
+              <div className="relative">
+                <RepeatMenu
+                  onSelect={(frequency) => {
+                    if (isMobile) setPrimedTaskId(null);
+                    repeatTask(task, day, frequency);
+                  }}
+                />
+              </div>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -752,3 +755,7 @@ export default function TaskItem({
     </div>
   );
 }
+
+// Memoised: a drag or a keystroke elsewhere in the card re-renders the
+// card, not every task in it.
+export default memo(TaskItem);

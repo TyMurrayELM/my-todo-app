@@ -1,4 +1,4 @@
-import { useContext, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   Check,
   X,
@@ -18,6 +18,7 @@ import { isDatePickerActive } from '../lib/utils';
 import { AppContext } from './AppContext';
 import TaskItem from './TaskItem';
 import ProgressBar from './ProgressBar';
+import AddTaskForm from './AddTaskForm';
 import CustomFrequencyPicker from './CustomFrequencyPicker';
 
 const MOVE_OPTIONS = [
@@ -53,6 +54,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     getDateForDay,
     handleJumpToDate,
     getBackgroundColor,
+    isDarkCard,
     progressGradient,
     bulkMode,
     toggleBulkMode,
@@ -70,9 +72,6 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     deselectAllTasks,
     expandedCompletedSections,
     setExpandedCompletedSections,
-    newTask,
-    setNewTask,
-    addTask,
   } = useContext(AppContext);
 
   // Bulk repeat dropdown: swap the preset list for the custom frequency form
@@ -84,6 +83,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
   const [pendingBulkDate, setPendingBulkDate] = useState(null);
 
   const dayTasks = tasks[day];
+  const isDark = isDarkCard(index);
   const isSelected = isTaskBank ? selectedDay === 'task_bank' : selectedDay === index;
   const isCompletedExpanded = expandedCompletedSections[day] || false;
   // Manual order first (sort_order), then alphabetical for anything never
@@ -167,6 +167,14 @@ export default function DaySection({ day, index, isTaskBank = false }) {
     grip.addEventListener('pointercancel', onCancel);
   };
 
+  // TaskItem is memoised, so it gets one grip handler that never changes
+  // identity; the ref always points at this render's handleGripDown.
+  const gripHandlerRef = useRef(null);
+  useEffect(() => {
+    gripHandlerRef.current = handleGripDown;
+  });
+  const onGripDown = useCallback((task, e) => gripHandlerRef.current(task)(e), []);
+
   return (
     <div
       onClick={() => {
@@ -183,7 +191,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
       <div className="flex items-center justify-between">
         <h2
           className={`text-2xl font-bold ${
-            isTaskBank ? 'text-white' : index >= 5 ? 'text-gray-100' : 'text-gray-800'
+            isTaskBank ? 'text-white' : isDark ? 'text-gray-100' : 'text-gray-800'
           } flex items-center gap-2`}
         >
           {isTaskBank ? 'Task Bank' : day}
@@ -322,8 +330,9 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                 </div>
               </>
 
-              {/* Repeat button with dropdown */}
-              <div className="relative">
+              {/* Repeat button with dropdown - not in the Task Bank, which has
+                  no date for a repeat to start from */}
+              <div className={isTaskBank ? 'hidden' : 'relative'}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -394,7 +403,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
               </button>
 
               {/* Divider */}
-              <div className={`w-px h-5 ${index >= 5 ? 'bg-white/30' : 'bg-gray-300'} mx-1`}></div>
+              <div className={`w-px h-5 ${isDark ? 'bg-white/30' : 'bg-gray-300'} mx-1`}></div>
             </>
           )}
 
@@ -408,7 +417,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
               className={`p-2 rounded-lg transition-colors ${
                 bulkMode
                   ? 'bg-blue-500 text-white'
-                  : index >= 5
+                  : isDark
                     ? 'text-white/70 hover:text-white hover:bg-white/10'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
               }`}
@@ -423,7 +432,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
         <>
           {!isTaskBank && (
             <p
-              className={`text-sm mb-4 cursor-pointer hover:underline relative ${index >= 4 ? 'text-white' : 'text-gray-500'}`}
+              className={`text-sm mb-4 cursor-pointer hover:underline relative ${isDark ? 'text-white' : 'text-gray-500'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 const input = e.currentTarget.querySelector('input');
@@ -448,7 +457,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
               />
             </p>
           )}
-          <ProgressBar dayTasks={dayTasks} index={index} gradient={progressGradient} />
+          <ProgressBar dayTasks={dayTasks} isDark={isDark} gradient={progressGradient} />
 
           {/* Select All / Deselect All in bulk mode */}
           {bulkMode && dayTasks.length > 0 && (
@@ -459,7 +468,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                   selectAllTasks(day);
                 }}
                 className={`text-xs px-2 py-1 rounded ${
-                  index >= 5
+                  isDark
                     ? 'bg-white/20 text-white hover:bg-white/30'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
@@ -473,7 +482,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     deselectAllTasks();
                   }}
                   className={`text-xs px-2 py-1 rounded ${
-                    index >= 5
+                    isDark
                       ? 'bg-white/20 text-white hover:bg-white/30'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
@@ -525,7 +534,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                   task={task}
                   day={day}
                   index={index}
-                  onGripDown={bulkMode ? null : handleGripDown(task)}
+                  onGripDown={bulkMode ? null : onGripDown}
                   isDragging={drag?.taskId === task.id}
                   dragActive={!!drag}
                 />
@@ -554,7 +563,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                     }));
                   }}
                   className={`flex items-center gap-1.5 text-xs font-medium pt-2 ${
-                    index >= 5
+                    isDark
                       ? 'text-white/70 hover:text-white/90'
                       : 'text-gray-500 hover:text-gray-700'
                   } transition-colors`}
@@ -568,41 +577,7 @@ export default function DaySection({ day, index, isTaskBank = false }) {
                   ))}
               </>
             )}
-            {!bulkMode && (
-              <form
-                onSubmit={(e) => addTask(e, day)}
-                className="pt-6"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Close expanded task when clicking the add task input on
-                  // mobile (but not from the stray click that follows opening
-                  // a native date picker — see the empty-space handler above)
-                  if (isMobile && !isDatePickerActive()) {
-                    setExpandedTaskId(null);
-                    setPrimedTaskId(null);
-                  }
-                }}
-              >
-                <input
-                  type="text"
-                  value={newTask}
-                  onChange={(e) => setNewTask(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addTask(e, day);
-                    }
-                  }}
-                  placeholder="Add a new task..."
-                  className={
-                    isTaskBank
-                      ? 'w-full bg-transparent text-sm placeholder-white focus:outline-none text-white'
-                      : `w-full bg-transparent text-sm placeholder-gray-400 focus:outline-none
-                              ${index >= 4 ? 'text-white placeholder-white' : 'text-gray-500'}`
-                  }
-                />
-              </form>
-            )}
+            {!bulkMode && <AddTaskForm day={day} isDark={isDark} isTaskBank={isTaskBank} />}
           </div>
         </>
       )}
