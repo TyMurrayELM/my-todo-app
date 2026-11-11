@@ -63,7 +63,7 @@ export const createGoogleCalendarUrl = (task, taskDate) => {
         const custom = parseCustomFrequency(task.repeatFrequency);
         if (!custom) return null;
         if (custom.kind === 'interval') {
-          const freq = custom.unit === 'weeks' ? 'WEEKLY' : 'DAILY';
+          const freq = { weeks: 'WEEKLY', months: 'MONTHLY', years: 'YEARLY' }[custom.unit] ?? 'DAILY';
           return `RRULE:FREQ=${freq};INTERVAL=${custom.n};UNTIL=${untilStr}`;
         }
         const byDay = custom.days.map((i) => DAY_CODES[i]).join(',');

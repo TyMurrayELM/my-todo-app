@@ -46,7 +46,9 @@ describe('parseCustomFrequency', () => {
     expect(parseCustomFrequency('every:-2:days')).toBeNull();
     expect(parseCustomFrequency('every:2.5:days')).toBeNull();
     expect(parseCustomFrequency('every:400:days')).toBeNull();
-    expect(parseCustomFrequency('every:3:months')).toBeNull();
+    expect(parseCustomFrequency('every:3:fortnights')).toBeNull();
+    expect(parseCustomFrequency('every:25:months')).toBeNull();
+    expect(parseCustomFrequency('every:3:months')).toEqual({ kind: 'interval', n: 3, unit: 'months' });
     expect(parseCustomFrequency('days:')).toBeNull();
     expect(parseCustomFrequency('days:MO,XX')).toBeNull();
   });

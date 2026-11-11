@@ -159,9 +159,31 @@ describe('shouldShowOnDate', () => {
       expect(shouldShowOnDate(task('every:0:days', '2024-06-15'), new Date(2024, 5, 15))).toBe(
         false
       );
-      expect(shouldShowOnDate(task('every:2:months', '2024-06-15'), new Date(2024, 5, 15))).toBe(
+      expect(shouldShowOnDate(task('every:2:fortnights', '2024-06-15'), new Date(2024, 5, 15))).toBe(
         false
       );
+    });
+  });
+
+  describe('custom monthly (every:N:months)', () => {
+    const q = task('every:3:months', '2024-06-15');
+    it('shows every 3 months on the same day', () => {
+      expect(shouldShowOnDate(q, new Date(2024, 5, 15))).toBe(true);
+      expect(shouldShowOnDate(q, new Date(2024, 8, 15))).toBe(true);
+      expect(shouldShowOnDate(q, new Date(2024, 11, 15))).toBe(true);
+      expect(shouldShowOnDate(q, new Date(2025, 2, 15))).toBe(true);
+    });
+    it('skips the months in between and other days', () => {
+      expect(shouldShowOnDate(q, new Date(2024, 6, 15))).toBe(false);
+      expect(shouldShowOnDate(q, new Date(2024, 7, 15))).toBe(false);
+      expect(shouldShowOnDate(q, new Date(2024, 8, 16))).toBe(false);
+      expect(shouldShowOnDate(q, new Date(2024, 2, 15))).toBe(false); // before start
+    });
+    it('a 31st anchor clamps to the last day of shorter months', () => {
+      const end = task('every:3:months', '2024-01-31');
+      expect(shouldShowOnDate(end, new Date(2024, 3, 30))).toBe(true); // Apr 30
+      expect(shouldShowOnDate(end, new Date(2024, 6, 31))).toBe(true); // Jul 31
+      expect(shouldShowOnDate(end, new Date(2024, 6, 30))).toBe(false);
     });
   });
 

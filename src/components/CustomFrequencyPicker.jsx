@@ -7,6 +7,7 @@ import {
   DAY_LETTERS,
   DAY_SHORT_NAMES,
   MAX_INTERVAL,
+  MAX_MONTH_INTERVAL,
   MAX_YEAR_INTERVAL,
 } from '../lib/frequency';
 
@@ -20,7 +21,8 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
   const [selectedDays, setSelectedDays] = useState([]);
 
   const nValue = Number(n);
-  const maxForUnit = unit === 'years' ? MAX_YEAR_INTERVAL : MAX_INTERVAL;
+  const maxForUnit =
+    unit === 'years' ? MAX_YEAR_INTERVAL : unit === 'months' ? MAX_MONTH_INTERVAL : MAX_INTERVAL;
   const intervalValid = Number.isInteger(nValue) && nValue >= 1 && nValue <= maxForUnit;
   const canConfirm = mode === 'interval' ? intervalValid : selectedDays.length > 0;
 
@@ -97,6 +99,7 @@ const CustomFrequencyPicker = ({ onConfirm, onBack }) => {
             >
               <option value="days">days</option>
               <option value="weeks">weeks</option>
+              <option value="months">months</option>
               <option value="years">years</option>
             </select>
           </div>

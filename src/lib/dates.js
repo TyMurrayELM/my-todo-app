@@ -110,6 +110,20 @@ export const shouldShowOnDate = (task, targetDate) => {
       const custom = parseCustomFrequency(task.repeat_frequency);
       if (!custom) return false;
       if (custom.kind === 'interval') {
+        if (custom.unit === 'months') {
+          // Same day of the month every N months (calendar-aware, like
+          // 'monthly'); a 31st anchor clamps to shorter months' last day.
+          const monthsDiff =
+            (checkDate.getFullYear() - taskStartDate.getFullYear()) * 12 +
+            (checkDate.getMonth() - taskStartDate.getMonth());
+          if (monthsDiff < 0 || monthsDiff % custom.n !== 0) return false;
+          const daysInMonth = new Date(
+            checkDate.getFullYear(),
+            checkDate.getMonth() + 1,
+            0
+          ).getDate();
+          return checkDate.getDate() === Math.min(taskStartDate.getDate(), daysInMonth);
+        }
         if (custom.unit === 'years') {
           // Anniversary of the start date, calendar-aware — day-count math
           // would drift birthdays across leap years. Feb 29 anchors clamp
