@@ -23,7 +23,8 @@ export default function NoteModal({ task, day, onClose, updateTaskNotes }) {
       }}
     >
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 className="text-lg font-semibold mb-4">Edit Note</h3>
+        <h3 className="text-lg font-semibold mb-1">Edit Note</h3>
+        <p className="text-sm text-gray-500 mb-3 truncate">{task.text}</p>
         <textarea
           value={localNote}
           onChange={(e) => setLocalNote(e.target.value)}

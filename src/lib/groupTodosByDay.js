@@ -40,6 +40,7 @@ export function groupTodosByDay({ todos, completions, subItemCompletions, days, 
     subItemsMap[subItem.parent_task_id].push({
       id: subItem.id,
       text: subItem.text.trim(),
+      notes: subItem.notes || null,
       completed: subItem.completed, // Default for non-recurring
       completedAt: subItem.completed_at,
       parentTaskId: subItem.parent_task_id,

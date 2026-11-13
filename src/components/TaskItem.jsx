@@ -413,7 +413,33 @@ function TaskItem({ task, day, index, onGripDown = null, isDragging = false, dra
                   }`}
                 >
                   {subItem.text}
+                  {subItem.notes && (
+                    <span
+                      className={`block text-xs whitespace-pre-wrap break-words mt-0.5 ${
+                        isDarkBackground ? 'text-white/60' : 'text-gray-400'
+                      }`}
+                    >
+                      {subItem.notes}
+                    </span>
+                  )}
                 </span>
+              )}
+              {editingSubItemId !== subItem.id && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentNoteTask({ ...subItem, isSubItem: true });
+                    setShowNoteModal(true);
+                  }}
+                  title={subItem.notes ? 'Edit Note' : 'Add Note'}
+                  aria-label={subItem.notes ? 'Edit note' : 'Add note'}
+                  className={`p-1 rounded transition-opacity ${
+                    subItem.notes || isMobile ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100 focus:opacity-100'
+                  } ${isDarkBackground ? 'text-white/40 hover:text-white/80' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <StickyNote size={14} fill={subItem.notes ? '#10b981' : 'none'} />
+                </button>
               )}
               <button
                 onClick={(e) => {

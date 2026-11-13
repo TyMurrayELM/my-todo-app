@@ -199,6 +199,7 @@ function App() {
     toggleSubItem: toggleSubItemCompletion,
     deleteSubItem,
     updateSubItemText: saveSubItemText,
+    updateSubItemNotes,
     bulkCompleteTasks: bulkComplete,
     bulkMoveTasks: bulkMove,
     bulkRepeatTasks: bulkRepeat,
@@ -646,7 +647,7 @@ function App() {
           <NoteModal
             task={currentNoteTask}
             day={selectedDay === 'task_bank' ? 'TASK_BANK' : days[selectedDay]}
-            updateTaskNotes={updateTaskNotes}
+            updateTaskNotes={currentNoteTask?.isSubItem ? updateSubItemNotes : updateTaskNotes}
             onClose={() => {
               setShowNoteModal(false);
               setCurrentNoteTask(null);

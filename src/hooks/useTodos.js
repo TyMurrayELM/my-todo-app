@@ -960,6 +960,54 @@ export function useTodos({
     }
   };
 
+  // Update a sub-item's note. Every day's card that shows the parent gets it
+  // (a recurring task's instances share their sub-items).
+  const updateSubItemNotes = async (subItemId, day, notes) => {
+    if (notes && (typeof notes !== 'string' || notes.length > MAX_NOTES_LENGTH)) return;
+    const parentTask = tasks[day]?.find((task) => task.subItems?.some((sub) => sub.id === subItemId));
+    if (!parentTask) return;
+    const oldNotes = parentTask.subItems.find((sub) => sub.id === subItemId)?.notes ?? null;
+    const value = notes && notes.trim() ? notes : null;
+
+    const apply = (ids, v) =>
+      setTasks((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).map(([d, list]) => [
+            d,
+            Array.isArray(list)
+              ? list.map((task) =>
+                  task.subItems?.some((sub) => ids.includes(sub.id))
+                    ? {
+                        ...task,
+                        subItems: task.subItems.map((sub) => (ids.includes(sub.id) ? { ...sub, notes: v } : sub)),
+                      }
+                    : task
+                )
+              : list,
+          ])
+        )
+      );
+
+    apply([subItemId], value);
+
+    let realId = subItemId;
+    try {
+      // A just-added sub-item may still be saving; wait for its real id
+      realId = await resolveSubItemId(subItemId);
+      if (realId === null) return;
+      const { error } = await supabase
+        .from('todos')
+        .update({ notes: value })
+        .eq('id', realId)
+        .eq('user_id', session.user.id);
+      if (error) throw error;
+    } catch (error) {
+      logError('Error updating sub-item notes:', error);
+      reportSaveError("Couldn't save note");
+      apply([subItemId, realId], oldNotes);
+    }
+  };
+
   // Update sub-item text
   const updateSubItemText = async (subItemId, day, newText) => {
     if (!newText.trim()) return;
@@ -1501,6 +1549,7 @@ export function useTodos({
     toggleSubItem,
     deleteSubItem,
     updateSubItemText,
+    updateSubItemNotes,
     bulkCompleteTasks,
     bulkMoveTasks,
     bulkRepeatTasks,
