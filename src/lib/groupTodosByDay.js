@@ -66,6 +66,7 @@ export function groupTodosByDay({ todos, completions, subItemCompletions, days, 
         subItems: subItemsMap[todo.id] || [],
         isRecurringInstance: false,
         sortOrder: todo.sort_order ?? null,
+        personId: todo.person_id ?? null,
       });
     } else if (todo.recurring) {
       // Generate instances for each day in the week
@@ -111,6 +112,7 @@ export function groupTodosByDay({ todos, completions, subItemCompletions, days, 
             // Instances inherit the template's order — a recurring task holds
             // one position across every day it appears on.
             sortOrder: todo.sort_order ?? null,
+            personId: todo.person_id ?? null,
           });
         }
       }
@@ -141,6 +143,7 @@ export function groupTodosByDay({ todos, completions, subItemCompletions, days, 
             subItems: subItemsMap[todo.id] || [],
             isRecurringInstance: false,
             sortOrder: todo.sort_order ?? null,
+            personId: todo.person_id ?? null,
           });
           break;
         }

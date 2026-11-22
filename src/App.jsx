@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Users } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { DAY_NAMES, getLocalDateString } from './lib/dates';
 import ThemeSelector from './components/ThemeSelector';
 import DaySection from './components/DaySection';
 import { useTodos, WEEK_CACHE_KEY } from './hooks/useTodos';
+import { usePeople } from './hooks/usePeople';
+import PeopleView from './components/PeopleView';
 import { AppProvider } from './components/AppContext';
 import NoteModal from './components/NoteModal';
 import UrlModal from './components/UrlModal';
@@ -56,6 +58,11 @@ function App() {
   });
 
   const [editingTaskId, setEditingTaskId] = useState(null);
+
+  // Which screen is up: the week's tasks, or People (relationship notes and
+  // reminders; only for accounts given access, see hooks/usePeople.js)
+  const [view, setView] = useState('tasks');
+  const [openPersonId, setOpenPersonId] = useState(null);
 
   // Notes modal state
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -205,6 +212,25 @@ function App() {
     bulkRepeatTasks: bulkRepeat,
     bulkDeleteTasks: bulkDelete,
   } = useTodos({ session, days, currentDate, isNavigating, getDateForDay, clearBulkSelection });
+  const peopleData = usePeople(session);
+  const openPerson = useCallback((personId) => {
+    setOpenPersonId(personId);
+    setView('people');
+    window.scrollTo(0, 0);
+  }, []);
+  // Back to the week: reminders set or removed in People are tasks, so reload
+  const showTasks = () => {
+    setView('tasks');
+    setOpenPersonId(null);
+    fetchTodos();
+    window.scrollTo(0, 0);
+  };
+  const showPeople = () => {
+    setOpenPersonId(null);
+    setView('people');
+    peopleData.reload(); // tasks checked off since the last look count as contact
+    window.scrollTo(0, 0);
+  };
   useEffect(() => {
     supabase.auth
       .getSession()
@@ -521,6 +547,9 @@ function App() {
     reorderTasks,
     reorderSubItems,
     deleteTask,
+    // people linked to tasks (empty for accounts without the People screen)
+    personNames: peopleData.personNames,
+    openPerson,
   };
 
   return (
@@ -536,37 +565,46 @@ function App() {
             </div>
           )}
           <div className="max-w-md mx-auto relative h-full flex items-center justify-between px-4">
-            <div className="flex items-center">
+            {view === 'people' ? (
               <button
-                onClick={() => handleNavigation(-1)}
-                disabled={isNavigating}
-                className="text-gray-500 hover:text-gray-700 mr-2"
+                onClick={showTasks}
+                className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={18} /> Tasks
               </button>
-              <button
-                onClick={() => handleNavigation(1)}
-                disabled={isNavigating}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <ArrowRight size={20} />
-              </button>
-              {/* Only shown when the first card is not today */}
-              {getLocalDateString(currentDate) !== getLocalDateString(new Date()) && (
+            ) : (
+              <div className="flex items-center">
                 <button
-                  onClick={() => handleJumpToDate(getLocalDateString(new Date()))}
+                  onClick={() => handleNavigation(-1)}
                   disabled={isNavigating}
-                  className="ml-3 flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700"
-                  title="Back to today"
+                  className="text-gray-500 hover:text-gray-700 mr-2"
                 >
-                  <span
-                    className="inline-block w-1.5 h-1.5 rounded-full"
-                    style={{ background: PROGRESS_GRADIENTS[colorTheme] }}
-                  />
-                  Today
+                  <ArrowLeft size={20} />
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={() => handleNavigation(1)}
+                  disabled={isNavigating}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <ArrowRight size={20} />
+                </button>
+                {/* Only shown when the first card is not today */}
+                {getLocalDateString(currentDate) !== getLocalDateString(new Date()) && (
+                  <button
+                    onClick={() => handleJumpToDate(getLocalDateString(new Date()))}
+                    disabled={isNavigating}
+                    className="ml-3 flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700"
+                    title="Back to today"
+                  >
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full"
+                      style={{ background: PROGRESS_GRADIENTS[colorTheme] }}
+                    />
+                    Today
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Centred on its own so the Today button never nudges it */}
             <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-5">
@@ -579,7 +617,17 @@ function App() {
               />
             </div>
 
-            <div>
+            <div className="flex items-center">
+              {peopleData.hasAccess && view === 'tasks' && (
+                <button
+                  onClick={showPeople}
+                  className="text-gray-500 hover:text-gray-700 p-2"
+                  title="People"
+                  aria-label="People"
+                >
+                  <Users size={20} />
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -600,16 +648,32 @@ function App() {
           </div>
         </div>
 
-        <div className="pt-16 px-4">
-          <div className="max-w-md mx-auto rounded-3xl shadow-lg">
-            <div className="divide-y divide-gray-200 overflow-visible">
-              {days.map((day, index) => (
-                <DaySection key={day} day={day} index={index} />
-              ))}
-              <DaySection day="TASK_BANK" index={7} isTaskBank />
+        {view === 'people' && peopleData.hasAccess ? (
+          <div className="pt-20 px-4">
+            <PeopleView
+              peopleData={peopleData}
+              openPersonId={openPersonId}
+              setOpenPersonId={setOpenPersonId}
+              onOpenDate={(dateString) => {
+                handleJumpToDate(dateString);
+                setView('tasks');
+                setOpenPersonId(null);
+                window.scrollTo(0, 0);
+              }}
+            />
+          </div>
+        ) : (
+          <div className="pt-16 px-4">
+            <div className="max-w-md mx-auto rounded-3xl shadow-lg">
+              <div className="divide-y divide-gray-200 overflow-visible">
+                {days.map((day, index) => (
+                  <DaySection key={day} day={day} index={index} />
+                ))}
+                <DaySection day="TASK_BANK" index={7} isTaskBank />
+              </div>
             </div>
           </div>
-        </div>
+        )}
         {saveError && !fetchError && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-red-50 border border-red-200 rounded-lg shadow-lg px-4 py-2 flex items-center gap-3">
             <span className="text-sm text-red-800">{saveError}</span>

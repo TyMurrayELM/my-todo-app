@@ -322,6 +322,7 @@ export function useTodos({
                   recurring: false,
                   url: task.url,
                   notes: task.notes,
+                  ...(task.personId ? { person_id: task.personId } : {}),
                 },
               ])
               .select('id')
@@ -596,6 +597,7 @@ export function useTodos({
             recurring: false,
             url: task.url,
             notes: task.notes,
+            ...(task.personId ? { person_id: task.personId } : {}),
           },
         ])
         .select('id')

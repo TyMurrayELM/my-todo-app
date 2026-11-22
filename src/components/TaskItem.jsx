@@ -9,6 +9,7 @@ import {
   Link,
   StickyNote,
   Calendar,
+  User,
 } from 'lucide-react';
 import { isValidUrl, formatCompletionTime } from '../lib/utils';
 import RecurringIndicator from './RecurringIndicator';
@@ -53,6 +54,8 @@ function TaskItem({ task, day, index, onGripDown = null, isDragging = false, dra
     progressGradient,
     reorderSubItems,
     isDarkCard,
+    personNames,
+    openPerson,
   } = useContext(AppContext);
 
   // Local, so typing a sub-item redraws only this task
@@ -277,6 +280,24 @@ function TaskItem({ task, day, index, onGripDown = null, isDragging = false, dra
                     ({task.subItems.filter((s) => s.completed).length}/{task.subItems.length})
                   </span>
                 )}
+                {task.personId && personNames?.[task.personId] && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPerson(task.personId);
+                    }}
+                    title={`Open ${personNames[task.personId]} in People`}
+                    className={`flex items-center gap-0.5 max-w-[6rem] rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      isDarkBackground
+                        ? 'bg-white/20 text-white hover:bg-white/30'
+                        : 'bg-black/10 text-gray-700 hover:bg-black/20'
+                    }`}
+                  >
+                    <User size={10} className="flex-shrink-0" />
+                    <span className="truncate">{personNames[task.personId].split(' ')[0]}</span>
+                  </button>
+                )}
                 {task.recurring && (
                   <RecurringIndicator
                     frequency={task.repeatFrequency || 'daily'}
@@ -435,7 +456,9 @@ function TaskItem({ task, day, index, onGripDown = null, isDragging = false, dra
                   title={subItem.notes ? 'Edit Note' : 'Add Note'}
                   aria-label={subItem.notes ? 'Edit note' : 'Add note'}
                   className={`p-1 rounded transition-opacity ${
-                    subItem.notes || isMobile ? 'opacity-100' : 'opacity-0 group-hover/sub:opacity-100 focus:opacity-100'
+                    subItem.notes || isMobile
+                      ? 'opacity-100'
+                      : 'opacity-0 group-hover/sub:opacity-100 focus:opacity-100'
                   } ${isDarkBackground ? 'text-white/40 hover:text-white/80' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   <StickyNote size={14} fill={subItem.notes ? '#10b981' : 'none'} />
