@@ -96,6 +96,18 @@ export const turningAge = (person, today = new Date()) => {
   return next ? next.getFullYear() - person.birthday_year : null;
 };
 
+// Age today, when the birth year is known
+export const currentAge = (person, today = new Date()) => {
+  if (!person?.birthday_year || !person.birthday_month || !person.birthday_day) return null;
+  const now = midnight(today);
+  let age = now.getFullYear() - person.birthday_year;
+  const had =
+    now.getMonth() + 1 > person.birthday_month ||
+    (now.getMonth() + 1 === person.birthday_month && now.getDate() >= person.birthday_day);
+  if (!had) age--;
+  return age >= 0 ? age : null;
+};
+
 // The day card and stored date a task on this date needs
 export const reminderDateFields = (date) => {
   const d = midnight(date);
@@ -124,6 +136,11 @@ export const nextDue = (row, doneDates = new Set(), today = new Date()) => {
   return null;
 };
 
+// An update shows on the profile it was written on and on any family
+// profiles it was also linked to
+export const updateIsOn = (update, personId) =>
+  update.person_id === personId || (update.also_person_ids || []).includes(personId);
+
 // Most recent sign of contact with a person (YYYY-MM-DD) or null: their
 // latest dated update, or the latest reminder about them that was checked off.
 export const lastContact = (personId, { updates, reminders, completions }) => {
@@ -131,7 +148,7 @@ export const lastContact = (personId, { updates, reminders, completions }) => {
   const take = (s) => {
     if (s && (!best || s > best)) best = s;
   };
-  updates.forEach((u) => u.person_id === personId && take(u.happened_on));
+  updates.forEach((u) => updateIsOn(u, personId) && take(u.happened_on));
   const mine = reminders.filter((r) => r.person_id === personId);
   mine.forEach((r) => {
     if (!r.recurring && r.completed && r.completed_at) {

@@ -32,6 +32,8 @@ export function usePeople(session) {
   const [updates, setUpdates] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [completions, setCompletions] = useState([]);
+  // Parent -> child links between profiles: { id, parent_id, child_id }
+  const [childLinks, setChildLinks] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
 
@@ -100,7 +102,15 @@ export function usePeople(session) {
       }
       completionRows = data || [];
     }
+    // Kids links. A database without the table yet (supabase/people.sql,
+    // section 6) just has none, so the rest of the screen still loads.
+    const linksRes = await supabase
+      .from('person_children')
+      .select('id,parent_id,child_id')
+      .eq('user_id', userId);
+    if (linksRes.error) logError('Error loading kids links:', linksRes.error);
     if (seq !== loadSeq.current) return;
+    setChildLinks(linksRes.data || []);
     setPeople(peopleRes.data);
     setUpdates(updatesRes.data);
     setReminders(remindersRes.data);
@@ -216,6 +226,49 @@ export function usePeople(session) {
         fail("Saved, but couldn't update the birthday reminder", e);
       }
     }
+    return true;
+  };
+
+  // Link a profile as this person's child. When the person has a spouse the
+  // child is linked to both of them (remove it from one if that is wrong).
+  // `child` is a people row (it may have just been created).
+  const addChild = async (parentId, child) => {
+    const parent = people.find((p) => p.id === parentId);
+    if (!parent || !child || child.id === parentId) return;
+    const linked = (a, b) => childLinks.some((l) => l.parent_id === a && l.child_id === b);
+    if (linked(child.id, parentId)) {
+      setError(`${child.name} is already listed as a parent of ${parent.name}`);
+      return;
+    }
+    const parents = [parentId];
+    if (parent.spouse_id && parent.spouse_id !== child.id && !linked(child.id, parent.spouse_id)) {
+      parents.push(parent.spouse_id);
+    }
+    const rows = parents
+      .filter((id) => !linked(id, child.id))
+      .map((id) => ({ user_id: userId, parent_id: id, child_id: child.id }));
+    if (rows.length === 0) return true;
+    const { data, error: insError } = await supabase
+      .from('person_children')
+      .insert(rows)
+      .select('id,parent_id,child_id');
+    if (insError) return fail("Couldn't save that link", insError);
+    setChildLinks((prev) => [...prev, ...data]);
+    return true;
+  };
+
+  // Unlink a child from this one parent (a link to the other parent stays)
+  const removeChild = async (parentId, childId) => {
+    setChildLinks((prev) =>
+      prev.filter((l) => !(l.parent_id === parentId && l.child_id === childId))
+    );
+    const { error: delError } = await supabase
+      .from('person_children')
+      .delete()
+      .eq('parent_id', parentId)
+      .eq('child_id', childId)
+      .eq('user_id', userId);
+    if (delError) fail("Couldn't remove that link", delError);
   };
 
   // Link two people as spouses, or unlink with null. The link is kept on both
@@ -281,11 +334,13 @@ export function usePeople(session) {
         .map((p) => (p.spouse_id === id ? { ...p, spouse_id: null } : p))
     );
     setUpdates((prev) => prev.filter((u) => u.person_id !== id));
+    setChildLinks((prev) => prev.filter((l) => l.parent_id !== id && l.child_id !== id));
     setReminders((prev) => prev.filter((r) => r.person_id !== id));
     return true;
   };
 
-  const addUpdate = async (personId, text, happenedOn) => {
+  // `alsoIds`: family profiles the same update should also show on
+  const addUpdate = async (personId, text, happenedOn, alsoIds = []) => {
     const { data, error: insError } = await supabase
       .from('person_updates')
       .insert([
@@ -294,6 +349,9 @@ export function usePeople(session) {
           person_id: personId,
           text: text.trim(),
           happened_on: happenedOn || getLocalDateString(new Date()),
+          // only sent when used, so a plain update saves on a database that
+          // does not have the column yet (supabase/people.sql, section 7)
+          ...(alsoIds.length > 0 ? { also_person_ids: alsoIds } : {}),
         },
       ])
       .select()
@@ -301,6 +359,37 @@ export function usePeople(session) {
     if (insError) return fail("Couldn't save that update", insError);
     setUpdates((prev) => [data, ...prev].sort((a, b) => (a.happened_on < b.happened_on ? 1 : -1)));
     return data;
+  };
+
+  // Change an update's text and/or date. Shows at once; a failed save reloads.
+  const editUpdate = async (id, text, happenedOn) => {
+    const patch = { text: text.trim(), happened_on: happenedOn };
+    setUpdates((prev) =>
+      prev
+        .map((u) => (u.id === id ? { ...u, ...patch } : u))
+        .sort((a, b) => (a.happened_on < b.happened_on ? 1 : -1))
+    );
+    const { error: upError } = await supabase
+      .from('person_updates')
+      .update(patch)
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (upError) return fail("Couldn't save that update", upError);
+    return true;
+  };
+
+  // Take a linked update off one family profile; it stays everywhere else
+  const unlinkUpdate = async (id, personId) => {
+    const row = updates.find((u) => u.id === id);
+    if (!row) return;
+    const also = (row.also_person_ids || []).filter((x) => x !== personId);
+    setUpdates((prev) => prev.map((u) => (u.id === id ? { ...u, also_person_ids: also } : u)));
+    const { error: upError } = await supabase
+      .from('person_updates')
+      .update({ also_person_ids: also })
+      .eq('id', id)
+      .eq('user_id', userId);
+    if (upError) fail("Couldn't remove that update", upError);
   };
 
   const deleteUpdate = async (id) => {
@@ -364,9 +453,14 @@ export function usePeople(session) {
     updates,
     reminders,
     completions,
+    childLinks,
     personNames,
     addPerson,
     setSpouse,
+    addChild,
+    removeChild,
+    editUpdate,
+    unlinkUpdate,
     savePerson,
     deletePerson,
     addUpdate,

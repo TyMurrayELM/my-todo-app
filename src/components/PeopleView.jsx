@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Plus, Search, Trash2, Repeat, Cake, X } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Trash2, Repeat, Cake, X, Check, Pencil } from 'lucide-react';
 import { getLocalDateString } from '../lib/dates';
 import { describeCustomFrequency } from '../lib/frequency';
 import { MAX_TASK_LENGTH } from '../lib/constants';
@@ -17,8 +17,10 @@ import {
   formatBirthday,
   nextBirthday,
   turningAge,
+  currentAge,
   nextDue,
   lastContact,
+  updateIsOn,
   isOverdue,
   formatAgo,
   formatDay,
@@ -35,14 +37,36 @@ const inputCls =
 const labelCls = 'block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1';
 const cardCls = 'rounded-2xl bg-white border border-gray-200 shadow-sm p-4';
 
-// A text box that saves when you leave it (or press Enter on one line).
-// Its text starts from the saved value; the person's page is rebuilt per
-// person (keyed), so it never shows another person's text.
+// A small green "Saved" that shows for a moment after a save lands
+function SavedTick({ show }) {
+  return show ? (
+    <span className="ml-2 inline-flex items-center gap-0.5 text-[11px] font-semibold normal-case tracking-normal text-emerald-600">
+      <Check size={12} /> Saved
+    </span>
+  ) : null;
+}
+
+// true for ~2 seconds after flash() is called
+function useFlash() {
+  const [on, setOn] = useState(false);
+  const flash = () => {
+    setOn(true);
+    setTimeout(() => setOn(false), 2000);
+  };
+  return [on, flash];
+}
+
+// A text box that saves when you leave it (or press Enter on one line) and
+// says "Saved" once it has. Its text starts from the saved value; the
+// person's page is rebuilt per person (keyed), so it never shows another
+// person's text.
 function Field({ label, value, onSave, maxLength, multiline, placeholder }) {
   const [text, setText] = useState(value ?? '');
-  const commit = () => {
+  const [saved, flash] = useFlash();
+  const commit = async () => {
     const next = text.trim();
-    if (next !== (value ?? '')) onSave(next === '' ? null : next);
+    if (next === (value ?? '')) return;
+    if (await onSave(next === '' ? null : next)) flash();
   };
   const shared = {
     value: text,
@@ -54,7 +78,10 @@ function Field({ label, value, onSave, maxLength, multiline, placeholder }) {
   };
   return (
     <label className="block">
-      <span className={labelCls}>{label}</span>
+      <span className={labelCls}>
+        {label}
+        <SavedTick show={saved} />
+      </span>
       {multiline ? (
         <textarea rows={3} {...shared} />
       ) : (
@@ -70,68 +97,42 @@ function Field({ label, value, onSave, maxLength, multiline, placeholder }) {
   );
 }
 
-// Spouse is always another profile: shown as a link to it, or a box that
-// finds an existing person by name or creates a new one and links both ways.
-function SpouseField({ person, people, actions, onOpenPerson }) {
-  // Text typed before spouses were links is offered as the name to link
-  const [text, setText] = useState(person.spouse ?? '');
+// A box that finds an existing profile by name or offers to create one.
+// onPick(person) / onCreate(name) do the linking; both may be async.
+function PersonPicker({
+  people,
+  excludeIds,
+  initialText,
+  keepOpen,
+  ariaLabel,
+  placeholder,
+  onPick,
+  onCreate,
+}) {
+  const [text, setText] = useState(initialText ?? '');
   const [focused, setFocused] = useState(false);
   const [busy, setBusy] = useState(false);
-  const spouse = people.find((p) => p.id === person.spouse_id) || null;
-
-  if (spouse) {
-    return (
-      <div>
-        <span className={labelCls}>Spouse / partner</span>
-        <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2">
-          <button
-            type="button"
-            onClick={() => onOpenPerson(spouse.id)}
-            className="min-w-0 flex-1 truncate text-left text-sm font-medium text-blue-700 hover:underline"
-            title={`Open ${spouse.name}`}
-          >
-            {spouse.name}
-          </button>
-          <button
-            type="button"
-            onClick={() => actions.setSpouse(person.id, null)}
-            className="text-gray-400 hover:text-red-600"
-            aria-label={`Unlink ${spouse.name} as spouse`}
-          >
-            <X size={15} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const q = text.trim().toLowerCase();
   const matches = q
-    ? people.filter((p) => p.id !== person.id && p.name.toLowerCase().includes(q)).slice(0, 6)
+    ? people
+        .filter((x) => !excludeIds.includes(x.id) && x.name.toLowerCase().includes(q))
+        .slice(0, 6)
     : [];
-  const exact = matches.some((p) => p.name.toLowerCase() === q);
-  const link = async (other) => {
+  const exact = people.some((x) => x.name.toLowerCase() === q);
+  const run = async (fn) => {
     if (busy) return;
     setBusy(true);
-    await actions.setSpouse(person.id, other);
+    await fn();
     setBusy(false);
+    setText('');
   };
-  const create = async () => {
-    if (busy || !q) return;
-    setBusy(true);
-    const made = await actions.addPerson(text, person.kind);
-    if (made) await actions.setSpouse(person.id, made);
-    setBusy(false);
-  };
-
   return (
     <div>
-      <span className={labelCls}>Spouse / partner</span>
       <input
         type="text"
-        aria-label="Spouse or partner"
+        aria-label={ariaLabel}
         className={inputCls}
-        placeholder="Type a name to link or create"
+        placeholder={placeholder}
         maxLength={MAX_PERSON_NAME}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -139,17 +140,17 @@ function SpouseField({ person, people, actions, onOpenPerson }) {
         // late enough that a tap on a choice below still lands
         onBlur={() => setTimeout(() => setFocused(false), 200)}
       />
-      {q && (focused || person.spouse) && (
+      {q && (focused || keepOpen) && (
         <ul className="mt-1 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white">
-          {matches.map((p) => (
-            <li key={p.id}>
+          {matches.map((x) => (
+            <li key={x.id}>
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => link(p)}
+                onClick={() => run(() => onPick(x))}
                 className="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
               >
-                Link to <span className="font-medium">{p.name}</span>
+                Link to <span className="font-medium">{x.name}</span>
               </button>
             </li>
           ))}
@@ -158,7 +159,7 @@ function SpouseField({ person, people, actions, onOpenPerson }) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={create}
+                onClick={() => run(() => onCreate(text.trim()))}
                 className="flex w-full items-center gap-1 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
               >
                 <Plus size={14} /> Create <span className="font-medium">{text.trim()}</span> and
@@ -169,6 +170,234 @@ function SpouseField({ person, people, actions, onOpenPerson }) {
         </ul>
       )}
     </div>
+  );
+}
+
+// A linked profile: its name opens it, the x removes the link
+function PersonLink({ person, note, onOpen, onRemove, removeLabel }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2">
+      <button
+        type="button"
+        onClick={() => onOpen(person.id)}
+        className="min-w-0 flex-1 truncate text-left text-sm font-medium text-blue-700 hover:underline"
+        title={`Open ${person.name}`}
+      >
+        {person.name}
+        {note ? <span className="font-normal text-gray-500"> {note}</span> : null}
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-gray-400 hover:text-red-600"
+          aria-label={removeLabel}
+        >
+          <X size={15} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Spouse is always another profile: shown as a link to it, or a box that
+// finds an existing person by name or creates a new one and links both ways.
+function SpouseField({ person, people, actions, onOpenPerson }) {
+  const spouse = people.find((x) => x.id === person.spouse_id) || null;
+  return (
+    <div>
+      <span className={labelCls}>Spouse / partner</span>
+      {spouse ? (
+        <PersonLink
+          person={spouse}
+          onOpen={onOpenPerson}
+          onRemove={() => actions.setSpouse(person.id, null)}
+          removeLabel={`Unlink ${spouse.name} as spouse`}
+        />
+      ) : (
+        <PersonPicker
+          people={people}
+          excludeIds={[person.id]}
+          // text typed before spouses were links is offered as the name to link
+          initialText={person.spouse}
+          keepOpen={!!person.spouse}
+          ariaLabel="Spouse or partner"
+          placeholder="Type a name to link or create"
+          onPick={(other) => actions.setSpouse(person.id, other)}
+          onCreate={async (name) => {
+            const made = await actions.addPerson(name, person.kind);
+            if (made) await actions.setSpouse(person.id, made);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Kids are links to profiles too. Adding one on a person with a spouse links
+// the child to both; the x removes it from this person only.
+function KidsField({ person, people, childLinks, actions, onOpenPerson }) {
+  const byId = (id) => people.find((x) => x.id === id);
+  const kids = childLinks
+    .filter((l) => l.parent_id === person.id)
+    .map((l) => byId(l.child_id))
+    .filter(Boolean);
+  const parentIds = childLinks.filter((l) => l.child_id === person.id).map((l) => l.parent_id);
+  return (
+    <div>
+      <span className={labelCls}>Kids</span>
+      <div className="space-y-1.5">
+        {kids.map((kid) => {
+          const age = currentAge(kid);
+          return (
+            <PersonLink
+              key={kid.id}
+              person={kid}
+              note={age !== null ? `(${age})` : ''}
+              onOpen={onOpenPerson}
+              onRemove={() => actions.removeChild(person.id, kid.id)}
+              removeLabel={`Unlink ${kid.name} as a child`}
+            />
+          );
+        })}
+        <PersonPicker
+          people={people}
+          excludeIds={[person.id, person.spouse_id, ...kids.map((k) => k.id), ...parentIds]}
+          ariaLabel="Add a child"
+          placeholder={kids.length ? 'Add another: type a name' : 'Type a name to link or create'}
+          onPick={(other) => actions.addChild(person.id, other)}
+          onCreate={async (name) => {
+            const made = await actions.addPerson(name, person.kind);
+            if (made) await actions.addChild(person.id, made);
+          }}
+        />
+      </div>
+      {person.kids && (
+        <p className="mt-1 flex items-start gap-1 text-xs text-gray-500">
+          <span className="min-w-0 flex-1 break-words">Typed earlier: {person.kids}</span>
+          <button
+            type="button"
+            onClick={() => actions.savePerson(person.id, { kids: null })}
+            className="text-gray-400 hover:text-red-600"
+            aria-label="Clear the earlier kids note"
+          >
+            <X size={13} />
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+// One dated update: shown, or being edited in place
+function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
+  const nameOf = (id) => actions.people.find((x) => x.id === id);
+  // Written on another family member's profile and linked to this one
+  const from = update.person_id !== person.id ? nameOf(update.person_id) : null;
+  const also = (update.also_person_ids || []).map(nameOf).filter(Boolean);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(update.text);
+  const [date, setDate] = useState(update.happened_on);
+  const [saved, showSaved] = useFlash();
+  if (editing) {
+    return (
+      <li className="space-y-2 py-2">
+        <textarea
+          rows={3}
+          aria-label="Edit update"
+          className={inputCls}
+          maxLength={MAX_UPDATE_LENGTH}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <div className="flex gap-2">
+          <input
+            type="date"
+            aria-label="Date of update"
+            className={`${inputCls} flex-1`}
+            value={date}
+            max={today}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          <button
+            type="button"
+            disabled={!text.trim() || !date}
+            onClick={async () => {
+              setEditing(false);
+              if (text.trim() === update.text && date === update.happened_on) return;
+              if (await actions.editUpdate(update.id, text, date)) showSaved();
+            }}
+            className="rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setText(update.text);
+              setDate(update.happened_on);
+              setEditing(false);
+            }}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+          >
+            Cancel
+          </button>
+        </div>
+      </li>
+    );
+  }
+  return (
+    <li
+      className={`-mx-2 flex items-start gap-1 rounded-lg px-2 py-2 transition-colors duration-700 ${
+        flash || saved ? 'bg-emerald-50' : ''
+      }`}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="text-xs text-gray-500">
+          {formatDay(update.happened_on)}
+          <SavedTick show={flash || saved} />
+        </div>
+        <div className="whitespace-pre-wrap break-words text-sm text-gray-800">{update.text}</div>
+        {(from || also.length > 0) && (
+          <div className="mt-0.5 text-xs text-gray-500">
+            {from ? 'From ' : 'Also on '}
+            {(from ? [from] : also).map((x, i) => (
+              <span key={x.id}>
+                {i > 0 ? ', ' : ''}
+                <button
+                  type="button"
+                  onClick={() => onOpenPerson(x.id)}
+                  className="text-blue-700 hover:underline"
+                >
+                  {x.name}
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        onClick={() => {
+          setText(update.text);
+          setDate(update.happened_on);
+          setEditing(true);
+        }}
+        className="p-1.5 text-gray-400 hover:text-gray-700"
+        aria-label="Edit update"
+      >
+        <Pencil size={15} />
+      </button>
+      <button
+        onClick={() =>
+          from ? actions.unlinkUpdate(update.id, person.id) : actions.deleteUpdate(update.id)
+        }
+        className="p-1.5 text-gray-400 hover:text-red-600"
+        aria-label={from ? 'Remove update from this profile' : 'Delete update'}
+        title={from ? `Remove from this profile (stays on ${from.name})` : 'Delete'}
+      >
+        <Trash2 size={15} />
+      </button>
+    </li>
   );
 }
 
@@ -265,7 +494,23 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const myUpdates = data.updates.filter((u) => u.person_id === person.id);
+  const myUpdates = data.updates.filter((u) => updateIsOn(u, person.id));
+  // Family an update can also be put on: spouse, kids, parents
+  const family = [
+    person.spouse_id,
+    ...actions.childLinks.filter((l) => l.parent_id === person.id).map((l) => l.child_id),
+    ...actions.childLinks.filter((l) => l.child_id === person.id).map((l) => l.parent_id),
+  ]
+    .filter((id, i, all) => id && all.indexOf(id) === i)
+    .map((id) => actions.people.find((x) => x.id === id))
+    .filter(Boolean);
+  const [alsoIds, setAlsoIds] = useState([]);
+  // The update just added: highlighted for a moment so it is clear it saved
+  const [newUpdateId, setNewUpdateId] = useState(null);
+  const parents = actions.childLinks
+    .filter((l) => l.child_id === person.id)
+    .map((l) => actions.people.find((x) => x.id === l.parent_id))
+    .filter(Boolean);
   const last = lastContact(person.id, data);
 
   // Open reminders with the next date each is due, soonest first
@@ -288,11 +533,19 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
     e.preventDefault();
     if (!updateText.trim() || busy) return;
     setBusy(true);
-    const saved = await actions.addUpdate(person.id, updateText, updateDate);
+    const saved = await actions.addUpdate(
+      person.id,
+      updateText,
+      updateDate,
+      alsoIds.filter((id) => family.some((f) => f.id === id))
+    );
     setBusy(false);
     if (saved) {
       setUpdateText('');
       setUpdateDate(today);
+      setAlsoIds([]);
+      setNewUpdateId(saved.id);
+      setTimeout(() => setNewUpdateId((cur) => (cur === saved.id ? null : cur)), 2500);
     }
   };
 
@@ -323,7 +576,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             label="Name"
             value={person.name}
             maxLength={MAX_PERSON_NAME}
-            onSave={(v) => v && save({ name: v })}
+            onSave={(v) => (v ? save({ name: v }) : false)}
           />
           <div>
             <span className={labelCls}>Type</span>
@@ -350,13 +603,23 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             actions={actions}
             onOpenPerson={onOpenPerson}
           />
-          <Field
-            label="Kids"
-            value={person.kids}
-            maxLength={MAX_PERSON_LONG_FIELD}
-            placeholder="Names, ages"
-            onSave={(v) => save({ kids: v })}
+          <KidsField
+            person={person}
+            people={actions.people}
+            childLinks={actions.childLinks}
+            actions={actions}
+            onOpenPerson={onOpenPerson}
           />
+          {parents.length > 0 && (
+            <div>
+              <span className={labelCls}>Parents</span>
+              <div className="space-y-1.5">
+                {parents.map((x) => (
+                  <PersonLink key={x.id} person={x} onOpen={onOpenPerson} />
+                ))}
+              </div>
+            </div>
+          )}
           <Field
             label="Employer"
             value={person.employer}
@@ -498,6 +761,32 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             value={updateText}
             onChange={(e) => setUpdateText(e.target.value)}
           />
+          {family.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-gray-500">Also add to:</span>
+              {family.map((f) => {
+                const on = alsoIds.includes(f.id);
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setAlsoIds((cur) => (on ? cur.filter((x) => x !== f.id) : [...cur, f.id]))
+                    }
+                    className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${
+                      on
+                        ? 'border-gray-800 bg-gray-800 text-white'
+                        : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {on && <Check size={12} />}
+                    {f.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="flex gap-2">
             <input
               type="date"
@@ -521,21 +810,15 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
         ) : (
           <ul className="mt-3 divide-y divide-gray-100">
             {myUpdates.map((u) => (
-              <li key={u.id} className="flex items-start gap-2 py-2">
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs text-gray-500">{formatDay(u.happened_on)}</div>
-                  <div className="whitespace-pre-wrap break-words text-sm text-gray-800">
-                    {u.text}
-                  </div>
-                </div>
-                <button
-                  onClick={() => actions.deleteUpdate(u.id)}
-                  className="p-1.5 text-gray-400 hover:text-red-600"
-                  aria-label="Delete update"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </li>
+              <UpdateRow
+                key={u.id}
+                update={u}
+                person={person}
+                onOpenPerson={onOpenPerson}
+                today={today}
+                flash={u.id === newUpdateId}
+                actions={actions}
+              />
             ))}
           </ul>
         )}
@@ -580,7 +863,8 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
 // The People screen: a searchable list, and one person's page. `peopleData`
 // is the usePeople hook; `onOpenDate(YYYY-MM-DD)` opens that day's to-do list.
 export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, onOpenDate }) {
-  const { people, updates, reminders, completions, loaded, error, dismissError } = peopleData;
+  const { people, updates, reminders, completions, childLinks, loaded, error, dismissError } =
+    peopleData;
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('all');
   const [newName, setNewName] = useState('');
@@ -595,6 +879,10 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     const spouseName = Object.fromEntries(people.map((p) => [p.id, p.name]));
+    const kidNames = {};
+    childLinks.forEach((l) => {
+      kidNames[l.parent_id] = `${kidNames[l.parent_id] ?? ''} ${spouseName[l.child_id] ?? ''}`;
+    });
     return people
       .filter((p) => kind === 'all' || p.kind === kind || p.kind === 'both')
       .filter(
@@ -604,7 +892,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
             p.name,
             p.employer,
             spouseName[p.spouse_id],
-            p.kids,
+            kidNames[p.id],
             p.from_place,
             p.sports_teams,
             p.notes,
@@ -614,7 +902,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
         const last = lastContact(p.id, data);
         return { p, last, overdue: isOverdue(p, last) };
       });
-  }, [people, data, query, kind]);
+  }, [people, childLinks, data, query, kind]);
   const overdue = rows.filter((r) => r.overdue);
   const rest = rows.filter((r) => !r.overdue);
 

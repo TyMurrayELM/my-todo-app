@@ -90,3 +90,35 @@ create index if not exists todos_person_idx on public.todos (person_id) where pe
 -- The older free-text people.spouse column is no longer written to.
 alter table public.people
   add column if not exists spouse_id uuid references public.people (id) on delete set null;
+
+-- 6. Kids are links between two profiles (added 2026-11-22) ---------------------
+-- One row per parent and child. Deleting either profile removes the link.
+-- The older free-text people.kids column is no longer written to.
+create table if not exists public.person_children (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  parent_id uuid not null references public.people (id) on delete cascade,
+  child_id uuid not null references public.people (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (parent_id, child_id),
+  check (parent_id <> child_id)
+);
+create index if not exists person_children_child_idx on public.person_children (child_id);
+alter table public.person_children enable row level security;
+drop policy if exists "person_children: own rows, People access only" on public.person_children;
+create policy "person_children: own rows, People access only" on public.person_children
+  for all
+  using (
+    user_id = auth.uid()
+    and exists (select 1 from public.people_access a where a.user_id = auth.uid())
+  )
+  with check (
+    user_id = auth.uid()
+    and exists (select 1 from public.people_access a where a.user_id = auth.uid())
+  );
+
+-- 7. An update can also show on family profiles (added 2026-11-22) --------------
+-- The update stays one row, written on person_id; also_person_ids lists the
+-- spouse / kids / parents whose profiles show it too.
+alter table public.person_updates
+  add column if not exists also_person_ids uuid[] not null default '{}';

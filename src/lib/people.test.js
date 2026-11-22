@@ -3,6 +3,7 @@ import {
   birthdayAnchor,
   nextBirthday,
   turningAge,
+  currentAge,
   formatBirthday,
   nextDue,
   lastContact,
@@ -60,6 +61,12 @@ describe('birthday display', () => {
     expect(turningAge(p, day(2026, 11, 22))).toBe(42);
     expect(turningAge({ ...p, birthday_year: null }, day(2026, 11, 22))).toBe(null);
   });
+  it('gives the age today', () => {
+    expect(currentAge(p, day(2026, 11, 22))).toBe(41);
+    expect(currentAge(p, day(2027, 3, 4))).toBe(42);
+    expect(currentAge(p, day(2027, 3, 3))).toBe(41);
+    expect(currentAge({ ...p, birthday_year: null }, day(2026, 11, 22))).toBe(null);
+  });
   it('offers 29 days in February', () => {
     expect(daysInBirthdayMonth(2)).toBe(29);
     expect(daysInBirthdayMonth(4)).toBe(30);
@@ -99,6 +106,7 @@ describe('lastContact', () => {
     updates: [
       { person_id: 'a', happened_on: '2026-08-01' },
       { person_id: 'b', happened_on: '2026-11-01' },
+      { person_id: 'b', happened_on: '2026-11-20', also_person_ids: ['d'] },
     ],
     reminders: [
       {
@@ -118,7 +126,8 @@ describe('lastContact', () => {
   };
   it('takes the latest of updates and checked-off reminders', () => {
     expect(lastContact('a', data)).toBe('2026-10-05');
-    expect(lastContact('b', data)).toBe('2026-11-01');
+    expect(lastContact('b', data)).toBe('2026-11-20');
+    expect(lastContact('d', data)).toBe('2026-11-20'); // linked from b's profile
     expect(lastContact('c', data)).toBe(null);
   });
 });
