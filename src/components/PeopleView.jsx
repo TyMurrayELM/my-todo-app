@@ -70,6 +70,108 @@ function Field({ label, value, onSave, maxLength, multiline, placeholder }) {
   );
 }
 
+// Spouse is always another profile: shown as a link to it, or a box that
+// finds an existing person by name or creates a new one and links both ways.
+function SpouseField({ person, people, actions, onOpenPerson }) {
+  // Text typed before spouses were links is offered as the name to link
+  const [text, setText] = useState(person.spouse ?? '');
+  const [focused, setFocused] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const spouse = people.find((p) => p.id === person.spouse_id) || null;
+
+  if (spouse) {
+    return (
+      <div>
+        <span className={labelCls}>Spouse / partner</span>
+        <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2">
+          <button
+            type="button"
+            onClick={() => onOpenPerson(spouse.id)}
+            className="min-w-0 flex-1 truncate text-left text-sm font-medium text-blue-700 hover:underline"
+            title={`Open ${spouse.name}`}
+          >
+            {spouse.name}
+          </button>
+          <button
+            type="button"
+            onClick={() => actions.setSpouse(person.id, null)}
+            className="text-gray-400 hover:text-red-600"
+            aria-label={`Unlink ${spouse.name} as spouse`}
+          >
+            <X size={15} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const q = text.trim().toLowerCase();
+  const matches = q
+    ? people.filter((p) => p.id !== person.id && p.name.toLowerCase().includes(q)).slice(0, 6)
+    : [];
+  const exact = matches.some((p) => p.name.toLowerCase() === q);
+  const link = async (other) => {
+    if (busy) return;
+    setBusy(true);
+    await actions.setSpouse(person.id, other);
+    setBusy(false);
+  };
+  const create = async () => {
+    if (busy || !q) return;
+    setBusy(true);
+    const made = await actions.addPerson(text, person.kind);
+    if (made) await actions.setSpouse(person.id, made);
+    setBusy(false);
+  };
+
+  return (
+    <div>
+      <span className={labelCls}>Spouse / partner</span>
+      <input
+        type="text"
+        aria-label="Spouse or partner"
+        className={inputCls}
+        placeholder="Type a name to link or create"
+        maxLength={MAX_PERSON_NAME}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onFocus={() => setFocused(true)}
+        // late enough that a tap on a choice below still lands
+        onBlur={() => setTimeout(() => setFocused(false), 200)}
+      />
+      {q && (focused || person.spouse) && (
+        <ul className="mt-1 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white">
+          {matches.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => link(p)}
+                className="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+              >
+                Link to <span className="font-medium">{p.name}</span>
+              </button>
+            </li>
+          ))}
+          {!exact && (
+            <li>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={create}
+                className="flex w-full items-center gap-1 px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
+              >
+                <Plus size={14} /> Create <span className="font-medium">{text.trim()}</span> and
+                link
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function BirthdayField({ person, onSave }) {
   const [month, setMonth] = useState(person.birthday_month ?? '');
   const [dayOf, setDayOf] = useState(person.birthday_day ?? '');
@@ -153,7 +255,7 @@ function BirthdayField({ person, onSave }) {
   );
 }
 
-function PersonDetail({ person, data, actions, onBack, onOpenDate }) {
+function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson }) {
   const today = getLocalDateString(new Date());
   const [updateText, setUpdateText] = useState('');
   const [updateDate, setUpdateDate] = useState(today);
@@ -242,11 +344,11 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate }) {
             </div>
           </div>
           <BirthdayField person={person} onSave={save} />
-          <Field
-            label="Spouse / partner"
-            value={person.spouse}
-            maxLength={MAX_PERSON_FIELD}
-            onSave={(v) => save({ spouse: v })}
+          <SpouseField
+            person={person}
+            people={actions.people}
+            actions={actions}
+            onOpenPerson={onOpenPerson}
           />
           <Field
             label="Kids"
@@ -492,14 +594,21 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const spouseName = Object.fromEntries(people.map((p) => [p.id, p.name]));
     return people
       .filter((p) => kind === 'all' || p.kind === kind || p.kind === 'both')
       .filter(
         (p) =>
           !q ||
-          [p.name, p.employer, p.spouse, p.kids, p.from_place, p.sports_teams, p.notes].some(
-            (f) => f && f.toLowerCase().includes(q)
-          )
+          [
+            p.name,
+            p.employer,
+            spouseName[p.spouse_id],
+            p.kids,
+            p.from_place,
+            p.sports_teams,
+            p.notes,
+          ].some((f) => f && f.toLowerCase().includes(q))
       )
       .map((p) => {
         const last = lastContact(p.id, data);
@@ -560,6 +669,10 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
           person={person}
           data={data}
           actions={peopleData}
+          onOpenPerson={(id) => {
+            setOpenPersonId(id);
+            window.scrollTo(0, 0);
+          }}
           onBack={() => setOpenPersonId(null)}
           onOpenDate={onOpenDate}
         />

@@ -218,6 +218,42 @@ export function usePeople(session) {
     }
   };
 
+  // Link two people as spouses, or unlink with null. The link is kept on both
+  // profiles: each one's earlier spouse, if any, is unlinked first. `spouse` is
+  // a people row (it may have just been created) or null.
+  const setSpouse = async (personId, spouse) => {
+    const me = people.find((p) => p.id === personId);
+    if (!me || (spouse && spouse.id === personId)) return;
+    const next = {}; // person id -> new spouse_id
+    next[personId] = spouse ? spouse.id : null;
+    if (me.spouse_id && me.spouse_id !== spouse?.id) next[me.spouse_id] = null;
+    if (spouse) {
+      if (spouse.spouse_id && spouse.spouse_id !== personId) next[spouse.spouse_id] = null;
+      next[spouse.id] = personId;
+    }
+    setPeople((prev) =>
+      prev.map((p) =>
+        p.id in next
+          ? { ...p, spouse_id: next[p.id], ...(p.id === personId ? { spouse: null } : {}) }
+          : p
+      )
+    );
+    // Unlinks first, so nobody is ever saved as the spouse of two people
+    const ids = Object.keys(next).sort(
+      (a, b) => (next[a] === null ? 0 : 1) - (next[b] === null ? 0 : 1)
+    );
+    for (const id of ids) {
+      const { error: upError } = await supabase
+        .from('people')
+        // the old free-text spouse on this profile is replaced by the link
+        .update(id === personId ? { spouse_id: next[id], spouse: null } : { spouse_id: next[id] })
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (upError) return fail("Couldn't save the spouse link", upError);
+    }
+    return true;
+  };
+
   // Removes the person, their updates, their birthday task and every reminder
   // not yet done. Finished one-time tasks stay in the week, unlinked.
   const deletePerson = async (id) => {
@@ -239,7 +275,11 @@ export function usePeople(session) {
       .eq('id', id)
       .eq('user_id', userId);
     if (personError) return fail("Couldn't delete that person", personError);
-    setPeople((prev) => prev.filter((p) => p.id !== id));
+    setPeople((prev) =>
+      prev
+        .filter((p) => p.id !== id)
+        .map((p) => (p.spouse_id === id ? { ...p, spouse_id: null } : p))
+    );
     setUpdates((prev) => prev.filter((u) => u.person_id !== id));
     setReminders((prev) => prev.filter((r) => r.person_id !== id));
     return true;
@@ -326,6 +366,7 @@ export function usePeople(session) {
     completions,
     personNames,
     addPerson,
+    setSpouse,
     savePerson,
     deletePerson,
     addUpdate,

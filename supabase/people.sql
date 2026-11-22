@@ -84,3 +84,9 @@ alter table public.todos
   add column if not exists person_id uuid references public.people (id) on delete set null,
   add column if not exists person_tag text;
 create index if not exists todos_person_idx on public.todos (person_id) where person_id is not null;
+
+-- 5. Spouses are links between two profiles (added 2026-11-22) ------------------
+-- The app keeps the link on both profiles. Deleting one clears it on the other.
+-- The older free-text people.spouse column is no longer written to.
+alter table public.people
+  add column if not exists spouse_id uuid references public.people (id) on delete set null;
