@@ -61,8 +61,19 @@ function App() {
 
   // Which screen is up: the week's tasks, or People (relationship notes and
   // reminders; only for accounts given access, see hooks/usePeople.js)
-  const [view, setView] = useState('tasks');
-  const [openPersonId, setOpenPersonId] = useState(null);
+  // Kept for the tab (sessionStorage), so a refresh stays on People and on the
+  // person that was open; a freshly opened app starts on the tasks.
+  const [view, setView] = useState(() =>
+    sessionStorage.getItem('tabsView') === 'people' ? 'people' : 'tasks'
+  );
+  const [openPersonId, setOpenPersonId] = useState(
+    () => sessionStorage.getItem('tabsOpenPerson') || null
+  );
+  useEffect(() => {
+    sessionStorage.setItem('tabsView', view);
+    if (openPersonId) sessionStorage.setItem('tabsOpenPerson', openPersonId);
+    else sessionStorage.removeItem('tabsOpenPerson');
+  }, [view, openPersonId]);
 
   // Notes modal state
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -451,6 +462,8 @@ function App() {
       // localStorage — that would lose the theme preference too.
       await supabase.auth.signOut();
       localStorage.removeItem(WEEK_CACHE_KEY); // saved copy of this user's week
+      sessionStorage.removeItem('tabsView'); // the next sign-in starts on the tasks
+      sessionStorage.removeItem('tabsOpenPerson');
       log('Logout completed');
     } catch (error) {
       logError('Error logging out:', error);

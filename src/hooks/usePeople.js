@@ -266,6 +266,19 @@ export function usePeople(session) {
     return true;
   };
 
+  // Spouses live in the same place: put one profile's place on another
+  const PLACE_FIELDS = ['lives_in', 'lives_lat', 'lives_lon', 'lives_label'];
+  const copyPlace = async (from, toId) => {
+    const patch = Object.fromEntries(PLACE_FIELDS.map((f) => [f, from[f] ?? null]));
+    setPeople((prev) => prev.map((p) => (p.id === toId ? { ...p, ...patch } : p)));
+    const { error: upError } = await supabase
+      .from('people')
+      .update(patch)
+      .eq('id', toId)
+      .eq('user_id', userId);
+    if (upError) fail("Couldn't copy where they live to their spouse", upError);
+  };
+
   // Save where someone lives, looking the place up so its weather can show.
   // A place that can't be matched is still saved, just without weather.
   const saveLivesIn = async (id, text) => {
@@ -277,12 +290,17 @@ export function usePeople(session) {
         logError('Error looking up place:', e);
       }
     }
-    return savePerson(id, {
+    const patch = {
       lives_in: text || null,
       lives_lat: place?.lat ?? null,
       lives_lon: place?.lon ?? null,
       lives_label: place?.label ?? null,
-    });
+    };
+    const spouseId = people.find((p) => p.id === id)?.spouse_id;
+    const ok = await savePerson(id, patch);
+    // a spouse moves with them (clearing the place clears it for both)
+    if (ok && spouseId) await copyPlace(patch, spouseId);
+    return ok;
   };
 
   // Link a profile as this person's child. When the person has a spouse the
@@ -359,6 +377,12 @@ export function usePeople(session) {
         .eq('id', id)
         .eq('user_id', userId);
       if (upError) return fail("Couldn't save the spouse link", upError);
+    }
+    // Newly linked spouses share where they live: this profile's place if it
+    // has one, else the spouse's
+    if (spouse) {
+      if (me.lives_in) await copyPlace(me, spouse.id);
+      else if (spouse.lives_in) await copyPlace(spouse, personId);
     }
     return true;
   };
