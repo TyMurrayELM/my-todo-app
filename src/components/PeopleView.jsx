@@ -1047,6 +1047,22 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
   );
   const person = people.find((p) => p.id === openPersonId) || null;
 
+  // Kids marked under 18 are not contacts of their own: they are left out of
+  // the list and shown under each parent instead (a marked kid with no parent
+  // linked still gets a row, or there would be no way to reach them)
+  const { tucked, minorsOf } = useMemo(() => {
+    const byId = Object.fromEntries(people.map((p) => [p.id, p]));
+    const hidden = new Set();
+    const under = {};
+    childLinks.forEach((l) => {
+      const kid = byId[l.child_id];
+      if (!kid?.is_minor || !byId[l.parent_id]) return;
+      hidden.add(kid.id);
+      (under[l.parent_id] ||= []).push(kid);
+    });
+    return { tucked: hidden, minorsOf: under };
+  }, [people, childLinks]);
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     const spouseName = Object.fromEntries(people.map((p) => [p.id, p.name]));
@@ -1055,6 +1071,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
       kidNames[l.parent_id] = `${kidNames[l.parent_id] ?? ''} ${spouseName[l.child_id] ?? ''}`;
     });
     return people
+      .filter((p) => !tucked.has(p.id))
       .filter((p) => kind === 'all' || p.kind === kind || p.kind === 'both')
       .filter(
         (p) =>
@@ -1075,7 +1092,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
         const last = lastContact(p.id, data);
         return { p, last, overdue: isOverdue(p, last) };
       });
-  }, [people, childLinks, data, query, kind]);
+  }, [people, childLinks, tucked, data, query, kind]);
   const overdue = rows.filter((r) => r.overdue);
   const rest = rows.filter((r) => !r.overdue);
 
@@ -1124,6 +1141,27 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
           )}
         </div>
       </button>
+      {minorsOf[p.id] && (
+        <ul className="pb-2 pl-7 pr-4">
+          {minorsOf[p.id].map((kid) => {
+            const age = currentAge(kid);
+            return (
+              <li key={kid.id}>
+                <button
+                  onClick={() => setOpenPersonId(kid.id)}
+                  className="flex w-full items-center gap-1.5 rounded py-1 text-left text-xs text-gray-600 hover:bg-gray-50"
+                >
+                  <span className="text-gray-300" aria-hidden="true">
+                    └
+                  </span>
+                  <span className="truncate">{kid.name}</span>
+                  {age !== null && <span className="flex-shrink-0 text-gray-400">({age})</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </li>
   );
 
