@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { logError } from '../lib/log';
-import { geocodePlace, fetchCurrentWeather } from '../lib/weather';
+import { geocodePlace, fetchCurrentWeather, mergeWeather, freshWeather } from '../lib/weather';
 import { getLocalDateString, parseUTCDateAsLocal } from '../lib/dates';
 import {
   BIRTHDAY_TAG,
@@ -19,6 +19,21 @@ import {
 // Remembers which account has the People screen, so its button shows at once
 // on the next visit instead of after the check below. Holds a user id.
 const ACCESS_KEY = 'peopleAccess';
+// The last weather readings, so the list shows them at once on the next visit
+// while fresh ones load. Person id -> { tempF, sky, night, label, at }.
+const WEATHER_KEY = 'peopleWeather';
+const WEATHER_REFRESH_MS = 15 * 60 * 1000;
+// After a refresh where no place came back, try again this soon (a few times)
+const WEATHER_RETRY_MS = 60 * 1000;
+const WEATHER_RETRIES = 3;
+
+const readSavedWeather = () => {
+  try {
+    return freshWeather(JSON.parse(localStorage.getItem(WEATHER_KEY) || '{}'));
+  } catch {
+    return {};
+  }
+};
 
 const REMINDER_COLUMNS =
   'id,text,actual_date,recurring,repeat_frequency,completed,completed_at,person_id,person_tag';
@@ -41,9 +56,11 @@ export function usePeople(session) {
   // Parent -> child links between profiles: { id, parent_id, child_id }
   const [childLinks, setChildLinks] = useState([]);
   // person id -> current weather where they live ({ tempF, sky, night, label })
-  const [weather, setWeather] = useState({});
+  const [weather, setWeather] = useState(readSavedWeather);
   const [weatherTick, setWeatherTick] = useState(0);
+  // when a refresh last brought back at least one reading
   const weatherAt = useRef(0);
+  const weatherRetries = useRef(0);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
 
@@ -128,11 +145,13 @@ export function usePeople(session) {
     setError(null);
     setLoaded(true);
     // Opening People again after a while brings fresh weather
-    if (Date.now() - weatherAt.current > 15 * 60 * 1000) setWeatherTick((t) => t + 1);
+    if (Date.now() - weatherAt.current > WEATHER_REFRESH_MS) setWeatherTick((t) => t + 1);
   }, [userId]);
 
   // Current weather for everyone with a matched "Currently lives" place, in
   // one request. Runs when someone's place changes and on the refresh above.
+  // A failed lookup keeps the last reading (see mergeWeather), and a refresh
+  // where nothing came back is tried again shortly instead of in 15 minutes.
   const placesKey = people
     .filter((p) => p.lives_lat != null && p.lives_lon != null)
     .map((p) => `${p.id}:${p.lives_lat},${p.lives_lon}`)
@@ -145,19 +164,31 @@ export function usePeople(session) {
       const [lat, lon] = coords.split(',');
       return { id, lat, lon };
     });
+    let retry = null;
     fetchCurrentWeather(places)
       .then((list) => {
         if (!alive) return;
-        const map = {};
-        places.forEach((place, i) => {
-          if (list[i]) map[place.id] = list[i];
+        setWeather((prev) => {
+          const next = mergeWeather(prev, places, list);
+          try {
+            localStorage.setItem(WEATHER_KEY, JSON.stringify(next));
+          } catch {
+            // storage full or blocked: the readings just aren't kept
+          }
+          return next;
         });
-        weatherAt.current = Date.now();
-        setWeather(map);
+        if (list.some(Boolean)) {
+          weatherAt.current = Date.now();
+          weatherRetries.current = 0;
+        } else if (weatherRetries.current < WEATHER_RETRIES) {
+          weatherRetries.current += 1;
+          retry = setTimeout(() => setWeatherTick((t) => t + 1), WEATHER_RETRY_MS);
+        }
       })
       .catch((e) => logError('Error loading weather:', e));
     return () => {
       alive = false;
+      clearTimeout(retry);
     };
   }, [placesKey, weatherTick]);
 

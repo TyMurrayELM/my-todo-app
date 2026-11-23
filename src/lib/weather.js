@@ -104,11 +104,15 @@ export const skyFromText = (text) => {
   return 'clear';
 };
 
+// How long Open-Meteo gets before the National Weather Service is tried
+const OPEN_METEO_TIMEOUT_MS = 8000;
+
 async function openMeteoWeather(points) {
   const res = await fetch(
     `${FORECAST_URL}?latitude=${points.map((x) => x.lat).join(',')}&longitude=${points
       .map((x) => x.lon)
-      .join(',')}&current=temperature_2m,weather_code,is_day&temperature_unit=fahrenheit`
+      .join(',')}&current=temperature_2m,weather_code,is_day&temperature_unit=fahrenheit`,
+    { signal: AbortSignal.timeout(OPEN_METEO_TIMEOUT_MS) }
   );
   if (!res.ok) throw new Error(`Weather lookup failed (${res.status})`);
   const json = await res.json();
@@ -162,3 +166,29 @@ export async function fetchCurrentWeather(points) {
     return Promise.all(points.map(nwsWeather));
   }
 }
+
+// A reading older than this is dropped rather than shown
+export const WEATHER_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+
+// Fold a refresh into the weather already shown. `places` are the people who
+// have a place now and `list` what came back for each (null where the lookup
+// failed). A failed lookup keeps that person's last reading while it is under
+// WEATHER_MAX_AGE_MS old, so a bad refresh never blanks the list; people with
+// no place any more are dropped. Every reading carries `at` (ms).
+export const mergeWeather = (prev, places, list, now = Date.now()) => {
+  const next = {};
+  places.forEach((place, i) => {
+    if (list[i]) next[place.id] = { ...list[i], at: now };
+    else if (prev[place.id] && now - (prev[place.id].at ?? 0) < WEATHER_MAX_AGE_MS)
+      next[place.id] = prev[place.id];
+  });
+  return next;
+};
+
+// Readings still young enough to show (for the copy kept between visits)
+export const freshWeather = (saved, now = Date.now()) =>
+  Object.fromEntries(
+    Object.entries(saved || {}).filter(
+      ([, w]) => w && typeof w.tempF === 'number' && now - (w.at ?? 0) < WEATHER_MAX_AGE_MS
+    )
+  );

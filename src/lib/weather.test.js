@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { skyFromCode, skyFromText, skyLabel, parsePlace, pickPlace, placeLabel } from './weather';
+import {
+  skyFromCode,
+  skyFromText,
+  skyLabel,
+  parsePlace,
+  pickPlace,
+  placeLabel,
+  mergeWeather,
+  freshWeather,
+  WEATHER_MAX_AGE_MS,
+} from './weather';
 
 describe('skyFromCode', () => {
   it('maps weather codes to a sky', () => {
@@ -63,5 +73,45 @@ describe('pickPlace', () => {
   it('labels a place, with the country outside the US', () => {
     expect(placeLabel(results[1])).toBe('Portland, Maine');
     expect(placeLabel(results[2])).toBe('Portland, Victoria, Australia');
+  });
+});
+
+describe('mergeWeather', () => {
+  const now = 1_000_000_000;
+  const w = (tempF, at) => ({ tempF, sky: 'clear', night: false, label: 'Sunny', at });
+  const places = [{ id: 'a' }, { id: 'b' }];
+
+  it('takes new readings, stamped with the time', () => {
+    const next = mergeWeather({}, places, [w(70), w(60)], now);
+    expect(next.a.tempF).toBe(70);
+    expect(next.b.at).toBe(now);
+  });
+  it('keeps the last reading when a lookup fails', () => {
+    const prev = { a: w(65, now - 1000), b: w(55, now - 1000) };
+    const next = mergeWeather(prev, places, [null, w(61)], now);
+    expect(next.a).toEqual(prev.a);
+    expect(next.b.tempF).toBe(61);
+  });
+  it('keeps everything shown when the whole refresh fails', () => {
+    const prev = { a: w(65, now - 1000), b: w(55, now - 1000) };
+    expect(mergeWeather(prev, places, [null, null], now)).toEqual(prev);
+  });
+  it('drops a reading that is too old, and people with no place now', () => {
+    const prev = { a: w(65, now - WEATHER_MAX_AGE_MS), gone: w(50, now) };
+    expect(mergeWeather(prev, places, [null, null], now)).toEqual({});
+  });
+});
+
+describe('freshWeather', () => {
+  const now = 1_000_000_000;
+  it('keeps only young, well-formed readings', () => {
+    const saved = {
+      a: { tempF: 70, at: now - 1000 },
+      b: { tempF: 70, at: now - WEATHER_MAX_AGE_MS - 1 },
+      c: { tempF: 'x', at: now },
+      d: null,
+    };
+    expect(Object.keys(freshWeather(saved, now))).toEqual(['a']);
+    expect(freshWeather(null, now)).toEqual({});
   });
 });
