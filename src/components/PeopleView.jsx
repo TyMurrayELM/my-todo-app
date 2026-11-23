@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ArrowLeft, Plus, Search, Trash2, Repeat, Cake, X, Check, Pencil } from 'lucide-react';
 import { getLocalDateString } from '../lib/dates';
 import { describeCustomFrequency } from '../lib/frequency';
+import SkyIcon from './SkyIcon';
 import { MAX_TASK_LENGTH } from '../lib/constants';
 import {
   BIRTHDAY_TAG,
@@ -401,6 +402,94 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
   );
 }
 
+// "Has pets" checkbox; ticked, it opens a list of pets (name and kind) to
+// add to. Unticking hides the list but keeps what was entered.
+function PetsField({ person, onSave }) {
+  const pets = Array.isArray(person.pets) ? person.pets : [];
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState('');
+  const [saved, flash] = useFlash();
+  const savePets = async (next) => {
+    if (await onSave({ pets: next })) flash();
+  };
+  const add = async () => {
+    if (!name.trim()) return;
+    const next = [...pets, { name: name.trim(), kind: kind.trim() }];
+    setName('');
+    setKind('');
+    await savePets(next);
+  };
+  return (
+    <div>
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-gray-300"
+          checked={!!person.has_pets}
+          onChange={(e) => onSave({ has_pets: e.target.checked })}
+        />
+        <span className={`${labelCls} mb-0`}>
+          Has pets
+          <SavedTick show={saved} />
+        </span>
+      </label>
+      {person.has_pets && (
+        <div className="mt-1.5 space-y-1.5">
+          {pets.map((pet, i) => (
+            <div
+              key={`${pet.name}-${i}`}
+              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+                <span className="font-medium">{pet.name}</span>
+                {pet.kind ? <span className="text-gray-500"> · {pet.kind}</span> : null}
+              </span>
+              <button
+                type="button"
+                onClick={() => savePets(pets.filter((_, j) => j !== i))}
+                className="text-gray-400 hover:text-red-600"
+                aria-label={`Remove ${pet.name}`}
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              aria-label="Pet name"
+              className={`${inputCls} flex-[2]`}
+              placeholder="Pet's name"
+              maxLength={60}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && add()}
+            />
+            <input
+              type="text"
+              aria-label="Kind of pet"
+              className={`${inputCls} flex-1`}
+              placeholder="Dog"
+              maxLength={40}
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && add()}
+            />
+            <button
+              type="button"
+              onClick={add}
+              disabled={!name.trim() || pets.length >= 20}
+              className="flex-shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BirthdayField({ person, onSave }) {
   const [month, setMonth] = useState(person.birthday_month ?? '');
   const [dayOf, setDayOf] = useState(person.birthday_day ?? '');
@@ -620,6 +709,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
               </div>
             </div>
           )}
+          <PetsField person={person} onSave={save} />
           <Field
             label="Employer"
             value={person.employer}
@@ -627,6 +717,39 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             placeholder="Company, role"
             onSave={(v) => save({ employer: v })}
           />
+          <div>
+            <Field
+              label="Currently lives"
+              value={person.lives_in}
+              maxLength={MAX_PERSON_FIELD}
+              placeholder="City, State"
+              onSave={(v) => actions.saveLivesIn(person.id, v)}
+            />
+            {person.lives_in && person.lives_lat == null && (
+              <p className="mt-1 text-xs text-gray-500">
+                No weather: couldn&apos;t match that place. Try &quot;City, State&quot;.
+              </p>
+            )}
+            {person.lives_lat != null && (
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                {actions.weather[person.id] ? (
+                  <>
+                    <SkyIcon
+                      sky={actions.weather[person.id].sky}
+                      night={actions.weather[person.id].night}
+                    />
+                    <span className="font-medium text-gray-700">
+                      {actions.weather[person.id].tempF}°
+                    </span>
+                    <span>{actions.weather[person.id].label} now in</span>
+                  </>
+                ) : (
+                  <span>Weather for</span>
+                )}
+                <span className="truncate">{person.lives_label}</span>
+              </p>
+            )}
+          </div>
           <Field
             label="From"
             value={person.from_place}
@@ -863,8 +986,17 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
 // The People screen: a searchable list, and one person's page. `peopleData`
 // is the usePeople hook; `onOpenDate(YYYY-MM-DD)` opens that day's to-do list.
 export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, onOpenDate }) {
-  const { people, updates, reminders, completions, childLinks, loaded, error, dismissError } =
-    peopleData;
+  const {
+    people,
+    updates,
+    reminders,
+    completions,
+    childLinks,
+    weather,
+    loaded,
+    error,
+    dismissError,
+  } = peopleData;
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('all');
   const [newName, setNewName] = useState('');
@@ -894,6 +1026,8 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
             spouseName[p.spouse_id],
             kidNames[p.id],
             p.from_place,
+            p.lives_in,
+            p.has_pets && Array.isArray(p.pets) ? p.pets.map((x) => x.name).join(' ') : null,
             p.sports_teams,
             p.notes,
           ].some((f) => f && f.toLowerCase().includes(q))
@@ -927,15 +1061,28 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-gray-900">{p.name}</div>
           <div className="truncate text-xs text-gray-500">
-            {[p.employer, p.from_place, formatBirthday({ ...p, birthday_year: null })]
+            {[p.employer, p.lives_in || p.from_place, formatBirthday({ ...p, birthday_year: null })]
               .filter(Boolean)
               .join(' · ') || (p.kind === 'work' ? 'Work' : 'Personal')}
           </div>
         </div>
         <div
-          className={`flex-shrink-0 text-xs ${due ? 'font-semibold text-red-600' : 'text-gray-400'}`}
+          className={`flex-shrink-0 text-right text-xs ${due ? 'font-semibold text-red-600' : 'text-gray-400'}`}
         >
           {last ? formatAgo(last) : 'no contact yet'}
+          {weather[p.id] && (
+            <div
+              className="mt-0.5 flex items-center justify-end gap-1 font-normal text-gray-500"
+              title={`${weather[p.id].label}, ${weather[p.id].tempF}° in ${p.lives_label}`}
+            >
+              <SkyIcon
+                sky={weather[p.id].sky}
+                night={weather[p.id].night}
+                className="h-[15px] w-[15px]"
+              />
+              {weather[p.id].tempF}°
+            </div>
+          )}
         </div>
       </button>
     </li>

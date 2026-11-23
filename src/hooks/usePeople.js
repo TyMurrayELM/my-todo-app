@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { logError } from '../lib/log';
+import { geocodePlace, fetchCurrentWeather } from '../lib/weather';
 import { getLocalDateString, parseUTCDateAsLocal } from '../lib/dates';
 import {
   BIRTHDAY_TAG,
@@ -34,6 +35,10 @@ export function usePeople(session) {
   const [completions, setCompletions] = useState([]);
   // Parent -> child links between profiles: { id, parent_id, child_id }
   const [childLinks, setChildLinks] = useState([]);
+  // person id -> current weather where they live ({ tempF, sky, night, label })
+  const [weather, setWeather] = useState({});
+  const [weatherTick, setWeatherTick] = useState(0);
+  const weatherAt = useRef(0);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(null);
 
@@ -117,7 +122,39 @@ export function usePeople(session) {
     setCompletions(completionRows);
     setError(null);
     setLoaded(true);
+    // Opening People again after a while brings fresh weather
+    if (Date.now() - weatherAt.current > 15 * 60 * 1000) setWeatherTick((t) => t + 1);
   }, [userId]);
+
+  // Current weather for everyone with a matched "Currently lives" place, in
+  // one request. Runs when someone's place changes and on the refresh above.
+  const placesKey = people
+    .filter((p) => p.lives_lat != null && p.lives_lon != null)
+    .map((p) => `${p.id}:${p.lives_lat},${p.lives_lon}`)
+    .join('|');
+  useEffect(() => {
+    if (!placesKey) return;
+    let alive = true;
+    const places = placesKey.split('|').map((entry) => {
+      const [id, coords] = entry.split(':');
+      const [lat, lon] = coords.split(',');
+      return { id, lat, lon };
+    });
+    fetchCurrentWeather(places)
+      .then((list) => {
+        if (!alive) return;
+        const map = {};
+        places.forEach((place, i) => {
+          if (list[i]) map[place.id] = list[i];
+        });
+        weatherAt.current = Date.now();
+        setWeather(map);
+      })
+      .catch((e) => logError('Error loading weather:', e));
+    return () => {
+      alive = false;
+    };
+  }, [placesKey, weatherTick]);
 
   useEffect(() => {
     if (hasAccess) load();
@@ -227,6 +264,25 @@ export function usePeople(session) {
       }
     }
     return true;
+  };
+
+  // Save where someone lives, looking the place up so its weather can show.
+  // A place that can't be matched is still saved, just without weather.
+  const saveLivesIn = async (id, text) => {
+    let place = null;
+    if (text) {
+      try {
+        place = await geocodePlace(text);
+      } catch (e) {
+        logError('Error looking up place:', e);
+      }
+    }
+    return savePerson(id, {
+      lives_in: text || null,
+      lives_lat: place?.lat ?? null,
+      lives_lon: place?.lon ?? null,
+      lives_label: place?.label ?? null,
+    });
   };
 
   // Link a profile as this person's child. When the person has a spouse the
@@ -454,6 +510,7 @@ export function usePeople(session) {
     reminders,
     completions,
     childLinks,
+    weather,
     personNames,
     addPerson,
     setSpouse,
@@ -462,6 +519,7 @@ export function usePeople(session) {
     editUpdate,
     unlinkUpdate,
     savePerson,
+    saveLivesIn,
     deletePerson,
     addUpdate,
     deleteUpdate,

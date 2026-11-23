@@ -122,3 +122,17 @@ create policy "person_children: own rows, People access only" on public.person_c
 -- spouse / kids / parents whose profiles show it too.
 alter table public.person_updates
   add column if not exists also_person_ids uuid[] not null default '{}';
+
+-- 8. Where they live now, for current weather (added 2026-11-22) ----------------
+-- lives_in is what was typed; the rest is the place it was matched to.
+alter table public.people
+  add column if not exists lives_in text check (char_length(lives_in) <= 200),
+  add column if not exists lives_lat double precision,
+  add column if not exists lives_lon double precision,
+  add column if not exists lives_label text;
+
+-- 9. Pets (added 2026-11-22) -----------------------------------------------------
+-- has_pets is the checkbox; pets is a list like [{"name": "Rex", "kind": "Dog"}].
+alter table public.people
+  add column if not exists has_pets boolean not null default false,
+  add column if not exists pets jsonb not null default '[]'::jsonb;
