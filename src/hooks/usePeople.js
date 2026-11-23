@@ -279,6 +279,28 @@ export function usePeople(session) {
     if (upError) fail("Couldn't copy where they live to their spouse", upError);
   };
 
+  // Kids marked under 18 live with their parents: put a place on every such
+  // child of the given parents
+  const copyPlaceToMinors = async (from, parentIds) => {
+    const kidIds = [
+      ...new Set(childLinks.filter((l) => parentIds.includes(l.parent_id)).map((l) => l.child_id)),
+    ].filter((kidId) => people.find((p) => p.id === kidId)?.is_minor);
+    for (const kidId of kidIds) await copyPlace(from, kidId);
+  };
+
+  // Mark a child as under 18 (or not). Marked, they take their parents' place
+  // now and follow it from then on.
+  const setMinor = async (childId, on) => {
+    const ok = await savePerson(childId, { is_minor: on });
+    if (!ok || !on) return ok;
+    const parent = childLinks
+      .filter((l) => l.child_id === childId)
+      .map((l) => people.find((p) => p.id === l.parent_id))
+      .find((p) => p?.lives_in);
+    if (parent) await copyPlace(parent, childId);
+    return ok;
+  };
+
   // Save where someone lives, looking the place up so its weather can show.
   // A place that can't be matched is still saved, just without weather.
   const saveLivesIn = async (id, text) => {
@@ -298,8 +320,10 @@ export function usePeople(session) {
     };
     const spouseId = people.find((p) => p.id === id)?.spouse_id;
     const ok = await savePerson(id, patch);
-    // a spouse moves with them (clearing the place clears it for both)
+    // a spouse and any kids under 18 move with them (clearing the place
+    // clears it for all of them)
     if (ok && spouseId) await copyPlace(patch, spouseId);
+    if (ok) await copyPlaceToMinors(patch, [id, spouseId].filter(Boolean));
     return ok;
   };
 
@@ -328,6 +352,8 @@ export function usePeople(session) {
       .select('id,parent_id,child_id');
     if (insError) return fail("Couldn't save that link", insError);
     setChildLinks((prev) => [...prev, ...data]);
+    // a child already marked under 18 takes the parent's place
+    if (child.is_minor && parent.lives_in) await copyPlace(parent, child.id);
     return true;
   };
 
@@ -381,8 +407,13 @@ export function usePeople(session) {
     // Newly linked spouses share where they live: this profile's place if it
     // has one, else the spouse's
     if (spouse) {
-      if (me.lives_in) await copyPlace(me, spouse.id);
-      else if (spouse.lives_in) await copyPlace(spouse, personId);
+      if (me.lives_in) {
+        await copyPlace(me, spouse.id);
+        await copyPlaceToMinors(me, [spouse.id]);
+      } else if (spouse.lives_in) {
+        await copyPlace(spouse, personId);
+        await copyPlaceToMinors(spouse, [personId]);
+      }
     }
     return true;
   };
@@ -544,6 +575,7 @@ export function usePeople(session) {
     unlinkUpdate,
     savePerson,
     saveLivesIn,
+    setMinor,
     deletePerson,
     addUpdate,
     deleteUpdate,

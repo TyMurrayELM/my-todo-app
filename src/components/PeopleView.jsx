@@ -175,7 +175,7 @@ function PersonPicker({
 }
 
 // A linked profile: its name opens it, the x removes the link
-function PersonLink({ person, note, onOpen, onRemove, removeLabel }) {
+function PersonLink({ person, note, extra, onOpen, onRemove, removeLabel }) {
   return (
     <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2">
       <button
@@ -187,6 +187,7 @@ function PersonLink({ person, note, onOpen, onRemove, removeLabel }) {
         {person.name}
         {note ? <span className="font-normal text-gray-500"> {note}</span> : null}
       </button>
+      {extra}
       {onRemove && (
         <button
           type="button"
@@ -255,6 +256,22 @@ function KidsField({ person, people, childLinks, actions, onOpenPerson }) {
               key={kid.id}
               person={kid}
               note={age !== null ? `(${age})` : ''}
+              extra={
+                <button
+                  type="button"
+                  aria-pressed={!!kid.is_minor}
+                  onClick={() => actions.setMinor(kid.id, !kid.is_minor)}
+                  title="Under 18: lives with their parents, so Currently lives follows theirs"
+                  className={`flex flex-shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    kid.is_minor
+                      ? 'border-gray-800 bg-gray-800 text-white'
+                      : 'border-gray-300 bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  {kid.is_minor && <Check size={11} />}
+                  Under 18
+                </button>
+              }
               onOpen={onOpenPerson}
               onRemove={() => actions.removeChild(person.id, kid.id)}
               removeLabel={`Unlink ${kid.name} as a child`}
@@ -707,6 +724,15 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
                   <PersonLink key={x.id} person={x} onOpen={onOpenPerson} />
                 ))}
               </div>
+              <label className="mt-1.5 flex items-center gap-2 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300"
+                  checked={!!person.is_minor}
+                  onChange={(e) => actions.setMinor(person.id, e.target.checked)}
+                />
+                Under 18 (lives with parents)
+              </label>
             </div>
           )}
           <PetsField person={person} onSave={save} />
@@ -718,13 +744,26 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             onSave={(v) => save({ employer: v })}
           />
           <div>
-            <Field
-              label="Currently lives"
-              value={person.lives_in}
-              maxLength={MAX_PERSON_FIELD}
-              placeholder="City, State"
-              onSave={(v) => actions.saveLivesIn(person.id, v)}
-            />
+            {person.is_minor && parents.length > 0 ? (
+              // under 18: the place is their parents', changed on a parent's page
+              <div>
+                <span className={labelCls}>Currently lives</span>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  {person.lives_in || 'Not set on their parents yet'}
+                  <span className="text-gray-400"> · with parents</span>
+                </div>
+              </div>
+            ) : (
+              <Field
+                // rebuilt when the place is changed from a spouse's or parent's page
+                key={person.lives_in ?? ''}
+                label="Currently lives"
+                value={person.lives_in}
+                maxLength={MAX_PERSON_FIELD}
+                placeholder="City, State"
+                onSave={(v) => actions.saveLivesIn(person.id, v)}
+              />
+            )}
             {person.lives_in && person.lives_lat == null && (
               <p className="mt-1 text-xs text-gray-500">
                 No weather: couldn&apos;t match that place. Try &quot;City, State&quot;.

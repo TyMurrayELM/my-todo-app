@@ -136,3 +136,8 @@ alter table public.people
 alter table public.people
   add column if not exists has_pets boolean not null default false,
   add column if not exists pets jsonb not null default '[]'::jsonb;
+
+-- 10. Kids under 18 live with their parents (added 2026-11-22) -------------------
+-- Marked, a child's Currently lives is kept the same as their parents'.
+alter table public.people
+  add column if not exists is_minor boolean not null default false;
