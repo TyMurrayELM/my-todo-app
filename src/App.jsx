@@ -665,6 +665,7 @@ function App() {
           <div className="pt-20 px-4">
             <PeopleView
               peopleData={peopleData}
+              colorTheme={colorTheme}
               openPersonId={openPersonId}
               setOpenPersonId={setOpenPersonId}
               onOpenDate={(dateString) => {

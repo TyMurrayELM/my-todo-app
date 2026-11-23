@@ -1,5 +1,23 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Plus, Search, Trash2, Repeat, Cake, X, Check, Pencil } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  Search,
+  Trash2,
+  Repeat,
+  Cake,
+  X,
+  Check,
+  Pencil,
+  User,
+  Heart,
+  Briefcase,
+  StickyNote,
+  Bell,
+  MessageSquare,
+  MapPin,
+  Clock,
+} from 'lucide-react';
 import { getLocalDateString } from '../lib/dates';
 import { describeCustomFrequency } from '../lib/frequency';
 import SkyIcon from './SkyIcon';
@@ -33,10 +51,95 @@ const KINDS = [
   { value: 'both', label: 'Both' },
 ];
 
+// The People screen takes its accent from the colour theme picked in the
+// header. The shades are set once as CSS variables on the screen's outer
+// element (--pa-50 ... --pa-800) and every class below reads them.
+const ACCENTS = {
+  amber: ['#fffbeb', '#fef3c7', '#fde68a', '#fbbf24', '#f59e0b', '#b45309', '#92400e'],
+  blue: ['#eff6ff', '#dbeafe', '#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8', '#1e40af'],
+  green: ['#f0fdf4', '#dcfce7', '#bbf7d0', '#4ade80', '#22c55e', '#15803d', '#166534'],
+  purple: ['#faf5ff', '#f3e8ff', '#e9d5ff', '#c084fc', '#a855f7', '#7e22ce', '#6b21a8'],
+  pink: ['#fdf2f8', '#fce7f3', '#fbcfe8', '#f472b6', '#ec4899', '#be185d', '#9d174d'],
+};
+const ACCENT_SHADES = [50, 100, 200, 400, 500, 700, 800];
+const accentVars = (theme) =>
+  Object.fromEntries(
+    (ACCENTS[theme] || ACCENTS.amber).map((hex, i) => [`--pa-${ACCENT_SHADES[i]}`, hex])
+  );
+
 const inputCls =
-  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-gray-500 focus:outline-none';
+  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-[color:var(--pa-500)] focus:outline-none focus:ring-2 focus:ring-[color:var(--pa-200)]';
 const labelCls = 'block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1';
 const cardCls = 'rounded-2xl bg-white border border-gray-200 shadow-sm p-4';
+const solidBtnCls =
+  'font-semibold text-white bg-[color:var(--pa-700)] hover:bg-[color:var(--pa-800)] disabled:opacity-40';
+const pillOnCls = 'border-[color:var(--pa-700)] bg-[color:var(--pa-700)] text-white';
+const pillOffCls = 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50';
+const linkCls = 'text-[color:var(--pa-700)] hover:underline';
+const checkboxCls = 'h-4 w-4 rounded border-gray-300 accent-[color:var(--pa-700)]';
+
+// Initials in a tinted circle. The tint is one of three, picked by the name,
+// so a list of people is not one flat column of the same colour.
+const AVATAR_TINTS = [
+  { background: 'var(--pa-100)', color: 'var(--pa-800)' },
+  { background: 'var(--pa-200)', color: 'var(--pa-800)' },
+  {
+    background: 'var(--pa-50)',
+    color: 'var(--pa-700)',
+    boxShadow: 'inset 0 0 0 1px var(--pa-200)',
+  },
+];
+function Avatar({ name, large }) {
+  const words = String(name || '')
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
+    .filter(Boolean);
+  const initials =
+    ((words[0]?.[0] ?? '') + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase() ||
+    '?';
+  let hash = 0;
+  for (const ch of String(name || '')) hash = (hash * 31 + ch.codePointAt(0)) % 997;
+  return (
+    <span
+      aria-hidden="true"
+      style={AVATAR_TINTS[hash % AVATAR_TINTS.length]}
+      className={`flex flex-shrink-0 items-center justify-center rounded-full font-semibold ${
+        large ? 'h-14 w-14 text-lg' : 'h-9 w-9 text-xs'
+      }`}
+    >
+      {initials}
+    </span>
+  );
+}
+
+// A card's heading: a small tinted icon and the title
+function CardTitle({ icon: Icon, children }) {
+  return (
+    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
+      <span
+        className="flex h-6 w-6 items-center justify-center rounded-md"
+        style={{ background: 'var(--pa-100)', color: 'var(--pa-700)' }}
+      >
+        <Icon size={14} />
+      </span>
+      {children}
+    </h3>
+  );
+}
+
+// One fact in the strip under a person's name
+function Fact({ icon: Icon, alert, children }) {
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded-full px-2.5 py-1 text-xs ${
+        alert ? 'bg-red-50 font-medium text-red-700' : 'bg-gray-100 text-gray-700'
+      }`}
+    >
+      <Icon size={12} className="flex-shrink-0" />
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
 
 // A small green "Saved" that shows for a moment after a save lands
 function SavedTick({ show }) {
@@ -181,7 +284,7 @@ function PersonLink({ person, note, extra, onOpen, onRemove, removeLabel }) {
       <button
         type="button"
         onClick={() => onOpen(person.id)}
-        className="min-w-0 flex-1 truncate text-left text-sm font-medium text-blue-700 hover:underline"
+        className={`min-w-0 flex-1 truncate text-left text-sm font-medium ${linkCls}`}
         title={`Open ${person.name}`}
       >
         {person.name}
@@ -263,9 +366,7 @@ function KidsField({ person, people, childLinks, actions, onOpenPerson }) {
                   onClick={() => actions.setMinor(kid.id, !kid.is_minor)}
                   title="Under 18: lives with their parents, so Currently lives follows theirs"
                   className={`flex flex-shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                    kid.is_minor
-                      ? 'border-gray-800 bg-gray-800 text-white'
-                      : 'border-gray-300 bg-white text-gray-500 hover:bg-gray-50'
+                    kid.is_minor ? pillOnCls : pillOffCls
                   }`}
                 >
                   {kid.is_minor && <Check size={11} />}
@@ -319,7 +420,7 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
   const [saved, showSaved] = useFlash();
   if (editing) {
     return (
-      <li className="space-y-2 py-2">
+      <li className="relative space-y-2 py-2 pl-4">
         <textarea
           rows={3}
           aria-label="Edit update"
@@ -345,7 +446,7 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
               if (text.trim() === update.text && date === update.happened_on) return;
               if (await actions.editUpdate(update.id, text, date)) showSaved();
             }}
-            className="rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+            className={`rounded-lg px-3 py-2 text-sm ${solidBtnCls}`}
           >
             Save
           </button>
@@ -366,12 +467,18 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
   }
   return (
     <li
-      className={`-mx-2 flex items-start gap-1 rounded-lg px-2 py-2 transition-colors duration-700 ${
+      className={`relative flex items-start gap-1 rounded-r-lg py-2 pl-4 transition-colors duration-700 ${
         flash || saved ? 'bg-emerald-50' : ''
       }`}
     >
+      {/* the dot on the timeline line drawn by the list */}
+      <span
+        aria-hidden="true"
+        className="absolute -left-[5px] top-[13px] h-2 w-2 rounded-full ring-2 ring-white"
+        style={{ background: 'var(--pa-400)' }}
+      />
       <div className="min-w-0 flex-1">
-        <div className="text-xs text-gray-500">
+        <div className="text-xs font-medium text-[color:var(--pa-700)]">
           {formatDay(update.happened_on)}
           <SavedTick show={flash || saved} />
         </div>
@@ -382,11 +489,7 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
             {(from ? [from] : also).map((x, i) => (
               <span key={x.id}>
                 {i > 0 ? ', ' : ''}
-                <button
-                  type="button"
-                  onClick={() => onOpenPerson(x.id)}
-                  className="text-blue-700 hover:underline"
-                >
+                <button type="button" onClick={() => onOpenPerson(x.id)} className={linkCls}>
                   {x.name}
                 </button>
               </span>
@@ -441,7 +544,7 @@ function PetsField({ person, onSave }) {
       <label className="flex items-center gap-2">
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-gray-300"
+          className={checkboxCls}
           checked={!!person.has_pets}
           onChange={(e) => onSave({ has_pets: e.target.checked })}
         />
@@ -496,7 +599,7 @@ function PetsField({ person, onSave }) {
               type="button"
               onClick={add}
               disabled={!name.trim() || pets.length >= 20}
-              className="flex-shrink-0 rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+              className={`flex-shrink-0 rounded-lg px-3 py-2 text-sm ${solidBtnCls}`}
             >
               Add
             </button>
@@ -676,7 +779,49 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
         <ArrowLeft size={16} /> All people
       </button>
 
+      <div className={`${cardCls} relative overflow-hidden pt-5`}>
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-1.5"
+          style={{
+            background: 'linear-gradient(to right, var(--pa-200), var(--pa-500), var(--pa-800))',
+          }}
+        />
+        <div className="flex items-center gap-3">
+          <Avatar name={person.name} large />
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-semibold leading-tight text-gray-900">
+              {person.name}
+            </h2>
+            <p className="truncate text-sm text-gray-500">
+              {[KINDS.find((k) => k.value === person.kind)?.label, person.employer]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <Fact icon={Clock} alert={isOverdue(person, last)}>
+            {last ? `Last contact ${formatAgo(last)}` : 'No contact yet'}
+            {isOverdue(person, last) ? ' · reach out' : ''}
+          </Fact>
+          {formatBirthday(person) && (
+            <Fact icon={Cake}>
+              {formatBirthday({ ...person, birthday_year: null })}
+              {turningAge(person) ? ` · turns ${turningAge(person)}` : ''}
+            </Fact>
+          )}
+          {person.lives_in && (
+            <Fact icon={MapPin}>
+              {person.lives_in}
+              {actions.weather[person.id] ? ` · ${actions.weather[person.id].tempF}°` : ''}
+            </Fact>
+          )}
+        </div>
+      </div>
+
       <div className={cardCls}>
+        <CardTitle icon={User}>Basics</CardTitle>
         <div className="space-y-3">
           <Field
             label="Name"
@@ -692,9 +837,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
                   key={k.value}
                   onClick={() => person.kind !== k.value && save({ kind: k.value })}
                   className={`rounded-full px-3 py-1 text-xs font-medium border ${
-                    person.kind === k.value
-                      ? 'bg-gray-800 text-white border-gray-800'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    person.kind === k.value ? pillOnCls : pillOffCls
                   }`}
                 >
                   {k.label}
@@ -703,6 +846,12 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             </div>
           </div>
           <BirthdayField person={person} onSave={save} />
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <CardTitle icon={Heart}>Family</CardTitle>
+        <div className="space-y-3">
           <SpouseField
             person={person}
             people={actions.people}
@@ -727,7 +876,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
               <label className="mt-1.5 flex items-center gap-2 text-xs text-gray-600">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300"
+                  className={checkboxCls}
                   checked={!!person.is_minor}
                   onChange={(e) => actions.setMinor(person.id, e.target.checked)}
                 />
@@ -736,6 +885,12 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             </div>
           )}
           <PetsField person={person} onSave={save} />
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <CardTitle icon={Briefcase}>Work and places</CardTitle>
+        <div className="space-y-3">
           <Field
             label="Employer"
             value={person.employer}
@@ -801,6 +956,12 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             maxLength={MAX_PERSON_LONG_FIELD}
             onSave={(v) => save({ sports_teams: v })}
           />
+        </div>
+      </div>
+
+      <div className={cardCls}>
+        <CardTitle icon={StickyNote}>Notes and keeping in touch</CardTitle>
+        <div className="space-y-3">
           <Field
             label="Notes"
             value={person.notes}
@@ -823,7 +984,11 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-xs text-gray-500">
+            <span
+              className={`mt-1 block text-xs ${
+                isOverdue(person, last) ? 'font-medium text-red-600' : 'text-gray-500'
+              }`}
+            >
               Last contact: {formatAgo(last)}
               {isOverdue(person, last) ? ' · due to reach out' : ''}
             </span>
@@ -832,7 +997,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
       </div>
 
       <div className={cardCls}>
-        <h3 className="text-sm font-semibold text-gray-800 mb-2">Reminders</h3>
+        <CardTitle icon={Bell}>Reminders</CardTitle>
         <form onSubmit={submitReminder} className="space-y-2">
           <input
             type="text"
@@ -867,7 +1032,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
           <button
             type="submit"
             disabled={!reminderText.trim() || !reminderDate || busy}
-            className="w-full rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+            className={`w-full rounded-lg px-3 py-2 text-sm ${solidBtnCls}`}
           >
             Add to my to-do list
           </button>
@@ -912,7 +1077,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
       </div>
 
       <div className={cardCls}>
-        <h3 className="text-sm font-semibold text-gray-800 mb-2">Updates</h3>
+        <CardTitle icon={MessageSquare}>Updates</CardTitle>
         <form onSubmit={submitUpdate} className="space-y-2">
           <textarea
             rows={2}
@@ -937,9 +1102,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
                       setAlsoIds((cur) => (on ? cur.filter((x) => x !== f.id) : [...cur, f.id]))
                     }
                     className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                      on
-                        ? 'border-gray-800 bg-gray-800 text-white'
-                        : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                      on ? pillOnCls : pillOffCls
                     }`}
                   >
                     {on && <Check size={12} />}
@@ -961,7 +1124,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             <button
               type="submit"
               disabled={!updateText.trim() || busy}
-              className="flex-1 rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+              className={`flex-1 rounded-lg px-3 py-2 text-sm ${solidBtnCls}`}
             >
               Save update
             </button>
@@ -970,7 +1133,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
         {myUpdates.length === 0 ? (
           <p className="mt-3 text-xs text-gray-500">No updates yet.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-gray-100">
+          <ul className="ml-1 mt-4 border-l-2 border-[color:var(--pa-100)]">
             {myUpdates.map((u) => (
               <UpdateRow
                 key={u.id}
@@ -1024,7 +1187,13 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
 
 // The People screen: a searchable list, and one person's page. `peopleData`
 // is the usePeople hook; `onOpenDate(YYYY-MM-DD)` opens that day's to-do list.
-export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, onOpenDate }) {
+export default function PeopleView({
+  peopleData,
+  openPersonId,
+  setOpenPersonId,
+  onOpenDate,
+  colorTheme,
+}) {
   const {
     people,
     updates,
@@ -1095,6 +1264,11 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
   }, [people, childLinks, tucked, data, query, kind]);
   const overdue = rows.filter((r) => r.overdue);
   const rest = rows.filter((r) => !r.overdue);
+  // Everyone due, whatever the search box and filter are showing
+  const dueCount = useMemo(
+    () => people.filter((p) => !tucked.has(p.id) && isOverdue(p, lastContact(p.id, data))).length,
+    [people, tucked, data]
+  );
 
   const add = async (e) => {
     e.preventDefault();
@@ -1114,6 +1288,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
         onClick={() => setOpenPersonId(p.id)}
         className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
       >
+        <Avatar name={p.name} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-gray-900">{p.name}</div>
           <div className="truncate text-xs text-gray-500">
@@ -1142,7 +1317,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
         </div>
       </button>
       {minorsOf[p.id] && (
-        <ul className="pb-2 pl-7 pr-4">
+        <ul className="pb-2 pl-16 pr-4">
           {minorsOf[p.id].map((kid) => {
             const age = currentAge(kid);
             return (
@@ -1166,7 +1341,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
   );
 
   return (
-    <div className="max-w-md mx-auto">
+    <div className="max-w-md mx-auto" style={accentVars(colorTheme)}>
       {error && (
         <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
           <span className="flex-1">{error}</span>
@@ -1190,6 +1365,15 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
         />
       ) : (
         <div className="space-y-3 pb-10">
+          <div className="flex items-baseline justify-between px-1">
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900">People</h1>
+            {loaded && people.length > 0 && (
+              <span className="text-xs text-gray-500">
+                {people.length - tucked.size} people
+                {dueCount > 0 ? ` · ${dueCount} to reach out` : ''}
+              </span>
+            )}
+          </div>
           <form onSubmit={add} className="flex gap-2">
             <input
               type="text"
@@ -1203,7 +1387,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
             <button
               type="submit"
               disabled={!newName.trim() || adding}
-              className="flex flex-shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 disabled:opacity-40"
+              className={`flex flex-shrink-0 items-center gap-1 rounded-lg px-3 py-2 text-sm ${solidBtnCls}`}
             >
               <Plus size={16} /> Add
             </button>
@@ -1230,9 +1414,7 @@ export default function PeopleView({ peopleData, openPersonId, setOpenPersonId, 
                     key={k.value}
                     onClick={() => setKind(k.value)}
                     className={`rounded-full px-3 py-1 text-xs font-medium border ${
-                      kind === k.value
-                        ? 'bg-gray-800 text-white border-gray-800'
-                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                      kind === k.value ? pillOnCls : pillOffCls
                     }`}
                   >
                     {k.label}
