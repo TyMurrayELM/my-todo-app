@@ -141,3 +141,9 @@ alter table public.people
 -- Marked, a child's Currently lives is kept the same as their parents'.
 alter table public.people
   add column if not exists is_minor boolean not null default false;
+
+-- 11. Tags (added 2026-11-23) ---------------------------------------------------
+-- A plain list like {"College", "Golf"}. The app trims them, keeps one spelling
+-- per tag whatever the capitals, and allows up to 12 per person.
+alter table public.people
+  add column if not exists tags text[] not null default '{}';

@@ -264,3 +264,84 @@ export const snippetAround = (text, query, pad = 28) => {
     (to < text.length ? '…' : '')
   );
 };
+
+// ---- Tags ("College", "Golf", "Neighbors") --------------------------------
+// A person's tags are a plain list of text on their row. Two tags that differ
+// only in capitals are the same tag: whichever spelling is already in use wins,
+// so "golf" typed next to an existing "Golf" stays "Golf".
+export const MAX_TAG_LENGTH = 30;
+export const MAX_TAGS_PER_PERSON = 12;
+
+const tagKey = (tag) => tag.toLowerCase();
+
+// Trimmed, inner spaces collapsed, cut to length. '' when nothing is left.
+export const cleanTag = (text) =>
+  (text ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_TAG_LENGTH).trim();
+
+export const tagsOf = (person) => (Array.isArray(person?.tags) ? person.tags : []);
+
+export const hasTag = (person, tag) => tagsOf(person).some((t) => tagKey(t) === tagKey(tag));
+
+// Every tag in use with how many people have it, most used first, then A-Z
+export const tagCounts = (people) => {
+  const byKey = new Map();
+  people.forEach((p) =>
+    tagsOf(p).forEach((t) => {
+      const k = tagKey(t);
+      const cur = byKey.get(k);
+      if (cur) cur.count += 1;
+      else byKey.set(k, { tag: t, count: 1 });
+    })
+  );
+  return [...byKey.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+};
+
+// The spelling to store for typed text: an existing tag's when one matches
+export const resolveTag = (text, knownTags = []) => {
+  const clean = cleanTag(text);
+  if (!clean) return '';
+  return knownTags.find((t) => tagKey(t) === tagKey(clean)) ?? clean;
+};
+
+// A person's tags with one more, or the same list when it is empty, already
+// there, or the person is at the limit
+export const addTag = (tags, text, knownTags = []) => {
+  const tag = resolveTag(text, knownTags);
+  if (!tag || tags.length >= MAX_TAGS_PER_PERSON) return tags;
+  if (tags.some((t) => tagKey(t) === tagKey(tag))) return tags;
+  return [...tags, tag];
+};
+
+export const removeTag = (tags, tag) => tags.filter((t) => tagKey(t) !== tagKey(tag));
+
+// A person's tags with `from` renamed to `to` (no duplicate if they had both)
+export const renameTagIn = (tags, from, to) => {
+  const next = [];
+  tags.forEach((t) => {
+    const name = tagKey(t) === tagKey(from) ? to : t;
+    if (!next.some((n) => tagKey(n) === tagKey(name))) next.push(name);
+  });
+  return next;
+};
+
+// What renaming `from` to the typed text should store: the spelling of
+// another tag in use when it matches (so the two merge), else the cleaned
+// text. '' when nothing is left.
+export const renameTarget = (people, from, toText) => {
+  const others = tagCounts(people)
+    .map((x) => x.tag)
+    .filter((t) => tagKey(t) !== tagKey(from));
+  return resolveTag(toText, others);
+};
+
+// Tags already in use that start with (or else contain) the typed text,
+// leaving out the ones the person has
+export const suggestTags = (text, knownTags, have = [], limit = 6) => {
+  const q = cleanTag(text).toLowerCase();
+  const haveKeys = new Set(have.map(tagKey));
+  const open = knownTags.filter((t) => !haveKeys.has(tagKey(t)));
+  if (!q) return open.slice(0, limit);
+  const starts = open.filter((t) => tagKey(t).startsWith(q));
+  const inside = open.filter((t) => !tagKey(t).startsWith(q) && tagKey(t).includes(q));
+  return [...starts, ...inside].slice(0, limit);
+};

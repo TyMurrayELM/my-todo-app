@@ -15,6 +15,17 @@ import {
   comingUp,
   formatUntil,
   snippetAround,
+  cleanTag,
+  hasTag,
+  tagCounts,
+  resolveTag,
+  addTag,
+  removeTag,
+  renameTagIn,
+  suggestTags,
+  renameTarget,
+  MAX_TAG_LENGTH,
+  MAX_TAGS_PER_PERSON,
 } from './people';
 import { getLocalDateString, shouldShowOnDate } from './dates';
 
@@ -212,5 +223,65 @@ describe('formatUntil and snippetAround', () => {
     expect(snippetAround('Short note', 'note')).toBe('Short note');
     expect(snippetAround('Short note', 'zebra')).toBe(null);
     expect(snippetAround('Short note', '  ')).toBe(null);
+  });
+});
+
+describe('tags', () => {
+  it('cleans typed text', () => {
+    expect(cleanTag('  Golf   buddies ')).toBe('Golf buddies');
+    expect(cleanTag('   ')).toBe('');
+    expect(cleanTag(null)).toBe('');
+    expect(cleanTag('x'.repeat(50))).toHaveLength(MAX_TAG_LENGTH);
+  });
+  it('reuses the spelling already in use', () => {
+    expect(resolveTag(' golf', ['Golf', 'Church'])).toBe('Golf');
+    expect(resolveTag('Hiking', ['Golf'])).toBe('Hiking');
+  });
+  it('adds a tag once, whatever the capitals', () => {
+    expect(addTag([], 'golf', ['Golf'])).toEqual(['Golf']);
+    expect(addTag(['Golf'], 'GOLF')).toEqual(['Golf']);
+    expect(addTag(['Golf'], '  ')).toEqual(['Golf']);
+    expect(addTag(['Golf'], 'Church')).toEqual(['Golf', 'Church']);
+  });
+  it('stops at the per-person limit', () => {
+    const full = Array.from({ length: MAX_TAGS_PER_PERSON }, (_, i) => `t${i}`);
+    expect(addTag(full, 'one more')).toBe(full);
+  });
+  it('removes a tag whatever the capitals', () => {
+    expect(removeTag(['Golf', 'Church'], 'golf')).toEqual(['Church']);
+  });
+  it('renames without leaving a duplicate', () => {
+    expect(renameTagIn(['Golf', 'Church'], 'golf', 'Golfing')).toEqual(['Golfing', 'Church']);
+    expect(renameTagIn(['Golf', 'Church'], 'Golf', 'church')).toEqual(['church']);
+    expect(renameTagIn(['Church'], 'Golf', 'X')).toEqual(['Church']);
+  });
+  it('counts tags across people, most used first', () => {
+    const people = [
+      { tags: ['Golf', 'Church'] },
+      { tags: ['golf'] },
+      { tags: null },
+      { tags: ['Neighbors'] },
+    ];
+    expect(tagCounts(people)).toEqual([
+      { tag: 'Golf', count: 2 },
+      { tag: 'Church', count: 1 },
+      { tag: 'Neighbors', count: 1 },
+    ]);
+  });
+  it('renames onto a tag in use with its spelling, so the two merge', () => {
+    const people = [{ tags: ['Golf'] }, { tags: ['College'] }];
+    expect(renameTarget(people, 'Golf', ' college ')).toBe('College');
+    expect(renameTarget(people, 'Golf', 'GOLF')).toBe('GOLF');
+    expect(renameTarget(people, 'Golf', '  ')).toBe('');
+  });
+  it('checks whether a person has a tag', () => {
+    expect(hasTag({ tags: ['Golf'] }, 'GOLF')).toBe(true);
+    expect(hasTag({}, 'Golf')).toBe(false);
+  });
+  it('suggests tags that start with, then contain, the text', () => {
+    const known = ['Golf', 'Mini golf', 'Church', 'Goal setting'];
+    expect(suggestTags('go', known)).toEqual(['Golf', 'Goal setting', 'Mini golf']);
+    expect(suggestTags('go', known, ['golf'])).toEqual(['Goal setting', 'Mini golf']);
+    expect(suggestTags('', known, [], 2)).toEqual(['Golf', 'Mini golf']);
   });
 });

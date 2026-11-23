@@ -18,6 +18,7 @@ import {
   MapPin,
   Clock,
   CalendarDays,
+  Tag,
 } from 'lucide-react';
 import { getLocalDateString } from '../lib/dates';
 import { describeCustomFrequency } from '../lib/frequency';
@@ -47,6 +48,15 @@ import {
   comingUp,
   formatUntil,
   snippetAround,
+  MAX_TAG_LENGTH,
+  MAX_TAGS_PER_PERSON,
+  cleanTag,
+  tagsOf,
+  hasTag,
+  tagCounts,
+  addTag,
+  removeTag,
+  suggestTags,
 } from '../lib/people';
 
 const KINDS = [
@@ -80,6 +90,8 @@ const solidBtnCls =
 const pillOnCls = 'border-[color:var(--pa-700)] bg-[color:var(--pa-700)] text-white';
 const pillOffCls = 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50';
 const linkCls = 'text-[color:var(--pa-700)] hover:underline';
+const tagChipCls =
+  'inline-flex items-center gap-1 rounded-full border border-[color:var(--pa-200)] bg-[color:var(--pa-50)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--pa-800)]';
 const checkboxCls = 'h-4 w-4 rounded border-gray-300 accent-[color:var(--pa-700)]';
 
 // Initials in a tinted circle. The tint is one of three, picked by the name,
@@ -570,6 +582,122 @@ function UpdateRow({ update, person, family, today, flash, actions, onOpenPerson
   );
 }
 
+// A person's tags as chips with an x, and a box to add one. Focused, the box
+// offers tags already in use (most used first); Enter, a comma or leaving the
+// box adds what was typed. Saves at once.
+function TagsField({ person, knownTags, onSave }) {
+  const tags = tagsOf(person);
+  const [text, setText] = useState('');
+  const [focused, setFocused] = useState(false);
+  const [saved, flash] = useFlash();
+  const full = tags.length >= MAX_TAGS_PER_PERSON;
+
+  const saveTags = async (next) => {
+    if (next === tags) return;
+    if (await onSave({ tags: next })) flash();
+  };
+  const add = (value) => {
+    setText('');
+    saveTags(addTag(tags, value, knownTags));
+  };
+
+  const typed = cleanTag(text);
+  const isNew =
+    typed && ![...knownTags, ...tags].some((t) => t.toLowerCase() === typed.toLowerCase());
+  const suggestions = focused && !full ? suggestTags(text, knownTags, tags) : [];
+  // a tap on a suggestion must not take focus from the box first, or leaving
+  // the box would add the half-typed text as well
+  const keepFocus = (e) => e.preventDefault();
+
+  return (
+    <div>
+      <span className={labelCls}>
+        Tags
+        <SavedTick show={saved} />
+      </span>
+      {tags.length > 0 && (
+        <div className="mb-1.5 flex flex-wrap gap-1.5">
+          {tags.map((t) => (
+            <span key={t} className={tagChipCls}>
+              {t}
+              <button
+                type="button"
+                aria-label={`Remove tag ${t}`}
+                onClick={() => saveTags(removeTag(tags, t))}
+                className="-mr-1 rounded-full p-0.5 text-[color:var(--pa-700)] hover:bg-[color:var(--pa-100)]"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {full ? (
+        <p className="text-xs text-gray-500">
+          {MAX_TAGS_PER_PERSON} tags is the most one person can have.
+        </p>
+      ) : (
+        <input
+          type="text"
+          aria-label="Add a tag"
+          className={inputCls}
+          placeholder={tags.length ? 'Add another tag' : 'Add a tag, like College or Golf'}
+          maxLength={MAX_TAG_LENGTH}
+          value={text}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v.includes(',')) {
+              // a comma finishes the tag; anything after it starts the next
+              const [first, ...rest] = v.split(',');
+              if (cleanTag(first)) add(first);
+              setText(rest.join(','));
+            } else setText(v);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (typed) add(text);
+            } else if (e.key === 'Escape') {
+              setText('');
+              e.target.blur();
+            }
+          }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            if (typed) add(text);
+          }}
+        />
+      )}
+      {(suggestions.length > 0 || (focused && isNew)) && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {suggestions.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onMouseDown={keepFocus}
+              onClick={() => add(t)}
+              className={`inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${pillOffCls}`}
+            >
+              <Plus size={12} /> {t}
+            </button>
+          ))}
+          {isNew && focused && (
+            <button
+              type="button"
+              onMouseDown={keepFocus}
+              onClick={() => add(text)}
+              className={`inline-flex items-center gap-0.5 rounded-full border border-dashed px-2.5 py-0.5 text-xs font-medium ${pillOffCls}`}
+            >
+              <Plus size={12} /> New tag &ldquo;{typed}&rdquo;
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // "Has pets" checkbox; ticked, it opens a list of pets (name and kind) to
 // add to. Unticking hides the list but keeps what was entered.
 function PetsField({ person, onSave }) {
@@ -785,6 +913,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
   }, [data.reminders, data.completions, person.id]);
 
   const save = (patch) => actions.savePerson(person.id, patch);
+  const knownTags = useMemo(() => tagCounts(actions.people).map((x) => x.tag), [actions.people]);
 
   const submitUpdate = async (e) => {
     e.preventDefault();
@@ -894,6 +1023,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             </div>
           </div>
           <BirthdayField person={person} onSave={save} />
+          <TagsField person={person} knownTags={knownTags} onSave={save} />
         </div>
       </div>
 
@@ -1211,6 +1341,98 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
   );
 }
 
+// Shown while a tag filter is on: how many have it, and renaming or removing
+// it on everyone. Renaming onto a tag already in use merges the two. Tapping
+// the tag's chip again turns the filter off.
+function TagFilterBar({ tag, count, onRename, onDelete }) {
+  const [mode, setMode] = useState(null); // null | 'rename' | 'delete'
+  const [text, setText] = useState(tag);
+  const [busy, setBusy] = useState(false);
+  const run = async (fn) => {
+    setBusy(true);
+    const ok = await fn();
+    setBusy(false);
+    if (ok) setMode(null);
+  };
+  const who = `${count} ${count === 1 ? 'person' : 'people'}`;
+  const linkBtn = `text-xs font-medium ${linkCls}`;
+  if (mode === 'rename') {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (cleanTag(text) && cleanTag(text) !== tag) run(() => onRename(text));
+          else setMode(null);
+        }}
+        className="flex items-center gap-2 px-1"
+      >
+        <input
+          type="text"
+          aria-label={`New name for the tag ${tag}`}
+          className={`${inputCls} py-1.5`}
+          maxLength={MAX_TAG_LENGTH}
+          value={text}
+          autoFocus
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && setMode(null)}
+        />
+        <button
+          type="submit"
+          disabled={busy || !cleanTag(text)}
+          className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs ${solidBtnCls}`}
+        >
+          Rename
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode(null)}
+          className="flex-shrink-0 text-xs text-gray-500"
+        >
+          Cancel
+        </button>
+      </form>
+    );
+  }
+  if (mode === 'delete') {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-gray-700">
+        <span>
+          Remove &ldquo;{tag}&rdquo; from {who}? Their profiles stay.
+        </span>
+        <button
+          disabled={busy}
+          onClick={() => run(onDelete)}
+          className="font-semibold text-red-600 hover:underline"
+        >
+          Remove tag
+        </button>
+        <button onClick={() => setMode(null)} className="text-gray-500 hover:underline">
+          Cancel
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-gray-500">
+      <span>
+        {who} tagged <span className="font-medium text-gray-700">{tag}</span>
+      </span>
+      <button
+        onClick={() => {
+          setText(tag);
+          setMode('rename');
+        }}
+        className={linkBtn}
+      >
+        Rename
+      </button>
+      <button onClick={() => setMode('delete')} className={linkBtn}>
+        Remove tag
+      </button>
+    </div>
+  );
+}
+
 // The People screen: a searchable list, and one person's page. `peopleData`
 // is the usePeople hook; `onOpenDate(YYYY-MM-DD)` opens that day's to-do list.
 export default function PeopleView({
@@ -1233,6 +1455,7 @@ export default function PeopleView({
   } = peopleData;
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('all');
+  const [tagFilter, setTagFilter] = useState(null);
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
 
@@ -1258,6 +1481,16 @@ export default function PeopleView({
     return { tucked: hidden, minorsOf: under };
   }, [people, childLinks]);
 
+  // Tags in use on the list (kids shown under a parent don't count), most used
+  // first. A filter whose tag is gone (renamed or removed) shows everyone.
+  const tagList = useMemo(
+    () => tagCounts(people.filter((p) => !tucked.has(p.id))),
+    [people, tucked]
+  );
+  const activeTag = tagFilter
+    ? (tagList.find((t) => t.tag.toLowerCase() === tagFilter.toLowerCase()) ?? null)
+    : null;
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     const spouseName = Object.fromEntries(people.map((p) => [p.id, p.name]));
@@ -1268,6 +1501,7 @@ export default function PeopleView({
     return people
       .filter((p) => !tucked.has(p.id))
       .filter((p) => kind === 'all' || p.kind === kind || p.kind === 'both')
+      .filter((p) => !activeTag || hasTag(p, activeTag.tag))
       .filter(
         (p) =>
           !q ||
@@ -1281,6 +1515,7 @@ export default function PeopleView({
             p.has_pets && Array.isArray(p.pets) ? p.pets.map((x) => x.name).join(' ') : null,
             p.sports_teams,
             p.notes,
+            tagsOf(p).join(' '),
           ].some((f) => f && f.toLowerCase().includes(q)) ||
           // or something logged about them says it
           data.updates.some((u) => updateIsOn(u, p.id) && u.text.toLowerCase().includes(q))
@@ -1293,7 +1528,7 @@ export default function PeopleView({
           : null;
         return { p, last, overdue: isOverdue(p, last), hit };
       });
-  }, [people, childLinks, tucked, data, query, kind]);
+  }, [people, childLinks, tucked, data, query, kind, activeTag]);
   const overdue = rows.filter((r) => r.overdue);
   const rest = rows.filter((r) => !r.overdue);
   // Everyone due, whatever the search box and filter are showing
@@ -1310,7 +1545,11 @@ export default function PeopleView({
     e.preventDefault();
     if (!newName.trim() || adding) return;
     setAdding(true);
-    const made = await peopleData.addPerson(newName, kind === 'work' ? 'work' : 'personal');
+    const made = await peopleData.addPerson(
+      newName,
+      kind === 'work' ? 'work' : 'personal',
+      activeTag ? [activeTag.tag] : []
+    );
     setAdding(false);
     if (made) {
       setNewName('');
@@ -1420,7 +1659,7 @@ export default function PeopleView({
               type="text"
               aria-label="New person's name"
               className={inputCls}
-              placeholder="Add a person"
+              placeholder={activeTag ? `Add a person tagged ${activeTag.tag}` : 'Add a person'}
               maxLength={MAX_PERSON_NAME}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -1462,9 +1701,57 @@ export default function PeopleView({
                   </button>
                 ))}
               </div>
+              {tagList.length > 0 && (
+                <div
+                  className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5"
+                  role="group"
+                  aria-label="Filter by tag"
+                >
+                  <Tag
+                    size={14}
+                    className="mt-1.5 flex-shrink-0 text-gray-400"
+                    aria-hidden="true"
+                  />
+                  {tagList.map(({ tag: t, count }) => {
+                    const on = activeTag?.tag === t;
+                    return (
+                      <button
+                        key={t}
+                        aria-pressed={on}
+                        onClick={() => setTagFilter(on ? null : t)}
+                        className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium ${
+                          on ? pillOnCls : pillOffCls
+                        }`}
+                      >
+                        {t}
+                        <span className={on ? 'ml-1 opacity-75' : 'ml-1 text-gray-400'}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {activeTag && (
+                <TagFilterBar
+                  key={activeTag.tag}
+                  tag={activeTag.tag}
+                  count={activeTag.count}
+                  onRename={async (to) => {
+                    const ok = await peopleData.renameTag(activeTag.tag, to);
+                    if (ok) setTagFilter(cleanTag(to));
+                    return ok;
+                  }}
+                  onDelete={async () => {
+                    const ok = await peopleData.deleteTag(activeTag.tag);
+                    if (ok) setTagFilter(null);
+                    return ok;
+                  }}
+                />
+              )}
             </>
           )}
-          {!query.trim() && upcoming.length > 0 && (
+          {!query.trim() && !activeTag && upcoming.length > 0 && (
             <div className={cardCls}>
               <CardTitle icon={CalendarDays}>Coming up</CardTitle>
               <ul className="-my-1">

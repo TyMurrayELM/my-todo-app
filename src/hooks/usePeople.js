@@ -9,6 +9,11 @@ import {
   birthdayAnchor,
   birthdayTaskText,
   reminderDateFields,
+  tagsOf,
+  hasTag,
+  renameTarget,
+  removeTag,
+  renameTagIn,
 } from '../lib/people';
 
 // Remembers which account has the People screen, so its button shows at once
@@ -231,12 +236,10 @@ export function usePeople(session) {
     setReminders((prev) => [...prev, data]);
   };
 
-  const addPerson = async (name, kind = 'personal') => {
-    const { data, error: insError } = await supabase
-      .from('people')
-      .insert([{ user_id: userId, name: name.trim(), kind }])
-      .select()
-      .single();
+  const addPerson = async (name, kind = 'personal', tags = []) => {
+    const row = { user_id: userId, name: name.trim(), kind };
+    if (tags.length) row.tags = tags;
+    const { data, error: insError } = await supabase.from('people').insert([row]).select().single();
     if (insError) return fail("Couldn't add that person", insError);
     setPeople((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
     return data;
@@ -265,6 +268,36 @@ export function usePeople(session) {
     }
     return true;
   };
+
+  // Change the tags of everyone who has `tag` (rename or remove). Shows at
+  // once; any failed save reloads.
+  const retagEveryone = async (tag, change, message) => {
+    const patches = people
+      .filter((p) => hasTag(p, tag))
+      .map((p) => ({ id: p.id, tags: change(tagsOf(p)) }));
+    if (patches.length === 0) return true;
+    const byId = Object.fromEntries(patches.map((x) => [x.id, x.tags]));
+    setPeople((prev) => prev.map((p) => (byId[p.id] ? { ...p, tags: byId[p.id] } : p)));
+    const results = await Promise.all(
+      patches.map((x) =>
+        supabase.from('people').update({ tags: x.tags }).eq('id', x.id).eq('user_id', userId)
+      )
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) return fail(message, failed.error);
+    return true;
+  };
+
+  // Rename a tag on everyone who has it. Renaming onto another tag in use
+  // merges the two, keeping that tag's spelling.
+  const renameTag = (from, toText) => {
+    const to = renameTarget(people, from, toText);
+    if (!to) return false;
+    return retagEveryone(from, (tags) => renameTagIn(tags, from, to), "Couldn't rename that tag");
+  };
+
+  const deleteTag = (tag) =>
+    retagEveryone(tag, (tags) => removeTag(tags, tag), "Couldn't remove that tag");
 
   // Spouses live in the same place: put one profile's place on another
   const PLACE_FIELDS = ['lives_in', 'lives_lat', 'lives_lon', 'lives_label'];
@@ -576,6 +609,8 @@ export function usePeople(session) {
     editUpdate,
     unlinkUpdate,
     savePerson,
+    renameTag,
+    deleteTag,
     saveLivesIn,
     setMinor,
     deletePerson,
