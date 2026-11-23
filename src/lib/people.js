@@ -201,3 +201,66 @@ export const formatDay = (dateStr, today = new Date()) => {
   if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
   return d.toLocaleDateString('en-US', opts);
 };
+
+// Reminders (birthdays included) due from today through `days` ahead, plus
+// one-time reminders whose day has passed and are still not done. Soonest
+// first: [{ row, due }], `due` a YYYY-MM-DD.
+export const comingUp = (reminders, completions, today = new Date(), days = 30) => {
+  const start = midnight(today);
+  const out = [];
+  reminders.forEach((row) => {
+    if (!row.recurring) {
+      const due = nextDue(row);
+      if (due) out.push({ row, due });
+      return;
+    }
+    const done = new Set(
+      completions.filter((c) => c.todo_id === row.id).map((c) => c.completion_date)
+    );
+    const d = new Date(start);
+    for (let i = 0; i <= days; i++) {
+      const s = getLocalDateString(d);
+      if (shouldShowOnDate(row, d) && !done.has(s)) {
+        out.push({ row, due: s });
+        return;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+  });
+  const end = new Date(start);
+  end.setDate(end.getDate() + days);
+  const last = getLocalDateString(end);
+  return out
+    .filter((x) => x.due <= last)
+    .sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
+};
+
+// "today", "tomorrow", "in 9 days"; "overdue" for a day that has passed
+export const formatUntil = (dateStr, today = new Date()) => {
+  const days = Math.round((parseUTCDateAsLocal(dateStr) - midnight(today)) / 86400000);
+  if (days < 0) return 'overdue';
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
+};
+
+// The part of `text` around the first place `query` appears (any case), with
+// "…" where it was cut; null when it does not appear.
+export const snippetAround = (text, query, pad = 28) => {
+  const q = String(query || '')
+    .trim()
+    .toLowerCase();
+  const at = q
+    ? String(text || '')
+        .toLowerCase()
+        .indexOf(q)
+    : -1;
+  if (at < 0) return null;
+  const from = Math.max(0, at - pad);
+  const to = Math.min(text.length, at + q.length + pad);
+  return (
+    (from > 0 ? '…' : '') +
+    text.slice(from, to).replace(/\s+/g, ' ').trim() +
+    (to < text.length ? '…' : '')
+  );
+};

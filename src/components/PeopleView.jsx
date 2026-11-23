@@ -17,6 +17,7 @@ import {
   MessageSquare,
   MapPin,
   Clock,
+  CalendarDays,
 } from 'lucide-react';
 import { getLocalDateString } from '../lib/dates';
 import { describeCustomFrequency } from '../lib/frequency';
@@ -43,6 +44,9 @@ import {
   isOverdue,
   formatAgo,
   formatDay,
+  comingUp,
+  formatUntil,
+  snippetAround,
 } from '../lib/people';
 
 const KINDS = [
@@ -1277,11 +1281,17 @@ export default function PeopleView({
             p.has_pets && Array.isArray(p.pets) ? p.pets.map((x) => x.name).join(' ') : null,
             p.sports_teams,
             p.notes,
-          ].some((f) => f && f.toLowerCase().includes(q))
+          ].some((f) => f && f.toLowerCase().includes(q)) ||
+          // or something logged about them says it
+          data.updates.some((u) => updateIsOn(u, p.id) && u.text.toLowerCase().includes(q))
       )
       .map((p) => {
         const last = lastContact(p.id, data);
-        return { p, last, overdue: isOverdue(p, last) };
+        // the newest update that matches the search, shown under their name
+        const hit = q
+          ? data.updates.find((u) => updateIsOn(u, p.id) && u.text.toLowerCase().includes(q))
+          : null;
+        return { p, last, overdue: isOverdue(p, last), hit };
       });
   }, [people, childLinks, tucked, data, query, kind]);
   const overdue = rows.filter((r) => r.overdue);
@@ -1291,6 +1301,10 @@ export default function PeopleView({
     () => people.filter((p) => !tucked.has(p.id) && isOverdue(p, lastContact(p.id, data))).length,
     [people, tucked, data]
   );
+  // Birthdays and reminders in the next 30 days
+  const upcoming = useMemo(() => comingUp(reminders, completions), [reminders, completions]);
+  const [allUpcoming, setAllUpcoming] = useState(false);
+  const nameById = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.name])), [people]);
 
   const add = async (e) => {
     e.preventDefault();
@@ -1304,7 +1318,7 @@ export default function PeopleView({
     }
   };
 
-  const row = ({ p, last, overdue: due }) => (
+  const row = ({ p, last, overdue: due, hit }) => (
     <li key={p.id}>
       <button
         onClick={() => setOpenPersonId(p.id)}
@@ -1318,6 +1332,11 @@ export default function PeopleView({
               .filter(Boolean)
               .join(' · ') || (p.kind === 'work' ? 'Work' : 'Personal')}
           </div>
+          {hit && (
+            <div className="truncate text-xs text-[color:var(--pa-700)]">
+              {formatDay(hit.happened_on)}: {snippetAround(hit.text, query)}
+            </div>
+          )}
         </div>
         <div
           className={`flex-shrink-0 text-right text-xs ${due ? 'font-semibold text-red-600' : 'text-gray-400'}`}
@@ -1425,7 +1444,7 @@ export default function PeopleView({
                   type="search"
                   aria-label="Search people"
                   className={`${inputCls} pl-9`}
-                  placeholder="Search names, employers, teams, notes"
+                  placeholder="Search names, notes, updates"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -1444,6 +1463,48 @@ export default function PeopleView({
                 ))}
               </div>
             </>
+          )}
+          {!query.trim() && upcoming.length > 0 && (
+            <div className={cardCls}>
+              <CardTitle icon={CalendarDays}>Coming up</CardTitle>
+              <ul className="-my-1">
+                {(allUpcoming ? upcoming : upcoming.slice(0, 5)).map(({ row: r, due }) => {
+                  const late = formatUntil(due) === 'overdue';
+                  return (
+                    <li key={r.id}>
+                      <button
+                        onClick={() => setOpenPersonId(r.person_id)}
+                        className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-gray-50"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm text-gray-800">{r.text}</div>
+                          <div className="truncate text-xs text-gray-500">
+                            {r.person_tag === BIRTHDAY_TAG
+                              ? formatDay(due)
+                              : [nameById[r.person_id], formatDay(due)].filter(Boolean).join(' · ')}
+                          </div>
+                        </div>
+                        <span
+                          className={`flex-shrink-0 text-xs ${
+                            late ? 'font-semibold text-red-600' : 'text-gray-400'
+                          }`}
+                        >
+                          {formatUntil(due)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {upcoming.length > 5 && (
+                <button
+                  onClick={() => setAllUpcoming((v) => !v)}
+                  className={`mt-2 text-xs font-medium ${linkCls}`}
+                >
+                  {allUpcoming ? 'Show fewer' : `Show all ${upcoming.length}`}
+                </button>
+              )}
+            </div>
           )}
           {!loaded && !error && <p className="py-6 text-center text-sm text-gray-400">Loading…</p>}
           {loaded && people.length === 0 && (

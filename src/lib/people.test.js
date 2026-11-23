@@ -12,6 +12,9 @@ import {
   formatAgo,
   reminderDateFields,
   daysInBirthdayMonth,
+  comingUp,
+  formatUntil,
+  snippetAround,
 } from './people';
 import { getLocalDateString, shouldShowOnDate } from './dates';
 
@@ -152,5 +155,62 @@ describe('overdue and ago', () => {
     expect(formatAgo('2026-11-10', today)).toBe('12 days ago');
     expect(formatAgo('2026-08-01', today)).toBe('3 months ago');
     expect(formatAgo('2024-08-01', today)).toBe('2 years ago');
+  });
+});
+
+describe('comingUp', () => {
+  const today = day(2026, 11, 22);
+  const once = (id, date, completed = false) => ({
+    id,
+    recurring: false,
+    completed,
+    actual_date: date,
+  });
+  const yearly = (id, date) => ({
+    id,
+    recurring: true,
+    repeat_frequency: 'every:1:years',
+    actual_date: date,
+  });
+  it('lists what is due in the window, soonest first, with past undone ones', () => {
+    const list = comingUp(
+      [
+        once('later', '2026-12-10'),
+        once('far', '2027-03-01'),
+        once('done', '2026-11-25', true),
+        once('missed', '2026-11-10'),
+        yearly('bday', '2025-12-01'),
+        yearly('farBday', '2026-06-01'),
+      ],
+      [],
+      today
+    );
+    expect(list.map((x) => `${x.row.id}:${x.due}`)).toEqual([
+      'missed:2026-11-10',
+      'bday:2026-12-01',
+      'later:2026-12-10',
+    ]);
+  });
+  it('leaves out a repeat already checked off for that day', () => {
+    const done = [{ todo_id: 'bday', completion_date: '2026-12-01' }];
+    expect(comingUp([yearly('bday', '2025-12-01')], done, today)).toEqual([]);
+  });
+});
+
+describe('formatUntil and snippetAround', () => {
+  const today = day(2026, 11, 22);
+  it('says how far off a day is', () => {
+    expect(formatUntil('2026-11-20', today)).toBe('overdue');
+    expect(formatUntil('2026-11-22', today)).toBe('today');
+    expect(formatUntil('2026-11-23', today)).toBe('tomorrow');
+    expect(formatUntil('2026-12-01', today)).toBe('in 9 days');
+  });
+  it('cuts text around the match', () => {
+    expect(snippetAround('Went to the Symphony downtown', 'symphony', 4)).toBe(
+      '…the Symphony dow…'
+    );
+    expect(snippetAround('Short note', 'note')).toBe('Short note');
+    expect(snippetAround('Short note', 'zebra')).toBe(null);
+    expect(snippetAround('Short note', '  ')).toBe(null);
   });
 });
