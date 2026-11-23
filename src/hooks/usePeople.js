@@ -472,9 +472,11 @@ export function usePeople(session) {
     return data;
   };
 
-  // Change an update's text and/or date. Shows at once; a failed save reloads.
-  const editUpdate = async (id, text, happenedOn) => {
+  // Change an update's text and/or date, and (when `alsoIds` is given) which
+  // family profiles it also shows on. Shows at once; a failed save reloads.
+  const editUpdate = async (id, text, happenedOn, alsoIds) => {
     const patch = { text: text.trim(), happened_on: happenedOn };
+    if (alsoIds) patch.also_person_ids = alsoIds;
     setUpdates((prev) =>
       prev
         .map((u) => (u.id === id ? { ...u, ...patch } : u))

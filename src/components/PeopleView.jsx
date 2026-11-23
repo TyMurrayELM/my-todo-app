@@ -408,8 +408,36 @@ function KidsField({ person, people, childLinks, actions, onOpenPerson }) {
   );
 }
 
-// One dated update: shown, or being edited in place
-function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
+// "Also add to:" family pills, for putting one update on several profiles
+function AlsoPills({ family, ids, onChange }) {
+  if (family.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-gray-500">Also add to:</span>
+      {family.map((f) => {
+        const on = ids.includes(f.id);
+        return (
+          <button
+            key={f.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? ids.filter((x) => x !== f.id) : [...ids, f.id])}
+            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${
+              on ? pillOnCls : pillOffCls
+            }`}
+          >
+            {on && <Check size={12} />}
+            {f.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// One dated update: shown, or being edited in place. `family` is who else it
+// can be put on (this profile's spouse, kids and parents).
+function UpdateRow({ update, person, family, today, flash, actions, onOpenPerson }) {
   const nameOf = (id) => actions.people.find((x) => x.id === id);
   // Written on another family member's profile and linked to this one
   const from = update.person_id !== person.id ? nameOf(update.person_id) : null;
@@ -417,6 +445,11 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(update.text);
   const [date, setDate] = useState(update.happened_on);
+  // Family this update can be switched on or off for: not the profile it was
+  // written on, which always has it
+  const choices = family.filter((f) => f.id !== update.person_id);
+  const linkedIds = update.also_person_ids || [];
+  const [alsoIds, setAlsoIds] = useState(linkedIds);
   const [saved, showSaved] = useFlash();
   if (editing) {
     return (
@@ -429,6 +462,7 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
         />
+        <AlsoPills family={choices} ids={alsoIds} onChange={setAlsoIds} />
         <div className="flex gap-2">
           <input
             type="date"
@@ -443,8 +477,17 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
             disabled={!text.trim() || !date}
             onClick={async () => {
               setEditing(false);
-              if (text.trim() === update.text && date === update.happened_on) return;
-              if (await actions.editUpdate(update.id, text, date)) showSaved();
+              // links to profiles not offered here (and this one) are kept
+              const nextAlso = [
+                ...linkedIds.filter((id) => !choices.some((f) => f.id === id)),
+                ...alsoIds.filter((id) => choices.some((f) => f.id === id)),
+              ];
+              const sameAlso =
+                nextAlso.length === linkedIds.length &&
+                nextAlso.every((id) => linkedIds.includes(id));
+              if (text.trim() === update.text && date === update.happened_on && sameAlso) return;
+              if (await actions.editUpdate(update.id, text, date, sameAlso ? undefined : nextAlso))
+                showSaved();
             }}
             className={`rounded-lg px-3 py-2 text-sm ${solidBtnCls}`}
           >
@@ -501,6 +544,7 @@ function UpdateRow({ update, person, today, flash, actions, onOpenPerson }) {
         onClick={() => {
           setText(update.text);
           setDate(update.happened_on);
+          setAlsoIds(linkedIds);
           setEditing(true);
         }}
         className="p-1.5 text-gray-400 hover:text-gray-700"
@@ -1088,30 +1132,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
             value={updateText}
             onChange={(e) => setUpdateText(e.target.value)}
           />
-          {family.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-gray-500">Also add to:</span>
-              {family.map((f) => {
-                const on = alsoIds.includes(f.id);
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() =>
-                      setAlsoIds((cur) => (on ? cur.filter((x) => x !== f.id) : [...cur, f.id]))
-                    }
-                    className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${
-                      on ? pillOnCls : pillOffCls
-                    }`}
-                  >
-                    {on && <Check size={12} />}
-                    {f.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <AlsoPills family={family} ids={alsoIds} onChange={setAlsoIds} />
           <div className="flex gap-2">
             <input
               type="date"
@@ -1139,6 +1160,7 @@ function PersonDetail({ person, data, actions, onBack, onOpenDate, onOpenPerson 
                 key={u.id}
                 update={u}
                 person={person}
+                family={family}
                 onOpenPerson={onOpenPerson}
                 today={today}
                 flash={u.id === newUpdateId}
